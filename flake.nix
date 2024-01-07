@@ -18,13 +18,16 @@
             starship
             gh
             nodejs_20
+            bun
             yarn
             rnix-lsp
             shortcat
-            bruno
+            # bruno # Awaiting new unstable
             yabai # Window Manager
             karabiner-elements # Key remapping
             rust-analyzer
+            yt-dlp
+            ffmpeg
           ];
 
         services.nix-daemon.enable = true;
@@ -95,6 +98,7 @@
                     sl = "ls";
                     ls = "ls -al --color";
                     emacs = "${pkgs.emacs-macport}/Applications/Emacs.app/Contents/MacOS/Emacs";
+                    extract-mp3 = "yt-dlp --extract-audio --audio-format mp3 --audio-quality 0";
                   };
                   envExtra = ''
                     export ZSH_TMUX_AUTOSTART=true
@@ -144,8 +148,6 @@
                       plugin = pkgs.tmuxPlugins.onedark-theme;
                       extraConfig = "set -g @plugin 'odedlaz/tmux-onedark-theme'";
                     }
-
-
                     {
                       plugin = pkgs.tmuxPlugins.yank;
                       extraConfig = "set -g @plugin 'tmux-plugins/tmux-yank'";
