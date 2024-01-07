@@ -1,0 +1,3 @@
+* 💻 🚀
+
+My Nix hacking station configuration.
