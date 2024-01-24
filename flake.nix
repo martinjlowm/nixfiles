@@ -23,11 +23,9 @@
             rnix-lsp
             shortcat
             # bruno # Awaiting new unstable
-            yabai # Window Manager
+            # yabai # Window Manager
             karabiner-elements # Key remapping
             rust-analyzer
-            yt-dlp
-            ffmpeg
           ];
 
         services.nix-daemon.enable = true;
@@ -52,11 +50,10 @@
         config = {
           allowUnfree = true;
           allowUnfreePredicate = (_: true);
+          allowUnsupportedSystem = true;
         };
       };
-    in
-    {
-      darwinConfigurations."wololobook" = nix-darwin.lib.darwinSystem {
+      userConfiguration = nix-darwin.lib.darwinSystem {
         inherit pkgs;
         modules = [
           configuration
@@ -95,13 +92,26 @@
                   enable = true;
                   enableCompletion = true;
                   shellAliases = {
+                    ls = "ls -Gal";
                     sl = "ls";
-                    ls = "ls -al --color";
                     emacs = "${pkgs.emacs-macport}/Applications/Emacs.app/Contents/MacOS/Emacs";
-                    extract-mp3 = "yt-dlp --extract-audio --audio-format mp3 --audio-quality 0";
+                    extract-mp3 = "${pkgs.yt-dlp}/bin/yt-dlp --extract-audio --audio-format mp3 --audio-quality 0";
+                    keyfinder = "${pkgs.keyfinder-cli}/bin/keyfinder-cli";
                   };
                   envExtra = ''
                     export ZSH_TMUX_AUTOSTART=true
+
+                    bpm_key() {
+                      FILE=$1
+                      BPM_LIMIT=''${2:-180}
+                      if [ ! -f "$FILE" ]; then
+                        echo "File not found"
+                        return;
+                      fi
+                      BPM=$(${pkgs.ffmpeg}/bin/ffmpeg -vn -i "$1" -ar 44100 -ac 1 -f f32le pipe:1 2>/dev/null | ${pkgs.bpm-tools}/bin/bpm -x $BPM_LIMIT -f "%03.0f")
+                      KEY=$(${pkgs.keyfinder-cli}/bin/keyfinder-cli $FILE)
+                      echo "''${BPM}_''${KEY}"
+                    }
                   '';
                   oh-my-zsh = {
                     enable = true;
@@ -210,7 +220,11 @@
           }
         ];
       };
+    in
+    {
+      darwinConfigurations."macbook-pro-home" = userConfiguration;
+      darwinConfigurations."wololobook" = userConfiguration;
 
-      darwinPackages = self.darwinConfigurations."wololobook".pkgs;
+      darwinPackages = userConfiguration.pkgs;
     };
 }
