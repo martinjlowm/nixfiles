@@ -26,6 +26,9 @@
             # yabai # Window Manager
             karabiner-elements # Key remapping
             rust-analyzer
+            yt-dlp
+            ffmpeg
+            audacity
           ];
 
         services.nix-daemon.enable = true;
@@ -111,6 +114,14 @@
                       BPM=$(${pkgs.ffmpeg}/bin/ffmpeg -vn -i "$1" -ar 44100 -ac 1 -f f32le pipe:1 2>/dev/null | ${pkgs.bpm-tools}/bin/bpm -x $BPM_LIMIT -f "%03.0f")
                       KEY=$(${pkgs.keyfinder-cli}/bin/keyfinder-cli $FILE)
                       echo "''${BPM}_''${KEY}"
+                    }
+
+                    c () {
+                      (assume -c -r eu-west-1 "$1")
+                    }
+
+                    a () {
+                      assume -r eu-west-1 "$1"
                     }
                   '';
                   oh-my-zsh = {
