@@ -29,6 +29,10 @@
             yt-dlp
             ffmpeg
             audacity
+            ast-grep
+            cargo
+            nodePackages.prettier
+            teams
           ];
 
         services.nix-daemon.enable = true;
@@ -47,6 +51,22 @@
 
         fonts.fontDir.enable = true;
         fonts.fonts = [ pkgs.nerdfonts ];
+
+        nix.linux-builder = {
+          enable = true;
+          ephemeral = true;
+          maxJobs = 8;
+          config = {
+            virtualisation = {
+              darwin-builder = {
+                diskSize = 40 * 1024;
+                memorySize = 8 * 1024;
+              };
+              cores = 6;
+            };
+          };
+        };
+        nix.settings.trusted-users = ["@admin"];
       };
       pkgs = import nixpkgs {
         system = "x86_64-darwin";
@@ -100,9 +120,13 @@
                     emacs = "${pkgs.emacs-macport}/Applications/Emacs.app/Contents/MacOS/Emacs";
                     extract-mp3 = "${pkgs.yt-dlp}/bin/yt-dlp --extract-audio --audio-format mp3 --audio-quality 0";
                     keyfinder = "${pkgs.keyfinder-cli}/bin/keyfinder-cli";
+                    localhost = "sed -E 's#(https://)([^/]+)#\1localhost:3000#'";
+                    wget = "curl -O --retry 999 --retry-max-time 0 -C -";
                   };
                   envExtra = ''
                     export ZSH_TMUX_AUTOSTART=true
+                    export PATH=$PATH:$HOME/projects/tools/cli/bin
+                    export PATH=$PATH:$HOME/projects/bbctl/target/release
 
                     bpm_key() {
                       FILE=$1
@@ -122,6 +146,21 @@
 
                     a () {
                       assume -r eu-west-1 "$1"
+                    }
+
+                    killPort () {
+                      kill $(lsof -i:$1 | awk '{ print $2 }' | tail -n +2 | xargs)
+                    }
+
+                    developmentStats () {
+                       # List of commits
+                       git log -n 100 --oneline --pretty=format:"%<(30)%an%<(20)%ad%x09%s"
+
+                       # Developer activity
+                       git log -n 100 --oneline --pretty=format:"%<(30)%an%<(20)%ad%x09%s" | sort | awk '{ print $1 }' | uniq -c
+
+                       # Task distribution
+                       git log -n 100 --oneline --pretty=format:"%an,%ad,%s" | awk -F',' '{ print $3 }' | sort | awk -F'(' '{ print $1 }' | uniq -c
                     }
                   '';
                   oh-my-zsh = {
