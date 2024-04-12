@@ -18,24 +18,33 @@
             starship
             gh
             nodejs_20
+            zed-editor
             bun
             yarn
-            rnix-lsp
-            shortcat
-            # bruno # Awaiting new unstable
-            # yabai # Window Manager
+            bruno
             karabiner-elements # Key remapping
             rust-analyzer
             yt-dlp
+            nix-tree
             ffmpeg
             audacity
             ast-grep
             cargo
-            nodePackages.prettier
+            biome
             teams
+            qemu
+            darwin.apple_sdk.sdk
           ];
 
         services.nix-daemon.enable = true;
+        services.yabai.enable = true;
+
+        launchd.user.agents.shortcat = {
+          serviceConfig.ProgramArguments = [ "${pkgs.shortcat}/Applications/Shortcat.app/Contents/MacOS/Shortcat" ];
+
+          serviceConfig.KeepAlive = true;
+          serviceConfig.RunAtLoad = true;
+        };
 
         nix.settings.experimental-features = "nix-command flakes";
 
@@ -55,14 +64,14 @@
         nix.linux-builder = {
           enable = true;
           ephemeral = true;
-          maxJobs = 8;
+          maxJobs = 4;
           config = {
             virtualisation = {
               darwin-builder = {
                 diskSize = 40 * 1024;
                 memorySize = 8 * 1024;
               };
-              cores = 6;
+              cores = 8;
             };
           };
         };
@@ -75,6 +84,29 @@
           allowUnfreePredicate = (_: true);
           allowUnsupportedSystem = true;
         };
+        overlays = [(final: prev: {
+          yabai = prev.yabai.overrideAttrs (old: rec {
+            version = "7.0.2";
+            src = final.fetchFromGitHub {
+              owner = "koekeishiya";
+              repo = "yabai";
+              rev = "v${version}";
+              hash = "sha256-/MOAKsY7MlRWdvUQwHeITTeGJbCUdX7blZZAl2zXuic=";
+            };
+          });
+          bruno = prev.bruno.overrideAttrs (old: rec {
+            version = "1.11.0";
+            buildInputs = old.buildInputs ++ [
+              prev.giflib
+            ];
+            src = final.fetchFromGitHub {
+              owner = "usebruno";
+              repo = "bruno";
+              rev = "v${version}";
+              hash = "sha256-Urskhzs00OEucoR17NDXNtnrcXk9h75E806Re0HvYyw=";
+            };
+          });
+        })];
       };
       userConfiguration = nix-darwin.lib.darwinSystem {
         inherit pkgs;
@@ -111,6 +143,12 @@
                   package = emacs-with-packages;
                 };
 
+                programs.direnv = {
+                  enable = true;
+                  enableZshIntegration = true;
+                  nix-direnv.enable = true;
+                };
+
                 programs.zsh = {
                   enable = true;
                   enableCompletion = true;
@@ -120,7 +158,7 @@
                     emacs = "${pkgs.emacs-macport}/Applications/Emacs.app/Contents/MacOS/Emacs";
                     extract-mp3 = "${pkgs.yt-dlp}/bin/yt-dlp --extract-audio --audio-format mp3 --audio-quality 0";
                     keyfinder = "${pkgs.keyfinder-cli}/bin/keyfinder-cli";
-                    localhost = "sed -E 's#(https://)([^/]+)#\1localhost:3000#'";
+                    localhost = ''sed -E "s#(https://)([^/]+)#\\1localhost:3000#"'';
                     wget = "curl -O --retry 999 --retry-max-time 0 -C -";
                   };
                   envExtra = ''
@@ -202,6 +240,11 @@
                   keyMode = "emacs";
                   mouse = true;
                   newSession = true;
+                  extraConfig = ''
+                    bind -n -T copy-mode M-w send-keys -X copy-pipe-and-cancel "pbcopy"
+                    bind -n M-v copy-mode -u
+                    bind-key r source-file ~/.config/tmux/tmux.conf \; display-message "~/.tmux.conf reloaded"
+                  '';
                   shortcut = "z";
                   plugins = [
                     {
@@ -243,6 +286,10 @@
                     package = pkgs.nerdfonts;
                     name = "Hack Nerd Font Mono Regular";
                     size = 14;
+                  };
+                  settings = {
+                    macos_option_as_alt = true;
+                    cursor_shape = "block";
                   };
                 };
                 programs.mpv = {
