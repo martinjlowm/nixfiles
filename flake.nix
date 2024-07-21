@@ -68,8 +68,7 @@
 
         nixpkgs.hostPlatform = "x86_64-darwin";
 
-        fonts.fontDir.enable = true;
-        fonts.fonts = [ pkgs.nerdfonts ];
+        fonts.packages = [ pkgs.nerdfonts ];
 
         nix.linux-builder = {
           enable = true;
@@ -95,27 +94,29 @@
           allowUnsupportedSystem = true;
         };
         overlays = [(final: prev: {
-          yabai = prev.yabai.overrideAttrs (old: rec {
-            version = "7.0.2";
-            src = final.fetchFromGitHub {
-              owner = "koekeishiya";
-              repo = "yabai";
-              rev = "v${version}";
-              hash = "sha256-/MOAKsY7MlRWdvUQwHeITTeGJbCUdX7blZZAl2zXuic=";
-            };
-          });
-          bruno = prev.bruno.overrideAttrs (old: rec {
-            version = "1.11.0";
-            buildInputs = old.buildInputs ++ [
-              prev.giflib
             ];
-            src = final.fetchFromGitHub {
-              owner = "usebruno";
-              repo = "bruno";
-              rev = "v${version}";
-              hash = "sha256-Urskhzs00OEucoR17NDXNtnrcXk9h75E806Re0HvYyw=";
-            };
           });
+          # yabai = prev.yabai.overrideAttrs (old: rec {
+          #   version = "7.0.2";
+          #   src = final.fetchFromGitHub {
+          #     owner = "koekeishiya";
+          #     repo = "yabai";
+          #     rev = "v${version}";
+          #     hash = "sha256-/MOAKsY7MlRWdvUQwHeITTeGJbCUdX7blZZAl2zXuic=";
+          #   };
+          # });
+          # bruno = prev.bruno.overrideAttrs (old: rec {
+          #   version = "1.11.0";
+          #   buildInputs = old.buildInputs ++ [
+          #     prev.giflib
+          #   ];
+          #   src = final.fetchFromGitHub {
+          #     owner = "usebruno";
+          #     repo = "bruno";
+          #     rev = "v${version}";
+          #     hash = "sha256-Urskhzs00OEucoR17NDXNtnrcXk9h75E806Re0HvYyw=";
+          #   };
+          # });
         })];
       };
       userConfiguration = nix-darwin.lib.darwinSystem {
