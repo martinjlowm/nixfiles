@@ -94,8 +94,6 @@
           allowUnsupportedSystem = true;
         };
         overlays = [(final: prev: {
-            ];
-          });
           # yabai = prev.yabai.overrideAttrs (old: rec {
           #   version = "7.0.2";
           #   src = final.fetchFromGitHub {
