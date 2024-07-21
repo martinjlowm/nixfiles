@@ -18,22 +18,32 @@
             starship
             gh
             nodejs_20
-            zed-editor
+            # (zed-editor.override {
+            #   stdenv = pkgs.overrideSDK stdenv {
+            #     darwinMinVersion = "10.15";
+            #     darwinSdkVersion = "12.3";
+            #   };
+            # })
             bun
             yarn
-            bruno
+            # bruno
             karabiner-elements # Key remapping
             rust-analyzer
             yt-dlp
             nix-tree
-            ffmpeg
+            (ffmpeg.override {
+              withWebp = true;
+            })
             audacity
+            gimp
             ast-grep
             cargo
             biome
             teams
             qemu
+            git-lfs
             darwin.apple_sdk.sdk
+            # rustdesk-flutter
           ];
 
         services.nix-daemon.enable = true;
@@ -200,6 +210,41 @@
                        # Task distribution
                        git log -n 100 --oneline --pretty=format:"%an,%ad,%s" | awk -F',' '{ print $3 }' | sort | awk -F'(' '{ print $1 }' | uniq -c
                     }
+
+                    get_accounts_recursive() {
+                      accounts=$(aws organizations list-accounts-for-parent --parent-id "$1" | jq -r '.Accounts[] | .Id')
+
+                      for ou in $(aws organizations list-organizational-units-for-parent --parent-id "$1" --output text --query 'OrganizationalUnits[][Id]'); do
+                        accounts="$accounts $(get_accounts_recursive "$ou")"
+                      done
+
+                      echo "$accounts" | xargs
+                    }
+
+                    BLACKBIRD_APPLICATIONS_OU=ou-h5j2-v74x4pj1
+                    DEVELOPER_ACCOUNTS_OU=ou-h5j2-y3cktc2g
+
+                    clouds () {
+                      CURRENT_ACCOUNT=$(aws sts get-caller-identity | jq -r .Account)
+                      if [ "$CURRENT_ACCOUNT" != "274906834921" ]; then
+                        return;
+                      fi
+
+                      echo $(get_accounts_recursive $BLACKBIRD_APPLICATIONS_OU) $(get_accounts_recursive $DEVELOPER_ACCOUNTS_OU)
+                    }
+
+                    assume_role () {
+                      CREDENTIALS=`aws sts assume-role --role-arn arn:aws:iam::''${1}:role/AWSControlTowerExecution --role-session-name "$USER" --duration-seconds 3600 --output=json`
+
+                      export AWS_ACCESS_KEY_ID=`echo ''${CREDENTIALS} | jq -r '.Credentials.AccessKeyId'`
+                      export AWS_SECRET_ACCESS_KEY=`echo ''${CREDENTIALS} | jq -r '.Credentials.SecretAccessKey'`
+                      export AWS_SESSION_TOKEN=`echo ''${CREDENTIALS} | jq -r '.Credentials.SessionToken'`
+                      export AWS_EXPIRATION=`echo ''${CREDENTIALS} | jq -r '.Credentials.Expiration'`
+
+                      echo "» Changed context to $cloud ($AWS_ACCESS_KEY_ID)."
+                    }
+
+
                   '';
                   oh-my-zsh = {
                     enable = true;
