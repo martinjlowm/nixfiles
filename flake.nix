@@ -432,7 +432,7 @@
       };
     in
       {
-        darwinConfigurations."macbook-pro-home" = userConfiguration;
+        darwinConfigurations."Martins-MacBook-Pro" = userConfiguration;
         darwinConfigurations."wololobook" = userConfiguration;
 
         darwinPackages = userConfiguration.pkgs;
