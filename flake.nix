@@ -238,6 +238,7 @@
                     export ZSH_TMUX_AUTOSTART=true
                     export PATH=$PATH:$HOME/projects/tools/cli/bin
                     export PATH=$PATH:$HOME/projects/bbctl/target/release
+                    export DIRENV_WARN_TIMEOUT=0
 
                     bpm_key() {
                       FILE=$1
@@ -322,7 +323,6 @@
                         "tmux"
                         "isodate"
                         "macos"
-                        "ripgrep"
                         "starship"
                         "thefuck"
                         "transfer"
