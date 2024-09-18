@@ -1,6 +1,7 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    # oldNixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
@@ -11,6 +12,38 @@
 
   outputs = inputs@{ self, nix-darwin, home-manager, nixpkgs }:
     let
+      # oldPkgs = import oldNixpkgs {
+      #   system = "x86_64-darwin";
+      #   config = {
+      #     allowUnfree = true;
+      #     allowBroken = true;
+      #     allowUnfreePredicate = (_: true);
+      #     allowUnsupportedSystem = true;
+      #   };
+      #   overlays = [(final: prev: {
+      #     # yabai = prev.yabai.overrideAttrs (old: rec {
+      #     #   version = "7.0.2";
+      #     #   src = final.fetchFromGitHub {
+      #     #     owner = "koekeishiya";
+      #     #     repo = "yabai";
+      #     #     rev = "v${version}";
+      #     #     hash = "sha256-/MOAKsY7MlRWdvUQwHeITTeGJbCUdX7blZZAl2zXuic=";
+      #     #   };
+      #     # });
+      #     # bruno = prev.bruno.overrideAttrs (old: rec {
+      #     #   version = "1.11.0";
+      #     #   buildInputs = old.buildInputs ++ [
+      #     #     prev.giflib
+      #     #   ];
+      #     #   src = final.fetchFromGitHub {
+      #     #     owner = "usebruno";
+      #     #     repo = "bruno";
+      #     #     rev = "v${version}";
+      #     #     hash = "sha256-Urskhzs00OEucoR17NDXNtnrcXk9h75E806Re0HvYyw=";
+      #     #   };
+      #     # });
+      #   })];
+      # };
       configuration = { pkgs, ... }: {
         environment.systemPackages =
           with pkgs; [
@@ -47,14 +80,14 @@
           ];
 
         services.nix-daemon.enable = true;
-        services.yabai.enable = true;
+        # services.yabai.enable = true;
 
-        launchd.user.agents.shortcat = {
-          serviceConfig.ProgramArguments = [ "${pkgs.shortcat}/Applications/Shortcat.app/Contents/MacOS/Shortcat" ];
+        # launchd.user.agents.shortcat = {
+        #   serviceConfig.ProgramArguments = [ "${pkgs.shortcat}/Applications/Shortcat.app/Contents/MacOS/Shortcat" ];
 
-          serviceConfig.KeepAlive = true;
-          serviceConfig.RunAtLoad = true;
-        };
+        #   serviceConfig.KeepAlive = true;
+        #   serviceConfig.RunAtLoad = true;
+        # };
 
         nix.settings.experimental-features = "nix-command flakes";
 
@@ -70,6 +103,8 @@
 
         fonts.packages = [ pkgs.nerdfonts ];
 
+        nix.gc.automatic = true;
+
         nix.linux-builder = {
           enable = true;
           ephemeral = true;
@@ -84,16 +119,35 @@
             };
           };
         };
+
         nix.settings.trusted-users = ["@admin"];
       };
       pkgs = import nixpkgs {
         system = "x86_64-darwin";
         config = {
           allowUnfree = true;
+          allowBroken = true;
           allowUnfreePredicate = (_: true);
           allowUnsupportedSystem = true;
         };
         overlays = [(final: prev: {
+          # rustdesk-flutter = prev.rustdesk-flutter.overrideAttrs (old: rec {
+          #   buildInputs = [
+          #     prev.fuse3
+          #     prev.gst_all_1.gst-plugins-base
+          #     prev.gst_all_1.gstreamer
+          #     prev.libXtst
+          #     prev.libaom
+          #     prev.libopus
+          #     prev.libpulseaudio
+          #     prev.libva
+          #     prev.libvdpau
+          #     prev.libvpx
+          #     prev.libxkbcommon
+          #     prev.libyuv
+          #     prev.pam
+          #   ];
+          # });
           # yabai = prev.yabai.overrideAttrs (old: rec {
           #   version = "7.0.2";
           #   src = final.fetchFromGitHub {
@@ -115,6 +169,16 @@
           #     hash = "sha256-Urskhzs00OEucoR17NDXNtnrcXk9h75E806Re0HvYyw=";
           #   };
           # });
+          emacs-macport = prev.emacs-macport.overrideAttrs (o: {
+            configureFlags = o.configureFlags ++ [
+              "CFLAGS=-DMAC_OS_X_VERSION_MAX_ALLOWED=101201"
+              "CFLAGS=-DMAC_OS_X_VERSION_MIN_REQUIRED=101201"
+            ];
+          });
+          vorbis-tools = prev.vorbis-tools.overrideAttrs (old: rec {
+            # Presumably because of https://bugs.llvm.org/show_bug.cgi?id=28361 for LLVM 16 on MacOS
+            AM_CFLAGS = "-fuse-ld=${prev.lld_18}/bin/ld64.lld";
+          });
         })];
       };
       userConfiguration = nix-darwin.lib.darwinSystem {
@@ -139,38 +203,38 @@
                   treesit-grammars.with-all-grammars
                 ]);
               in
-              {
-                home.homeDirectory = nixpkgs.lib.mkForce "/Users/martinjlowm";
-                home.stateVersion = "22.05";
+                {
+                  home.homeDirectory = nixpkgs.lib.mkForce "/Users/martinjlowm";
+                  home.stateVersion = "22.05";
 
-                programs.starship = {
-                  enable = true;
-                };
-
-                programs.emacs = {
-                  enable = true;
-                  package = emacs-with-packages;
-                };
-
-                programs.direnv = {
-                  enable = true;
-                  enableZshIntegration = true;
-                  nix-direnv.enable = true;
-                };
-
-                programs.zsh = {
-                  enable = true;
-                  enableCompletion = true;
-                  shellAliases = {
-                    ls = "ls -Gal";
-                    sl = "ls";
-                    emacs = "${pkgs.emacs-macport}/Applications/Emacs.app/Contents/MacOS/Emacs";
-                    extract-mp3 = "${pkgs.yt-dlp}/bin/yt-dlp --extract-audio --audio-format mp3 --audio-quality 0";
-                    keyfinder = "${pkgs.keyfinder-cli}/bin/keyfinder-cli";
-                    localhost = ''sed -E "s#(https://)([^/]+)#\\1localhost:3000#"'';
-                    wget = "curl -O --retry 999 --retry-max-time 0 -C -";
+                  programs.starship = {
+                    enable = true;
                   };
-                  envExtra = ''
+
+                  programs.emacs = {
+                    enable = true;
+                    package = emacs-with-packages;
+                  };
+
+                  programs.direnv = {
+                    enable = true;
+                    enableZshIntegration = true;
+                    nix-direnv.enable = true;
+                  };
+
+                  programs.zsh = {
+                    enable = true;
+                    enableCompletion = true;
+                    shellAliases = {
+                      ls = "ls -Gal";
+                      sl = "ls";
+                      emacs = "${pkgs.emacs-macport}/Applications/Emacs.app/Contents/MacOS/Emacs";
+                      extract-mp3 = "${pkgs.yt-dlp}/bin/yt-dlp --extract-audio --audio-format mp3 --audio-quality 0";
+                      keyfinder = "${pkgs.keyfinder-cli}/bin/keyfinder-cli";
+                      localhost = ''sed -E "s#(https://)([^/]+)#\\1localhost:3000#"'';
+                      wget = "curl -O --retry 999 --retry-max-time 0 -C -";
+                    };
+                    envExtra = ''
                     export ZSH_TMUX_AUTOSTART=true
                     export PATH=$PATH:$HOME/projects/tools/cli/bin
                     export PATH=$PATH:$HOME/projects/bbctl/target/release
@@ -208,7 +272,7 @@
 
                        # Task distribution
                        git log -n 100 --oneline --pretty=format:"%an,%ad,%s" | awk -F',' '{ print $3 }' | sort | awk -F'(' '{ print $1 }' | uniq -c
-                    }
+                                                                            }
 
                     get_accounts_recursive() {
                       accounts=$(aws organizations list-accounts-for-parent --parent-id "$1" | jq -r '.Accounts[] | .Id')
@@ -245,127 +309,132 @@
 
 
                   '';
-                  oh-my-zsh = {
-                    enable = true;
-                    plugins = [
-                      "aws"
-                      "common-aliases"
-                      "direnv"
-                      "tmux"
-                      "isodate"
-                      "macos"
-                      "ripgrep"
-                      "starship"
-                      "thefuck"
-                      "transfer"
-                    ];
+                    #                     replace () {
+                    #   ${pkgs.ripgrep}/bin/rg $1 --files-with-matches | ${pkgs.xargs} ${pkgs.sed} -i "s/$1/$2/g"
+                    # }
+                    # rg --files | grep 'package.json$' | xargs rg --files-with-matches cdk-aws | xargs rg --files-without-match zod
+                    oh-my-zsh = {
+                      enable = true;
+                      plugins = [
+                        "aws"
+                        "common-aliases"
+                        "direnv"
+                        "tmux"
+                        "isodate"
+                        "macos"
+                        "ripgrep"
+                        "starship"
+                        "thefuck"
+                        "transfer"
+                      ];
+                    };
                   };
-                };
 
-                programs.ripgrep = {
-                  enable = true;
-                };
+                  programs.ripgrep = {
+                    enable = true;
+                  };
 
-                programs.awscli = {
-                  enable = true;
-                };
+                  programs.awscli = {
+                    enable = true;
+                  };
 
-                programs.git = {
-                  enable = true;
-                };
+                  programs.git = {
+                    enable = true;
+                  };
 
-                programs.granted = {
-                  enable = true;
-                  enableZshIntegration = true;
-                };
+                  programs.granted = {
+                    enable = true;
+                    enableZshIntegration = true;
+                  };
 
-                programs.tmux = {
-                  enable = true;
-                  keyMode = "emacs";
-                  mouse = true;
-                  newSession = true;
-                  extraConfig = ''
+                  programs.tmux = {
+                    enable = true;
+                    keyMode = "emacs";
+                    mouse = true;
+                    newSession = true;
+                    extraConfig = ''
                     bind -n -T copy-mode M-w send-keys -X copy-pipe-and-cancel "pbcopy"
                     bind -n M-v copy-mode -u
                     bind-key r source-file ~/.config/tmux/tmux.conf \; display-message "~/.tmux.conf reloaded"
                   '';
-                  shortcut = "z";
-                  plugins = [
-                    {
-                      plugin = pkgs.tmuxPlugins.onedark-theme;
-                      extraConfig = "set -g @plugin 'odedlaz/tmux-onedark-theme'";
-                    }
-                    {
-                      plugin = pkgs.tmuxPlugins.yank;
-                      extraConfig = "set -g @plugin 'tmux-plugins/tmux-yank'";
-                    }
+                    shortcut = "z";
+                    plugins = [
+                      {
+                        plugin = pkgs.tmuxPlugins.onedark-theme;
+                        extraConfig = "set -g @plugin 'odedlaz/tmux-onedark-theme'";
+                      }
+                      {
+                        plugin = pkgs.tmuxPlugins.yank;
+                        extraConfig = "set -g @plugin 'tmux-plugins/tmux-yank'";
+                      }
 
-                  ];
-                };
-
-                programs.atuin = {
-                  enable = true;
-                  enableZshIntegration = true;
-                };
-
-                programs.gh = {
-                  enable = true;
-                };
-
-                programs.dircolors = {
-                  enable = true;
-                  enableZshIntegration = true;
-                };
-
-                programs.kitty = {
-                  enable = true;
-                  theme = "One Dark";
-                  environment = {
-                    "LS_COLORS" = "1";
+                    ];
                   };
-                  shellIntegration = {
+
+                  programs.atuin = {
+                    enable = true;
                     enableZshIntegration = true;
                   };
-                  font = {
-                    package = pkgs.nerdfonts;
-                    name = "Hack Nerd Font Mono Regular";
-                    size = 14;
+
+                  programs.gh = {
+                    enable = true;
                   };
-                  settings = {
-                    macos_option_as_alt = true;
-                    cursor_shape = "block";
+
+                  programs.dircolors = {
+                    enable = true;
+                    enableZshIntegration = true;
                   };
-                };
-                programs.mpv = {
-                  enable = true;
-                };
 
-                programs.thefuck = {
-                  enable = true;
-                };
+                  programs.kitty = {
+                    enable = true;
+                    theme = "One Dark";
+                    environment = {
+                      "LS_COLORS" = "1";
+                    };
+                    shellIntegration = {
+                      enableZshIntegration = true;
+                    };
+                    font = {
+                      package = pkgs.nerdfonts;
+                      name = "Hack Nerd Font Mono Regular";
+                      size = 14;
+                    };
+                    settings = {
+                      macos_option_as_alt = true;
+                      cursor_shape = "block";
+                    };
+                  };
+                  # Disabled due to Swift failing to build
+                  # programs.mpv = {
+                  #   enable = true;
+                  # };
 
-                programs.vscode = {
-                  enable = true;
-                  extensions = with pkgs.vscode-extensions; [
-                    # ntbbloodbath.doom-one
-                    tuttieee.emacs-mcx
-                    tiehuis.zig
-                    rust-lang.rust-analyzer
-                    # ms-vsliveshare.vsliveshare
-                    kahole.magit
-                    graphql.vscode-graphql
-                  ];
-                };
+                  programs.thefuck = {
+                    enable = true;
+                  };
 
-              };
+                  programs.vscode = {
+                    enable = true;
+                    extensions = with pkgs.vscode-extensions; [
+                      # ntbbloodbath.doom-one
+                      tuttieee.emacs-mcx
+                      tiehuis.zig
+                      rust-lang.rust-analyzer
+                      # ms-vsliveshare.vsliveshare
+                      kahole.magit
+                      graphql.vscode-graphql
+                    ];
+                  };
+
+                };
           }
         ];
       };
     in
-    {
-      darwinConfigurations."macbook-pro-home" = userConfiguration;
-      darwinConfigurations."wololobook" = userConfiguration;
+      {
+        darwinConfigurations."macbook-pro-home" = userConfiguration;
+        darwinConfigurations."wololobook" = userConfiguration;
 
-      darwinPackages = userConfiguration.pkgs;
-    };
+        darwinPackages = userConfiguration.pkgs;
+      };
 }
