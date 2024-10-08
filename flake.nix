@@ -172,6 +172,7 @@
                     shellAliases = {
                       ls = "ls -Gal";
                       sl = "ls";
+                      rebuild = "darwin-rebuild switch --flake ~/.config/nix-darwin -L";
                       emacs = "${pkgs.emacs-macport}/Applications/Emacs.app/Contents/MacOS/Emacs";
                       extract-mp3 = "${pkgs.yt-dlp}/bin/yt-dlp --extract-audio --audio-format mp3 --audio-quality 0";
                       keyfinder = "${pkgs.keyfinder-cli}/bin/keyfinder-cli";
@@ -253,7 +254,7 @@
                       }
 
                       replace () {
-                        ${pkgs.ripgrep}/bin/rg $1 --files-with-matches | ${pkgs.xargs} ${pkgs.sed} -i "s/$1/$2/g"
+                        ${pkgs.ripgrep}/bin/rg $1 --files-with-matches | xargs sed -i "s/$1/$2/g"
                       }
                     '';
 
