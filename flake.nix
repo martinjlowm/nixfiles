@@ -68,12 +68,12 @@
           '';
         };
 
-        launchd.user.agents.shortcat = {
-          serviceConfig.ProgramArguments = [ "${pkgs.shortcat}/Applications/Shortcat.app/Contents/MacOS/Shortcat" ];
+        # launchd.user.agents.shortcat = {
+        #   serviceConfig.ProgramArguments = [ "${pkgs.shortcat}/Applications/Shortcat.app/Contents/MacOS/Shortcat" ];
 
-          serviceConfig.KeepAlive = true;
-          serviceConfig.RunAtLoad = true;
-        };
+        #   serviceConfig.KeepAlive = true;
+        #   serviceConfig.RunAtLoad = true;
+        # };
 
         nix.settings.experimental-features = "nix-command flakes";
 
