@@ -45,7 +45,9 @@
             teams
             qemu
             git-lfs
+            _1password-gui
             darwin.apple_sdk.sdk
+            nix-index
           ];
 
         services.nix-daemon.enable = true;
@@ -56,6 +58,13 @@
           };
           extraConfig = ''
             yabai -m rule --add app="System Settings" manage=off
+
+            yabai -m rule --add app="^Chrome$" space=^3
+            yabai -m rule --add app="^FireFox$" space=^3
+            yabai -m rule --add app="^Telegram$" space=4
+            yabai -m rule --add app="^Music$" space=5
+            yabai -m rule --add app="^Spotify$" space=5
+
           '';
         };
 
@@ -297,10 +306,11 @@
                     mouse = true;
                     newSession = true;
                     extraConfig = ''
-                    bind -n -T copy-mode M-w send-keys -X copy-pipe-and-cancel "pbcopy"
-                    bind -n M-v copy-mode -u
-                    bind-key r source-file ~/.config/tmux/tmux.conf \; display-message "~/.tmux.conf reloaded"
-                  '';
+                      set-option -g default-shell /bin/zsh
+                      bind -n -T copy-mode M-w send-keys -X copy-pipe-and-cancel "pbcopy"
+                      bind -n M-v copy-mode -u
+                      bind-key r source-file ~/.config/tmux/tmux.conf \; display-message "~/.tmux.conf reloaded"
+                    '';
                     shortcut = "z";
                     plugins = [
                       {
@@ -331,7 +341,7 @@
 
                   programs.kitty = {
                     enable = true;
-                    theme = "One Dark";
+                    themeFile = "OneDark";
                     environment = {
                       "LS_COLORS" = "1";
                     };
@@ -371,7 +381,14 @@
                     ];
                   };
 
+
                 };
+
+          }
+          ./1password.nix
+          {
+            programs._1password.enable = true;
+            programs._1password-gui.enable = true;
           }
         ];
       };
