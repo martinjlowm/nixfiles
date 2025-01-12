@@ -1,0 +1,957 @@
+export LANG=en_US.UTF-8
+
+stty eof undef
+stty -ixon
+
+PATH=~/perl5/perlbrew/perls/perl-5.22.1/bin:$PATH
+PATH="$(brew --prefix)/opt/coreutils/libexec/gnubin:$PATH"
+PATH=$PATH:~/maple16/bin
+PATH=$PATH:~/.gem/ruby/1.9.1/bin
+# PATH=$PATH:~/MATLAB/usr/bin
+PATH=$PATH:/opt/android-sdk/platform-tools
+PATH=$PATH:~/.gem/ruby/2.0.0/bin
+PATH=$PATH:~/.config/bspwm
+PATH=$PATH:/opt/local/bin:/opt/local/sbin
+PATH=$PATH:~/Library/Python/2.7/bin
+PATH=$PATH:~/bin
+PATH=$PATH:/usr/local/sbin
+PATH=$PATH:~/.cabal/bin
+PATH=$PATH:~/.cargo/bin
+PATH=$PATH:~/.local/bin
+PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
+
+function fixupYarnLock() {
+  for lockFile in 'yarn.lock'; do
+    if [ -f "$lockFile" ]; then
+      for pattern in 's#https://registry.yarnpkg.com#http://npm-registry.blackbird.online#g'; do
+        sed -i '~' "$pattern" "$lockFile"; rm "$lockFile~";
+      done
+    fi
+  done
+}
+
+stringAlarm() {
+  tail -f serial-factbird.log | while read LINE
+  do
+    [[ "${LINE}" == *"$1"* ]] && \
+      osascript -e "tell app \"Terminal\" to display dialog \"Found $1!\"" && pkill -P $$ tail
+  done
+}
+
+lookupCompany() {
+  POOLS=''
+
+  RESULT=$(aws cognito-idp list-user-pools --max-results 60)
+  NEXT_TOKEN=$(echo "$RESULT" | jq -r '.NextToken')
+  POOLS=$(echo $(echo $POOLS) $(echo $RESULT | jq '.UserPools') | jq -s '.[]')
+
+  while [[ -n "$NEXT_TOKEN" && "$NEXT_TOKEN" != "null" ]]; do
+    RESULT=$(aws cognito-idp list-user-pools --max-results 60 --next-token "$NEXT_TOKEN")
+    NUM_POOLS=$(echo "$RESULT" | jq '.UserPools | length')
+
+    NEXT_TOKEN=$(echo "$RESULT" | jq -r '.NextToken')
+    POOLS=$(echo $(echo $POOLS) $(echo $RESULT | jq '.UserPools') | jq -s '.[]')
+    sleep 1
+  done
+
+  echo "$POOLS" | jq -r ".[] | select(.Name == \"$1\") | .Name"
+}
+
+createCompany() {
+  if [[ -z $BLACKBIRD_API_TOKEN ]]; then
+    echo "! Make BLACKBIRD_API_TOKEN available in your environment."
+    return;
+  fi
+
+  declare -A deviceMap
+
+  echo "» Company (user pool name)"
+  read -A COMPANY
+
+  if [[ $COMPANY =~ " " ]]; then
+    echo "You can't specify spaces in a company's name";
+    return;
+  fi
+
+  echo "» User(s) (space separated) first will be Super"
+  read -A USERS
+  echo "» Device(s) (space separated) if any"
+  read -A DEVICES
+
+  echo "» AWS Profile: $GRANTED_AWS_ROLE_PROFILE"
+  echo "» Company: $COMPANY"
+  echo "» Users: ${USERS[@]}"
+  echo "» Devices: ${DEVICES[@]}"
+  echo "Proceeding in 5..."
+
+  sleep 5
+
+  echo "» Creating company (may continue if it already exists) $COMPANY in 2s..."
+  sleep 2
+
+  existingCompany=$(lookupCompany $COMPANY)
+
+  if [[ -z "$existingCompany" ]]; then
+    bb company create --stage prod $COMPANY
+
+    if [[ ! $? == 0 ]]; then
+      echo "Creating company ($COMPANY) failed... continue? Hit enter if so"
+      read noop
+    fi
+  fi
+
+  ARE_DEVICES_CREATED=""
+  while [[ -z $ARE_DEVICES_CREATED ]]
+  do
+    echo "» Fetching all devices..."
+    ALL_DEVICES="$(curl -s 'https://app.blackbird.online/api/v1/blackbirds' \
+                     -H 'Accept: application/json, text/javascript, */*; q=0.01' \
+                     -H "Cookie: token=$BLACKBIRD_API_TOKEN" \
+                     --compressed)"
+
+    SUCCESS="true"
+    for device in ${DEVICES[@]}; do
+      if [[ ! $device =~ "^[0-9]+$" ]]; then
+        echo "Invalid device id? $device, skipping"
+        continue;
+      fi
+
+      DATABASE_ID=$(jq ".[] | select(.deviceId == \"$device\") | .id" <<< "${ALL_DEVICES}")
+      if [[ -z "$DATABASE_ID" ]]; then
+        echo "Couldn't lookup $device. Create it in SI first!"
+        SUCCESS="false"
+      else
+        deviceMap[$device]=$DATABASE_ID
+      fi
+    done
+
+    if [[ $SUCCESS == "true" ]]; then
+      ARE_DEVICES_CREATED="yeye"
+    else
+      echo "» Hit return to try again."
+      read noop
+    fi
+  done
+
+  for device in ${DEVICES[@]}; do
+    DATABASE_ID=${deviceMap[$device]}
+
+    echo "» Creating peripheral $DATABASE_ID-0 in 2s..."
+    sleep 2
+
+    bb peripheral --stage prod --company "$COMPANY" create "$DATABASE_ID-0" "Factbird $device" "..."
+
+    if [[ ! $? == 0 ]]; then
+      echo "Creating peripheral ($device / $DATABASE_ID) failed... continue? Hit enter if so"
+      read noop
+    fi
+  done
+
+  for user in ${USERS[@]}; do
+    if [[ ! $user =~ "[^@]+@[^\.]+\.[a-zA-Z\.]+$" ]]; then
+      echo "Invalid email? $user, skipping"
+      continue;
+    fi
+
+    echo "» Creating user $user in 2s..."
+    sleep 2
+
+    bb user --stage prod create "$COMPANY" "$user"
+
+    if [[ ! $? == 0 ]]; then
+      echo "Creating user ($user) failed... continue? Hit enter if so"
+      read noop
+    fi
+  done
+}
+
+# export PERL5LIB="~/perl5/perlbrew/perls/perl-5.22.1/lib"
+PATH="/Users/martinjlowm/perl5/bin${PATH:+:${PATH}}"; export PATH;
+PERL5LIB="/Users/martinjlowm/perl5/lib/perl5${PERL5LIB:+:${PERL5LIB}}"; export PERL5LIB;
+PERL_LOCAL_LIB_ROOT="/Users/martinjlowm/perl5${PERL_LOCAL_LIB_ROOT:+:${PERL_LOCAL_LIB_ROOT}}"; export PERL_LOCAL_LIB_ROOT;
+PERL_MB_OPT="--install_base \"/Users/martinjlowm/perl5\""; export PERL_MB_OPT;
+PERL_MM_OPT="INSTALL_BASE=$HOME/perl5"; export PERL_MM_OPT;
+
+
+export RBENV_ROOT="$(brew --prefix rbenv)"
+# export GEM_HOME="$(brew --prefix)/opt/gems"
+# export GEM_PATH="$(brew --prefix)/opt/gem"
+
+# -DPYTHON_LIBRARY="`python-config --prefix`/lib/libpython2.7.dylib"
+PYTHONPATH=~/.python
+HISTSIZE=1000
+SAVEHIST=1000
+HISTFILE=~/.zsh_history
+export LC_ALL=en_US.UTF-8
+
+OPTIRUN="$(command -v optirun)"
+
+texgrep () {
+  if [ $# -eq 0 ] ; then
+    echo "Usage: texgrep pattern [extension]" 1>&2
+  else
+    for tex_path in TEXMFMAIN TEXMFDIST TEXMFHOME;
+    do
+      find `kpsewhich --var-value=$tex_path` -type f -name "*$2" | xargs grep $1;
+    done
+  fi
+}
+
+stringAlarm() {
+  tail -f serial-factbird.log | while read LINE
+  do
+    [[ "${LINE}" == *"$1"* ]] && \
+      osascript -e "tell app \"Terminal\" to display dialog \"Found $1!\"" && pkill -P $$ tail
+  done
+
+}
+
+monofyRepo() {
+  repository=$(basename $PWD)
+
+  if [[ ! -d ".git" ]]; then
+    echo "! $repository is not a git repository."
+    return
+  fi
+
+  echo "» Monofying repository ($repository)...\n"
+
+  echo "» Make sure all branches are merged into master"
+
+  git checkout master > /dev/null 2>&1
+
+  if [[ "$?" != "0" ]]; then
+    echo "! Failed to checkout master"
+    return
+  fi
+
+  while true; do
+    echo "» Enter the new name of the subdirectory for this project:"
+    printf "> "
+    read newName
+    if [[ "$newName" =~ ^[.0-9a-zA-Z_-]+ ]]; then
+      mkdir -p "$newName"
+      break
+    else
+      echo "! The `$newName` must be a valid directory name.\n"
+    fi
+  done
+
+  echo "» Moving all files into $newName/"
+  command ls -a1 | tail --lines=+3 | grep -v -E '^(.git|.gitmodules)$' | grep -v "^$newName" | xargs -I{} git mv {} "$newName"
+
+  git commit -m "Moved repository into $newName/"
+
+  echo "» Change directory to the monorepo and run:"
+  echo "  git remote add $newName $PWD"
+  echo "  git fetch $newName"
+  echo "  git merge -m \"[Mono] Added $newName\" --allow-unrelated-histories $newName/master"
+}
+
+monofyRepoMono() {
+  repository=$(basename $PWD)
+
+  if [[ ! -d ".git" ]]; then
+    echo "! $repository is not a git repository."
+    return
+  fi
+
+  echo "» Monofying repository ($repository)...\n"
+
+  echo "» Make sure all branches are merged into mono"
+
+  git checkout mono > /dev/null 2>&1
+
+  if [[ "$?" != "0" ]]; then
+    echo "! Failed to checkout mono"
+    return
+  fi
+
+  while true; do
+    echo "» Enter the new name of the subdirectory for this project:"
+    printf "> "
+    read newName
+    if [[ "$newName" =~ ^[0-9a-zA-Z_-]+ ]]; then
+      mkdir -p "$newName"
+      break
+    else
+      echo "! The `$newName` must be a valid directory name.\n"
+    fi
+  done
+
+  echo "» Moving all files into $newName/"
+  ls -a1 | grep -v "^$newName" | xargs -I{} git mv {} "$newName"
+
+  git commit -m "Moved repository into $newName/"
+
+  echo "» Change directory to the monorepo and run:"
+  echo "  git remote add $newName $PWD"
+  echo "  git fetch $newName"
+  echo "  git merge -m \"[Mono] Added $newName\" --allow-unrelated-histories $newName/mono"
+}
+
+# node() {
+#   # Not sure why this doesn't work on work lappy :thinking:
+#   # fallback="Could not find ts-node, falling back to plain Node.js"
+#   # NODE_OPTIONS=${NODE_OPTIONS:-'--experimental-repl-await -r ts-node/register/transpile-only'} command node 2>/dev/null || echo $fallback && command node;
+#   npx --no-install ts-node -T || command node;
+# }
+
+gitMoveFilesIntoForRange() {
+  directory=$1
+  range=$2
+
+  git filter-branch --tree-filter "mkdir -p $directory; ls -a1 | tail -n +3 | grep -v \"^$directory\" | xargs -I{} git mv {} \"$directory\"" $range
+}
+
+alias p="pnpm"
+
+c () {
+  (assume -c -r eu-west-1 "$1")
+}
+
+a () {
+  assume -r eu-west-1 "$1"
+}
+
+alias lundbeck='a lundbeck'
+alias dc='a danishcrown'
+alias velux='a velux'
+alias staging='a staging'
+alias prod='a blackbird'
+alias integration='a integration'
+alias mgmt='a blackbird-mgmt'
+alias localhost="sed -E 's#(https://)([^/]+)#\1localhost:3000#'"
+
+
+space () {
+  du -sh * 2>/dev/null | gsort -h
+}
+
+export NODE_OPTIONS="-r $HOME/augmentations.js"
+
+export ANDROID_HOME=/usr/local/Cellar/android-sdk/24.4.1_1/
+alias diff='diff -u'
+alias serve='python -m SimpleHTTPServer 1337'
+alias serve3='python3 -m http.server'
+alias baredocker='docker run -it --rm alpine'
+alias balenaRaspberry='docker run -it --rm balenalib/raspberrypi3:20191003 /bin/bash'
+alias ubuntudocker='docker run -it --rm ubuntu:latest'
+alias locallambdadocker='docker run -it --rm amazonlinux:2.0.20190508'
+alias lambdanodejs='docker run -it --rm lambci/lambda:nodejs12.x'
+alias localbbdocker='docker run -it --rm blackbirdhq/builder:latest'
+alias showMeMagic="jar tvf"
+alias docker="podman"
+alias cb="cargo build"
+alias cu="cargo update"
+alias ingress="open https://github.com/BlackbirdHQ/cloud-ingress"
+alias services="open https://github.com/BlackbirdHQ/cloud-services"
+alias issues="open  https://github.com/BlackbirdHQ/meta/issues"
+
+dockerGHAWith () {
+  # /host/directory:/container/directory
+  containerDir=$(basename "$1")
+  docker run --mount src="$1",target="/$containerDir",type=bind --entrypoint /bin/bash -it --rm ubuntu:latest
+}
+
+dockerUbuntuWith () {
+  # /host/directory:/container/directory
+  containerDir=$(basename "$1")
+  docker run --mount src="$1",target="/$containerDir",type=bind -it --rm ubuntu
+}
+
+copyDirectoryToContainer () {
+  docker cp $1 $2:/
+}
+
+alias isoDate='date -u +"%Y-%m-%dT%H:%M:%SZ"'
+alias dronec="gradle clean :app:compileDebugSources :app:assembleDebug && adb install -r app/build/outputs/apk/app-debug.apk"
+alias isaws="env | grep GRANTED_AWS_ROLE_PROFILE"
+export ALTERNATE_EDITOR=""
+# export GEM_HOME=~/.gem/ruby/2.0.0
+
+alias wget="curl -O --retry 999 --retry-max-time 0 -C -"
+alias killwow='kill -9 `ps -e | grep -i Warcraft | head -c 6`'
+alias mountext="sudo fuse-ext2 /dev/disk2s1 /Users/martinjlowm/music_hdd"
+alias dlytsong="youtube-dl --audio-format 'mp3' -x"
+alias startvm="VBoxHeadless --startvm 'Development'"
+alias ise32="ssh -XY -i ~/.ssh/vbox -p 3022 localhost \"/usr/bin/bash -c 'source /opt/Xilinx/14.7/ISE_DS/settings32.sh && ise'\""
+alias ise64="ssh -XY -i ~/.ssh/vbox -p 3022 localhost \"/usr/bin/bash -c 'source /opt/Xilinx/14.7/ISE_DS/settings64.sh && ise'\""
+alias workcraft="ssh -XY -i ~/.ssh/vbox -p 3022 192.168.1.57 \"workcraft\""
+alias quartus="ssh -XY -i ~/.ssh/vbox -p 3022 localhost quartus"
+alias modelsim="ssh -XY -i ~/.ssh/vbox -p 3022 localhost \"/usr/bin/bash -c 'vsim -gui'\""
+alias pf_push="git ftp push -u studiestart -k studiestart@netadmin.pf.dk sftp://netadmin.pf.dk/pf_studiestart/"
+alias pf_form_push="git ftp push -u studiestart -k studiestart@netadmin.pf.dk sftp://netadmin.pf.dk/pf_formularer/"
+alias gitsupdate="git submodule update --remote --recursive"
+alias listps="smbclient -L ait-print.win.dtu.dk -U s124320 -W win.dtu.dk"
+alias synserver="ssh -v -N -L localhost:3306:synserver1:22 s124320@sshlogin.compute.dtu.dk"
+alias synjenkins="ssh -p 3306 -v -N -L localhost:8080:synserver1:8080 s124320@localhost"
+alias synstash="ssh -p 3306 -v -N -L localhost:8082:localhost:8082 s124320@localhost"
+alias synjira="ssh -p 3306 -v -N -L localhost:8083:localhost:8083 s124320@localhost"
+# alias mpv="mpv -cache 163840"
+alias student_mail_tunnel="mosh --ssh='ssh -v -N -L localhost:3306:smtp.student.dtu.dk:25' s124320@login.gbar.dtu.dk"
+alias pacsize="pacman -Qi|awk '/^Installed Size/{print int(\$4), name} /^Name/{name=\$3}'|sort -nr | less"
+alias sshfen="ssh -i ~/.ssh/fenix -p 22527 lakridstrollet.regexp.se"
+alias mpc="mpc -h home.martinjlowm.dk"
+alias mpcl="mpc -h 192.168.1.30"
+alias glog="git log --graph --all --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n'' %C(white)%s%C(reset) %C(bold white)— %an%C(reset)' --abbrev-commit"
+alias zeroempires='livestreamer --player mpv --hls-segment-threads 4 "http://www.twitch.tv/zeroempires"'
+alias wheredemprintersat='smbclient -W win.dtu.dk -U s124320 -L ait-print.win.dtu.dk'
+alias ledger='ledger --amount-width 20 -f ~/economy/2018.ledger'
+alias dockerFlush='docker system prune -a'
+alias balls='aws --profile balls'
+alias arduino='arduino-cli'
+
+wtfnode () {
+  kill `ps -e | grep '[ /]node' | awk '{ print $1 }' | xargs`
+}
+
+wtffiles () {
+  sudo lsof -n | cut -f1 -d' ' | uniq -c | sort | tail
+}
+
+killPort () {
+  kill $(lsof -i:$1 | awk '{ print $2 }' | tail -n +2 | xargs)
+}
+
+port () {
+  lsof -t -i:$1
+}
+
+export pico='/home/martinjlowm/Dropbox/Public/Pictures'
+
+
+export LESSOPEN="| /usr/local/bin/src-hilite-lesspipe.sh %s"
+export LESS=' -R '
+
+casty () {
+  castnow $1 --device "Living Room" --myip 192.168.1.19 --ffmpeg-ac 2 --tomp4
+}
+
+appify () {
+  APPNAME=${2:-$(basename "$1" ".sh")}
+  DIR="$APPNAME.app/Contents/MacOS"
+
+  if [[ -a "$APPNAME.app" ]] ; then
+    echo "$PWD/$APPNAME.app already exists :("
+  else
+    mkdir -p "$DIR"
+    cp "$1" "$DIR/$APPNAME"
+    chmod +x "$DIR/$APPNAME"
+
+    echo "$PWD/$APPNAME.app"
+  fi
+}
+
+# $1: Main PDF
+# $2: Signature PDF
+# $3: Page of main PDF to sign
+# $4: Scale
+# $5: X Offset (e.g. 200)
+# $6: Y Offset (e.g. 400)
+# $7: Output PDF
+# sign_pdf infile.pdf ../../mjlm_signature.pdf 2 0.2 3.2 -1.6 outfile.pdf
+# Y offset: 0.4 for Hegnet lower sign area
+#           6.6 upper sign area
+sign_pdf () {
+  MAIN_FILE=$1
+  SIGNATURE_FILE=$2
+  PAGE_NUM=$3
+  TMP_FILE1=/tmp/1_$MAIN_FILE
+  TMP_FILE2=/tmp/2_$MAIN_FILE
+  SIGNATURE_TMP_FILE=/tmp/$(basename $SIGNATURE_FILE)
+  START=''
+  END=''
+
+  pdfjam --paper 'a4paper' \
+         --scale "$4" \
+         --outfile $SIGNATURE_TMP_FILE \
+         --offset "$5cm $6cm" \
+         $SIGNATURE_FILE
+
+  pdftk A=$MAIN_FILE cat A$PAGE_NUM output $TMP_FILE1
+  pdftk A=$TMP_FILE1 stamp $SIGNATURE_TMP_FILE output $TMP_FILE2
+
+  if [ $PAGE_NUM -gt 1 ] ; then
+    START=A1-$(($PAGE_NUM - 1))
+  fi
+
+  NUM_PAGES=$(pdftk $MAIN_FILE dump_data_utf8 2>/dev/null \
+                | grep 'NumberOfPages' \
+                | grep -o '\d*$')
+  if [ $NUM_PAGES -gt $PAGE_NUM ] ; then
+    END=A$(($PAGE_NUM + 1))-end
+  fi
+
+  pdftk A=$MAIN_FILE B=$TMP_FILE2 cat $START B $END output $7
+
+  rm $TMP_FILE1 $TMP_FILE2
+}
+
+mergepdf () {
+  gs -dBATCH \
+     -dNOPAUSE \
+     -q \
+     -sDEVICE=pdfwrite \
+     -dPDFSETTINGS=/prepress \
+     -sOutputFile=${@[$#]} ${@:1:-1}
+}
+extract () {
+  if [ -f $1 ] ; then
+    case $1 in
+      *.tar.bz2)   tar xjf $1;;
+      *.tar.gz)    tar xzf $1;;
+      *.bz2)       bunzip2 $1;;
+      *.rar)       7z x $1;;
+      *.gz)        gunzip $1;;
+      *.tar)       tar xf $1;;
+      *.tbz2)      tar xjf $1;;
+      *.tgz)       tar xzf $1;;
+      *.zip)       unzip $1;;
+      *.Z)         uncompress $1;;
+      *.7z)        7z x $1;;
+      *)           echo "'$1' cannot be extracted via extract()" ;;
+    esac
+  else
+    echo "'$1' is not a valid file"
+  fi
+}
+
+alias clipboard='tr -d "\r\n" | xclip -selection clipboard'
+linky () {
+  if [ -f $1 ] ; then
+    dropbox puburl $1 | clipboard
+  else
+    echo "'$1' is not a valid file"
+  fi
+}
+
+zippy () {
+  zip -r $1 ./*
+}
+
+hlfiles () {
+  for f in $1/*
+  do
+    ln $f;
+  done
+}
+
+search() {
+  if [ -d $2 ] ; then
+    grep $1 $(find $2 -type f);
+  else
+    grep $1 $(find . -type f);
+  fi
+}
+
+dayago() {
+  gdate -d "$1 days ago" '+%Y-%m-%d'
+}
+
+alias df='df -g'
+
+# . /usr/share/zsh/site-contrib/powerline.zsh
+
+alias dummylink='sudo ip l set dev dummy0 name eth0 && sudo ip link set dev eth0 address c4:85:08:3c:67:16'
+alias unity='WINEDEBUG=-all WINEARCH=win32 WINEPREFIX=~/.wine32 $OPTIRUN wine ~/.wine/drive_c/Program\ Files\ \(x86\)/Unity/Editor/Unity.exe'
+alias pitorrent='mosh --ssh="ssh -p 6335" -p 3001:3999 kodi@home.martinjlowm.dk -- tmux attach -t rtorrent'
+# alias irc='mosh -p 3001:13999 martinjlowm@home.martinjlowm.dk -- tmux attach -t irssi'
+alias irc='mosh --ssh="ssh -p 6335" -p 3001:3999 martinjlowm@home.martinjlowm.dk -- tmux attach -t weechat'
+# alias irc='open -n -a Emacs.app --args -l ~/.emacs.d/weechat-init.el'
+alias fenix='open -n -a Emacs.app --args -l ~/.emacs.d/fenix-init.el'
+
+alias emacs="open -n -a Emacs.app --args"
+
+alias mountvar='sshfs martinjlowm@home.martinjlowm.dk:/mnt/Various ~/Various -o reconnect -o Ciphers=arcfour'
+alias mountvid='sshfs martinjlowm@home.martinjlowm.dk:/mnt/videos ~/videos -o reconnect -o Ciphers=arcfour'
+alias mountgbar='sshfs s124320@login.gbar.dtu.dk:/www/86/7/78591/public_html /home/martinjlowm/Dropbox/blivvektor.dk/public_html -o Ciphers=arcfour'
+alias sm='sudo sshfs martinjlowm@home.martinjlowm.dk:/mnt/Various /mnt/Various'
+# alias yarn='pnpm'
+# alias yaya='command yarn'
+
+bindkey -e
+
+bindkey "\e[1~" beginning-of-line # Home
+bindkey "\e[4~" end-of-line # End
+bindkey "\e[5~" beginning-of-history # PageUp
+bindkey "\e[6~" end-of-history # PageDown
+bindkey "\e[2~" quoted-insert # Ins
+bindkey "\e[3~" delete-char # Del
+bindkey "\e[5C" forward-word
+bindkey "\eOc" emacs-forward-word
+bindkey "\e[5D" backward-word
+bindkey "\eOd" emacs-backward-word
+bindkey "\e\e[C" forward-word
+bindkey "\e\e[D" backward-word
+bindkey "\e[Z" reverse-menu-complete # Shift+Tab
+# for rxvt
+bindkey "\e[7~" beginning-of-line # Home
+bindkey "\e[8~" end-of-line # End
+# for non RH/Debian xterm, can't hurt for RH/Debian xterm
+bindkey "\eOH" beginning-of-line
+bindkey "\eOF" end-of-line
+# for freebsd console
+bindkey "\e[H" beginning-of-line
+bindkey "\e[F" end-of-line
+# for guake
+bindkey "\eOF" end-of-line
+bindkey "\eOH" beginning-of-line
+bindkey "^[[1;5D" emacs-backward-word
+bindkey "^[[1;5C" emacs-forward-word
+bindkey "\e[3~" delete-char # Del
+
+bindkey '\C-w' kill-region
+
+copy-region-as-kill-deactivate-mark () {
+  zle copy-region-as-kill
+  zle set-mark-command -n -1
+}
+zle -N copy-region-as-kill-deactivate-mark
+bindkey '\ew' copy-region-as-kill-deactivate-mark
+
+
+autoload -Uz compinit
+compinit
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
+zstyle ':completion:*' completer _expand _complete _ignored _approximate
+zstyle ':completion:*' menu select=2
+zstyle ':completion:*' select-prompt '%SScrolling active: current selection at %p%s'
+zstyle ':completion::complete:*' use-cache 1
+zstyle ':completion:*:descriptions' format '%U%F{cyan}%d%f%u'
+
+#export TERM=gnome-256color
+#eval `dircolors ~/.dir_colors`
+
+LP_PS1_PREFIX=""
+LP_ENABLE_TIME=1
+kernel=`uname`
+alias ls='ls -al --color'
+
+
+LP_ENABLE_AWS_PROFILE="0"
+if [ -f /usr/local/share/liquidprompt ]; then
+  . /usr/local/share/liquidprompt
+fi
+
+setopt prompt_subst
+LP_PS1_PREFIX='$([ ! -z "$AWS_PROFILE" ] && echo "%F{green}[$AWS_PROFILE]($AWS_REGION)%f ")'
+
+alias gerp=grep
+alias grpe=grep
+alias sl=ls
+
+if [[ $TERM == "dumb" ]]; then	# in emacs
+  # PS1='%(?..[%?])%!:%~%# '
+  # for tramp to not hang, need the following. cf:
+  # http://www.emacswiki.org/emacs/TrampMode
+  unsetopt zle
+  unsetopt prompt_cr
+  unsetopt prompt_subst
+fi
+
+### Added by the Heroku Toolbelt
+export PATH="/usr/local/heroku/bin:$PATH"
+
+if whence dircolors >/dev/null; then
+  eval "$(dircolors -b)"
+  zstyle ':completion:*:default' list-colors ${(s.:.)LS_COLORS}
+  alias ls='ls -al --color'
+else
+  export CLICOLOR=1
+  zstyle ':completion:*:default' list-colors ''
+fi
+
+# which goenv > /dev/null && eval "$(goenv init -)"
+# which luaenv > /dev/null && eval "$(luaenv init -)"
+# which nodenv > /dev/null && eval "$(nodenv init -)"
+# which pyenv > /dev/null && eval "$(pyenv init -)"
+# which rbenv > /dev/null && eval "$(rbenv init -)"
+
+which atuin > /dev/null && eval "$(atuin init zsh)"
+
+if [[ ! $TERM =~ screen ]] && [ $TERM != "dumb" ]; then
+  tmux has-session -t main
+
+  if [ $? -eq 1 ]; then
+    tmux new-session -s main
+  else
+    tmux new-session -t main
+  fi
+fi
+
+source /usr/local/share/zsh/site-functions/aws_zsh_completer.sh
+
+export BB_SERVICES_FOLDER=$HOME/projects/cloud-services
+export BB_INGRESS_FOLDER=$HOME/projects/cloud-ingress
+export BB_GH_REPOS_FOLDER=$HOME/projects
+
+export PATH="$HOME/projects/tools/cli/bin:$PATH"
+# export CDPATH="$BB_GH_REPOS_FOLDER:$CDPATH"
+source $HOME/projects/tools/cli/autocomplete.sh
+
+
+# tabtab source for serverless package
+# uninstall by removing these lines or running `tabtab uninstall serverless`
+[[ -f /Users/martinjlowm/OneDrive-emendo/Blackbird/Users/MJ/src/balls/microservice-device-data/node_modules/tabtab/.completions/serverless.zsh ]] && . /Users/martinjlowm/OneDrive-emendo/Blackbird/Users/MJ/src/balls/microservice-device-data/node_modules/tabtab/.completions/serverless.zsh
+# tabtab source for sls package
+# uninstall by removing these lines or running `tabtab uninstall sls`
+[[ -f /Users/martinjlowm/OneDrive-emendo/Blackbird/Users/MJ/src/balls/microservice-device-data/node_modules/tabtab/.completions/sls.zsh ]] && . /Users/martinjlowm/OneDrive-emendo/Blackbird/Users/MJ/src/balls/microservice-device-data/node_modules/tabtab/.completions/sls.zsh
+
+# tabtab source for slss package
+# uninstall by removing these lines or running `tabtab uninstall slss`
+[[ -f /Users/martinjlowm/projects/balls/ms-graphql-andon/node_modules/tabtab/.completions/slss.zsh ]] && . /Users/martinjlowm/projects/balls/ms-graphql-andon/node_modules/tabtab/.completions/slss.zsh
+
+###-begin--completions-###
+#
+# yargs command completion script
+#
+# Installation:  completion >> ~/.bashrc
+#    or  completion >> ~/.bash_profile on OSX.
+#
+# _yargs_completions()
+# {
+#     local cur_word args type_list
+
+#     cur_word="${COMP_WORDS[COMP_CWORD]}"
+#     args=("${COMP_WORDS[@]}")
+
+#     # ask yargs to generate completions.
+#     type_list=$( --get-yargs-completions "${args[@]}")
+#     COMPREPLY=( $(compgen -W "${type_list}" -- ${cur_word}) )
+
+#     # if no match was found, fall back to filename completion
+#     if [ ${#COMPREPLY[@]} -eq 0 ]; then
+#       COMPREPLY=( $(compgen -f -- "${cur_word}" ) )
+#     fi
+
+#     return 0
+# }
+# complete -F _yargs_completions
+###-end--completions-###
+
+#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
+export SDKMAN_DIR="/Users/martinjlowm/.sdkman"
+[[ -s "/Users/martinjlowm/.sdkman/bin/sdkman-init.sh" ]] && source "/Users/martinjlowm/.sdkman/bin/sdkman-init.sh"
+
+export CLICOLOR=1
+export LSCOLORS=ExFxBxDxCxegedabagacad
+
+
+# "SELECT pg_terminate_backend(pid) FROM pg_stat_activity where query like 'SELECT blackbird.ts_round%' and query_start < $(date -d "-10 min" "+%Y-%m-%d %H:%M:%S") order by pid;"
+
+sidatabase () {
+  # 47083326 :pog:
+  psql -h blackbird.cmnxwkdb0xwu.eu-central-1.rds.amazonaws.com -p 5432 -U mspe -W blackbird
+}
+
+grundfosdatabase () {
+  # z!M9bnxHL#r94wfZ :pog:
+  psql -h gf-re.com -p 5432 -U blackbird@gf-postgresqlsrv-blackbird-p-azwe -W blackbird
+}
+
+grundfos2database () {
+  # z!M9bnxHL#r94wfZ :pog:
+  psql -h prod-restore-2.postgres.database.azure.com -p 5432 -U blackbird@gf-postgresqlsrv-blackbird-p-azwe -W blackbird
+}
+
+# ag "device=816" | awk -F'&' '{ print $6 $1 }' | awk '{ print $11, $1, $31 }' | sort | less
+loggyluke () {
+  device=$1
+  today=$(echo ${2:=$(date --iso-8601)} | sed -E 's/-/\//g')
+  echo $today
+  echo "» Your AWS profile is: $GRANTED_AWS_ROLE_PROFILE"
+
+  (
+    setopt null_glob;
+    mkdir -p ~/si-logs;
+    cd ~/si-logs;
+    find . -type f | grep $(echo "$today" | sed -E 's/\///g') > /dev/null
+    if [[ "$?" != "0" ]]; then
+      rm * 2>/dev/null;
+      echo "» Fetching logs..."
+      aws s3 sync "s3://blackbird-receiver-access-logs/receiver/AWSLogs/842712711299/elasticloadbalancing/eu-central-1/$today" . >/dev/null && for f in $(find . -type f -name '*.gz' | xargs); do gunzip $f; done;
+    fi
+
+    if [[ -n "$device" ]]; then
+      find . -type f -name '*.log' -exec grep --color=auto "device=$device" {} \;
+    else
+      find . -type f -name '*.log' -exec cat {} \;
+    fi
+  )
+}
+
+downloadVideo() {
+  streamName=$1
+  startTimestamp=$(date -d $2 -u "+%FT%T+0000")
+  endTimestamp=$(date -d $3 -u "+%FT%T+0000")
+
+  aws kinesis-video-archived-media get-clip \
+      --endpoint-url $(aws kinesisvideo get-data-endpoint --stream-name $streamName --api-name GET_CLIP | jq -r .DataEndpoint) \
+      --stream-name $streamName \
+      --clip-fragment-selector "FragmentSelectorType=SERVER_TIMESTAMP,TimestampRange={StartTimestamp=$startTimestamp,EndTimestamp=$endTimestamp}" \
+      ${1:0:6}-$2-$3.mp4
+}
+
+setopt inc_append_history
+
+# Rust
+# Point the compiler to the binary as supplied by musl-gcc from Homebrew
+export CC_x86_64_unknown_linux_musl="x86_64-linux-musl-gcc"
+
+alias wtfpassword="cat ~/projects/blackbird-dashboard/app/config.js | grep -E '(username|password)'"
+
+# for devi in $(pbpaste | xargs); do array=($(splitcomma $devi)); echo "${array[1]} ---- ${array[2]}"; done
+splitcomma () {
+  echo ${1//,/ }
+}
+
+recentBatchProcessor() {
+  bb insights query /aws/lambda/prod-ms-graphql-batches-batchProcessor --queryString 'fields @message | sort @timestamp asc | filter @message like /Invoke/ | limit 100'
+}
+
+batchTransformProcessor() {
+  echo "Profile: $GRANTED_AWS_ROLE_PROFILE"
+
+  # $1: PO / batch to search for
+  # $2: startTime
+  # $3: endTime
+  bb insights query \
+     /aws/lambda/prod-ms-graphql-batches-batchProcessor \
+     /aws/lambda/prod-ms-graphql-batches-batchProcessorTransform \
+     --queryString "fields @message | filter @message like /$1/ | sort @timestamp asc | limit 1000" \
+     --startTime $2 \
+     --endTime $3
+}
+
+stringify() {
+  node -e 'eval(`a=${child_process.execSync("pbpaste").toString())}`); console.log(JSON.stringify(a, undefined, 2))' | pbcopy
+}
+
+decode() {
+  node -e 'console.log(decodeURIComponent(fs.readFileSync(0, "utf-8")))' < /dev/stdin
+}
+
+encode() {
+  node -e 'console.log(encodeURIComponent(fs.readFileSync(0, "utf-8")))' < /dev/stdin
+}
+
+fullthingid() {
+  aws iot list-things --query "things[?starts_with(thingName, \`\"$1\"\`) == \`true\`].thingName" --output text | cat
+}
+
+mountdockersock() {
+  connections=$(podman system connection ls)
+  connection=$(echo $connections | awk '{ print $3 }' | head -n 2 | tail -n 1)
+
+  host=$(echo $connection | sed -n 's/\(.*:[0-9]*\).*/\1/p')
+  socket=$(echo $connection | sed -n 's/.*:[0-9]*\(.*\)/\1/p')
+
+  ssh -nNT -L/tmp/podman.sock:$socket -i ~/.ssh/podman-machine-default $host &
+
+  export DOCKER_HOST='/tmp/podman.sock'
+}
+
+podmanlogin() {
+  local USERNAME='00000000-0000-0000-0000-000000000000'
+
+
+  acr_password() {
+    local -r registry="${1}"
+
+    set +x
+    az acr login \
+       --name "${registry}" \
+       --expose-token  \
+       2>/dev/null \
+      | jq -r '.accessToken'
+  }
+
+
+  podman_login() {
+    local -r registries=("${@}")
+
+    for registry in "${registries[@]}"; do
+      printf "%s: %s\n" "${registry}" "$(
+            acr_password "${registry}" \
+                | podman login \
+                    --username "${USERNAME}" \
+                    --password-stdin \
+                    "${registry}.azurecr.io"
+        )"
+    done
+  }
+
+  podman_login "${@}"
+  unset -f acr_password podman_login
+}
+
+# bun completions
+[ -s "/Users/martinjlowm/.bun/_bun" ] && source "/Users/martinjlowm/.bun/_bun"
+
+# bun
+export BUN_INSTALL="/Users/martinjlowm/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
+MANPATH="/usr/local/opt/coreutils/libexec/gnuman:$MANPATH"
+
+alias assume="source assume"
+
+clouds() {
+  cat ~/.aws/config \
+    | grep -v local \
+    | sed -E -n 's/^(^\[profile (.*)\]|sso_account_id = (.*))$/\2\3/p' \
+    | xargs -n 2
+}
+
+bb () {
+  FIRST="$1"
+  shift;
+  SECOND="$1"
+  shift;
+
+  if [[ "$FIRST" == "user" && "$SECOND" == "assume" ]]; then
+    bbctl user assume $@
+    return
+  fi
+
+  $HOME/projects/tools/cli/bin/bb $FIRST $SECOND $@
+}
+
+fetchurl () {
+  nix-build -E "with import <nixpkgs> {}; pkgs.fetchurl { url = \"$1\"; sha256 = \"\"; }"
+}
+update_pnpm() {
+  corepack prepare pnpm@latest --activate
+  corepack enable pnpm
+}
+
+symlinks() {
+  find . -type l -exec readlink -nf {} ';' -exec echo " -> {}" ';'
+}
+
+resolve_uuid() {
+  bb data query-table Devices --index identifierAlias --filter "#uuidAlias = :($1)" | jq -r '.[0].uuid'
+}
+
+get_firmware() {
+  (echo "$1"; aws iot-data get-thing-shadow --shadow-name status --thing-name "$1" /dev/stdout | jq -r '.state.reported.firmware_versions[]') | xargs
+}
+
+get_wifi() {
+  (echo "$1"; aws iot-data get-thing-shadow --shadow-name wifi --thing-name "$1" /dev/stdout | jq -r '.state.desired.enabled, .state.desired.known_networks, .state.reported.enabled, .state.reported.known_networks') | xargs
+}
+
+source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+
+alias dev="nix develop --impure --command zsh"
+eval "$(direnv hook zsh)"
+
+# pnpm
+export PNPM_HOME="/Users/martinjlowm/Library/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
