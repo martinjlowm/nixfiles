@@ -46,6 +46,7 @@
             qemu
             git-lfs
             _1password-gui
+            maccy
             darwin.apple_sdk.sdk
             nix-index
           ];
