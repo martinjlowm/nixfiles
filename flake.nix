@@ -1,7 +1,7 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    # oldNixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/0bf626239109203cd714e740c7bd3dfaa708d00a";
+    nextNixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
@@ -10,15 +10,56 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = inputs@{ self, nix-darwin, home-manager, nixpkgs }:
+  outputs = inputs@{ self, nix-darwin, home-manager, nixpkgs, nextNixpkgs }:
     let
-      configuration = { pkgs, ... }: {
+      pkgs = import nixpkgs {
+        system = "x86_64-darwin";
+        config = {
+          allowUnfree = true;
+          allowBroken = true;
+          allowUnfreePredicate = (_: true);
+          allowUnsupportedSystem = true;
+        };
+        overlays = [(final: prev: {
+          # emacs-macport = prev.emacs-macport.overrideAttrs (o: {
+          #   configureFlags = o.configureFlags ++ [
+          #     "CFLAGS=-DMAC_OS_X_VERSION_MAX_ALLOWED=101201"
+          #     "CFLAGS=-DMAC_OS_X_VERSION_MIN_REQUIRED=101201"
+          #   ];
+          # });
+          # vorbis-tools = prev.vorbis-tools.overrideAttrs (old: rec {
+          #   # Presumably because of https://bugs.llvm.org/show_bug.cgi?id=28361 for LLVM 16 on MacOS
+          #   AM_CFLAGS = "-fuse-ld=${prev.lld_18}/bin/ld64.lld";
+          # });
+        })];
+      };
+      nextPkgs = import nextNixpkgs {
+        system = "x86_64-darwin";
+        config = {
+          allowUnfree = true;
+          allowBroken = true;
+          allowUnfreePredicate = (_: true);
+          allowUnsupportedSystem = true;
+        };
+      };
+      configuration = { pkgs, ... }:
+        let
+          pnpWrap = { name, bin }:
+            pkgs.writers.writeBashBin name ''
+              export NODE_OPTIONS="";
+              ${pkgs.nodePackages_latest.yarn}/bin/yarn node ${bin} "$@"
+            '';
+          typescript-language-server = pnpWrap { name = "typescript-language-server"; bin = "${pkgs.typescript-language-server}/lib/node_modules/typescript-language-server/lib/cli.mjs"; };
+          vscode-css-language-server = pnpWrap { name = "vscode-css-language-server"; bin = "${pkgs.vscode-langservers-extracted}/lib/node_modules/vscode-langservers-extracted/bin/vscode-css-language-server"; };
+          vscode-eslint-language-server = pnpWrap { name = "vscode-eslint-language-server"; bin = "${pkgs.vscode-langservers-extracted}/lib/node_modules/vscode-langservers-extracted/bin/vscode-eslint-language-server"; };
+          vscode-html-language-server = pnpWrap { name = "vscode-html-language-server"; bin = "${pkgs.vscode-langservers-extracted}/lib/node_modules/vscode-langservers-extracted/bin/vscode-html-language-server"; };
+          vscode-json-language-server = pnpWrap { name = "vscode-json-language-server"; bin = "${pkgs.vscode-langservers-extracted}/lib/node_modules/vscode-langservers-extracted/bin/vscode-json-language-server"; };
+        in {
         environment.systemPackages =
           with pkgs; [
-            nerdfonts
             starship
             gh
-            nodejs_20
+            nodejs_23
             # (zed-editor.override {
             #   stdenv = pkgs.overrideSDK stdenv {
             #     darwinMinVersion = "10.15";
@@ -45,10 +86,19 @@
             teams
             qemu
             git-lfs
-            _1password-gui
+            nextPkgs._1password-gui
             maccy
-            darwin.apple_sdk.sdk
             nix-index
+            typescript-language-server
+            vscode-css-language-server
+            vscode-eslint-language-server
+            vscode-html-language-server
+            vscode-json-language-server
+            devenv
+            nextPkgs.claude-code
+            nextPkgs.influxdb2-cli
+            brave
+            # nextPkgs.rustdesk-flutter
           ];
 
         services.nix-daemon.enable = true;
@@ -65,7 +115,6 @@
             yabai -m rule --add app="^Telegram$" space=4
             yabai -m rule --add app="^Music$" space=5
             yabai -m rule --add app="^Spotify$" space=5
-
           '';
         };
 
@@ -88,12 +137,12 @@
 
         nixpkgs.hostPlatform = "x86_64-darwin";
 
-        fonts.packages = [ pkgs.nerdfonts ];
+        fonts.packages = [  ] ++ builtins.filter pkgs.lib.attrsets.isDerivation (builtins.attrValues pkgs.nerd-fonts);
 
         nix.gc.automatic = true;
 
         nix.linux-builder = {
-          enable = true;
+          enable = false;
           ephemeral = true;
           maxJobs = 4;
           config = {
@@ -109,29 +158,12 @@
 
         nix.settings.trusted-users = ["@admin"];
       };
-      pkgs = import nixpkgs {
-        system = "x86_64-darwin";
-        config = {
-          allowUnfree = true;
-          allowBroken = true;
-          allowUnfreePredicate = (_: true);
-          allowUnsupportedSystem = true;
-        };
-        overlays = [(final: prev: {
-          emacs-macport = prev.emacs-macport.overrideAttrs (o: {
-            configureFlags = o.configureFlags ++ [
-              "CFLAGS=-DMAC_OS_X_VERSION_MAX_ALLOWED=101201"
-              "CFLAGS=-DMAC_OS_X_VERSION_MIN_REQUIRED=101201"
-            ];
-          });
-          vorbis-tools = prev.vorbis-tools.overrideAttrs (old: rec {
-            # Presumably because of https://bugs.llvm.org/show_bug.cgi?id=28361 for LLVM 16 on MacOS
-            AM_CFLAGS = "-fuse-ld=${prev.lld_18}/bin/ld64.lld";
-          });
-        })];
-      };
+
       userConfiguration = nix-darwin.lib.darwinSystem {
         inherit pkgs;
+        specialArgs = {
+          inherit nextPkgs;
+        };
         modules = [
           configuration
           home-manager.darwinModules.home-manager
@@ -140,16 +172,15 @@
             home-manager.extraSpecialArgs = { inherit pkgs; };
             home-manager.users.martinjlowm = { pkgs, lib, config, ... }:
               let
-                emacs = pkgs.emacs-macport.override {
-                  withSQLite3 = true;
-                };
+                emacs = pkgs.emacs-macport;
 
                 emacs-with-packages = (pkgs.emacsPackagesFor emacs).emacsWithPackages (epkgs: with epkgs; [
                   pkgs.mu
                   vterm
                   multi-vterm
                   pdf-tools
-                  treesit-grammars.with-all-grammars
+                  (treesit-grammars.with-grammars  (p: [ p.tree-sitter-nix ]))
+                  claude-shell
                 ]);
               in
                 {
@@ -243,15 +274,6 @@
                       BLACKBIRD_APPLICATIONS_OU=ou-h5j2-v74x4pj1
                       DEVELOPER_ACCOUNTS_OU=ou-h5j2-y3cktc2g
 
-                      clouds () {
-                        CURRENT_ACCOUNT=$(aws sts get-caller-identity | jq -r .Account)
-                        if [ "$CURRENT_ACCOUNT" != "274906834921" ]; then
-                          return;
-                        fi
-
-                        echo $(get_accounts_recursive $BLACKBIRD_APPLICATIONS_OU) $(get_accounts_recursive $DEVELOPER_ACCOUNTS_OU)
-                      }
-
                       assume_role () {
                         CREDENTIALS=`aws sts assume-role --role-arn arn:aws:iam::''${1}:role/AWSControlTowerExecution --role-session-name "$USER" --duration-seconds 3600 --output=json`
 
@@ -266,6 +288,16 @@
                       replace () {
                         ${pkgs.ripgrep}/bin/rg $1 --files-with-matches | xargs sed -i "s/$1/$2/g"
                       }
+
+                      _just_completion() {
+                          if [[ -f "justfile" ]]; then
+                            local options
+                            options="$(just --summary)"
+                            reply=(''${(s: :)options})  # turn into array and write to return variable
+                          fi
+                      }
+
+                      compctl -K _just_completion just
                     '';
 
                     oh-my-zsh = {
@@ -350,7 +382,7 @@
                       enableZshIntegration = true;
                     };
                     font = {
-                      package = pkgs.nerdfonts;
+                      package = pkgs.nerd-fonts.hack;
                       name = "Hack Nerd Font Mono Regular";
                       size = 14;
                     };

@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  nextPkgs,
   ...
 }:
 
@@ -23,7 +24,7 @@ in
       package = lib.mkOption {
         description = "The 1Password CLI package to use.";
         type = types.package;
-        default = pkgs._1password;
+        default = nextPkgs._1password;
       };
     };
     _1password-gui = {
@@ -36,7 +37,7 @@ in
       package = lib.mkOption {
         description = "The 1Password CLI package to use.";
         type = types.package;
-        default = pkgs._1password-gui;
+        default = nextPkgs._1password-gui;
       };
     };
   };
@@ -88,7 +89,7 @@ in
             --no-group
             --no-owner
           )
-          ${lib.getBin pkgs.rsync}/bin/rsync "''${rsyncFlags[@]}" \
+          ${lib.getBin nextPkgs.rsync}/bin/rsync "''${rsyncFlags[@]}" \
             ${_1password-gui-package}/Applications/1Password.app/ /Applications/1Password.app
         '';
       };
