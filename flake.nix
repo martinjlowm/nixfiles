@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/0bf626239109203cd714e740c7bd3dfaa708d00a";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nextNixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     nix-darwin.url = "github:LnL7/nix-darwin";
@@ -27,10 +27,9 @@
           #     "CFLAGS=-DMAC_OS_X_VERSION_MIN_REQUIRED=101201"
           #   ];
           # });
-          # vorbis-tools = prev.vorbis-tools.overrideAttrs (old: rec {
-          #   # Presumably because of https://bugs.llvm.org/show_bug.cgi?id=28361 for LLVM 16 on MacOS
-          #   AM_CFLAGS = "-fuse-ld=${prev.lld_18}/bin/ld64.lld";
-          # });
+          vorbis-tools = prev.vorbis-tools.overrideAttrs (old: rec {
+            postPatch = null;
+          });
         })];
       };
       nextPkgs = import nextNixpkgs {
@@ -59,7 +58,7 @@
           with pkgs; [
             starship
             gh
-            nodejs_23
+            nodejs_24
             # (zed-editor.override {
             #   stdenv = pkgs.overrideSDK stdenv {
             #     darwinMinVersion = "10.15";
@@ -86,7 +85,7 @@
             teams
             qemu
             git-lfs
-            nextPkgs._1password-gui
+            #nextPkgs._1password-gui
             maccy
             nix-index
             typescript-language-server
@@ -95,13 +94,12 @@
             vscode-html-language-server
             vscode-json-language-server
             devenv
-            nextPkgs.claude-code
+            claude-code
             nextPkgs.influxdb2-cli
             brave
             # nextPkgs.rustdesk-flutter
           ];
 
-        services.nix-daemon.enable = true;
         services.yabai = {
           enable = true;
           config = {
@@ -118,14 +116,14 @@
           '';
         };
 
+        system.primaryUser = "martinjlowm";
+
         # launchd.user.agents.shortcat = {
         #   serviceConfig.ProgramArguments = [ "${pkgs.shortcat}/Applications/Shortcat.app/Contents/MacOS/Shortcat" ];
 
         #   serviceConfig.KeepAlive = true;
         #   serviceConfig.RunAtLoad = true;
         # };
-
-        nix.settings.experimental-features = "nix-command flakes";
 
         programs.zsh = {
           enable = true;
@@ -139,7 +137,7 @@
 
         fonts.packages = [  ] ++ builtins.filter pkgs.lib.attrsets.isDerivation (builtins.attrValues pkgs.nerd-fonts);
 
-        nix.gc.automatic = true;
+        nix.enable = false;
 
         nix.linux-builder = {
           enable = false;
@@ -187,6 +185,7 @@
                   home.homeDirectory = nixpkgs.lib.mkForce "/Users/martinjlowm";
                   home.stateVersion = "22.05";
 
+
                   programs.starship = {
                     enable = true;
                   };
@@ -219,6 +218,11 @@
                       keyfinder = "${pkgs.keyfinder-cli}/bin/keyfinder-cli";
                       localhost = ''sed -E "s#(https://)([^/]+)#\\1localhost:3000#"'';
                       wget = "curl -O --retry 999 --retry-max-time 0 -C -";
+                      worktree = "source worktree";
+                    };
+                    sessionVariables = {
+                      DEVENV_ENABLE_HOOKS = "true";
+                      NIXPKGS_ALLOW_UNFREE = 1;
                     };
                     envExtra = ''
                       export ZSH_TMUX_AUTOSTART=true
@@ -418,7 +422,7 @@
                 };
 
           }
-          ./1password.nix
+          #./1password.nix
           {
             programs._1password.enable = true;
             programs._1password-gui.enable = true;
