@@ -1,9 +1,9 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nextNixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nextNixpkgs.url = "github:NixOS/nixpkgs/8eaee110344796db060382e15d3af0a9fc396e0e";
 
-    nix-darwin.url = "github:LnL7/nix-darwin";
+    nix-darwin.url = "github:martinjlowm/nix-darwin/5c2bb92a99a6bb1957876ff5bb8be48423a9ac72";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
 
     home-manager.url = "github:nix-community/home-manager";
@@ -12,8 +12,9 @@
 
   outputs = inputs@{ self, nix-darwin, home-manager, nixpkgs, nextNixpkgs }:
     let
+      system = "aarch64-darwin";
       pkgs = import nixpkgs {
-        system = "x86_64-darwin";
+        inherit system;
         config = {
           allowUnfree = true;
           allowBroken = true;
@@ -33,7 +34,7 @@
         })];
       };
       nextPkgs = import nextNixpkgs {
-        system = "x86_64-darwin";
+        inherit system;
         config = {
           allowUnfree = true;
           allowBroken = true;
@@ -67,6 +68,8 @@
             # })
             bun
             yarn
+            ripgrep
+            opentelemetry-collector
             # bruno
             karabiner-elements # Key remapping
             rust-analyzer
@@ -74,6 +77,7 @@
             jdk
             # wine64
             nix-tree
+            heroku
             (ffmpeg.override {
               withWebp = true;
             })
@@ -82,7 +86,6 @@
             ast-grep
             cargo
             biome
-            teams
             qemu
             git-lfs
             #nextPkgs._1password-gui
@@ -93,17 +96,32 @@
             vscode-eslint-language-server
             vscode-html-language-server
             vscode-json-language-server
-            devenv
+            nextPkgs.devenv
             claude-code
-            nextPkgs.influxdb2-cli
+            influxdb2-cli
             brave
+            discord
+            firefox
+            delta
             # nextPkgs.rustdesk-flutter
           ];
 
         services.yabai = {
           enable = true;
+          package = (nextPkgs.yabai.overrideAttrs {
+            src = pkgs.fetchzip {
+              url = "https://github.com/koekeishiya/yabai/archive/refs/heads/ff42ceadc92dfc50df63b73e3e1384b8b4059864.zip";
+              hash = "sha256-cDONHrNPBTzEkVqxN1cHDqVumfyfcHrTYGZxn4s/mEA=";
+            };
+            doInstallCheck = false;
+          });
           config = {
             layout = "bsp";
+            top_padding = 8;
+            bottom_padding = 8;
+            left_padding = 8;
+            right_padding = 8;
+            window_gap = 8;
           };
           extraConfig = ''
             yabai -m rule --add app="System Settings" manage=off
@@ -115,6 +133,13 @@
             yabai -m rule --add app="^Spotify$" space=5
           '';
         };
+        services.jankyborders = {
+          enable = true;
+          active_color = "0xFFFF00CC";
+          inactive_color = "";
+          width = 6.0;
+        };
+        networking.hostName = "wololobook";
 
         system.primaryUser = "martinjlowm";
 
@@ -140,9 +165,10 @@
         nix.enable = false;
 
         nix.linux-builder = {
-          enable = false;
+          enable = true;
           ephemeral = true;
           maxJobs = 4;
+          systems = ["x86_64-linux" "aarch64-linux"];
           config = {
             virtualisation = {
               darwin-builder = {
@@ -151,6 +177,7 @@
               };
               cores = 8;
             };
+            boot.binfmt.emulatedSystems = ["x86_64-linux"];
           };
         };
 
@@ -167,17 +194,19 @@
           home-manager.darwinModules.home-manager
           {
             home-manager.useUserPackages = true;
-            home-manager.extraSpecialArgs = { inherit pkgs; };
-            home-manager.users.martinjlowm = { pkgs, lib, config, ... }:
+            home-manager.extraSpecialArgs = { inherit pkgs nextPkgs; };
+            home-manager.users.martinjlowm = { pkgs, nextPkgs, lib, config, ... }:
               let
                 emacs = pkgs.emacs-macport;
 
+                allGrammars = (pkgs.emacsPackagesFor emacs).treesit-grammars.with-all-grammars;
                 emacs-with-packages = (pkgs.emacsPackagesFor emacs).emacsWithPackages (epkgs: with epkgs; [
                   pkgs.mu
                   vterm
                   multi-vterm
                   pdf-tools
-                  (treesit-grammars.with-grammars  (p: [ p.tree-sitter-nix ]))
+                  allGrammars
+                  # (treesit-grammars.with-grammars  (p: [ p.tree-sitter-nix ]))
                   claude-shell
                 ]);
               in
@@ -185,6 +214,10 @@
                   home.homeDirectory = nixpkgs.lib.mkForce "/Users/martinjlowm";
                   home.stateVersion = "22.05";
 
+                  home.file = {
+                    ".config/emacs/.local/cache/tree-sitter".source =
+                      "${allGrammars}/lib";
+                  };
 
                   programs.starship = {
                     enable = true;
@@ -314,7 +347,6 @@
                         "isodate"
                         "macos"
                         "starship"
-                        "thefuck"
                         "transfer"
                       ];
                     };
@@ -330,11 +362,41 @@
 
                   programs.git = {
                     enable = true;
+                    userName = "Martin Jesper Low Madsen";
+                    userEmail = "mj@factbird.com";
+                    aliases = {
+                      stashgrep = ''
+                        !f() {
+                          for i in `git stash list --format=\"%gd\"`; do
+                            git stash show -p $i | grep -H --label=\"$i\" \"$@\";
+                          done;
+                        };
+                        f
+                      '';
+                    };
+                    extraConfig = {
+                      core = {
+                        ignorecase = false;
+                      };
+                      push = {
+                        autoSetupRemote = true;
+                      };
+                      pull = {
+                        rebase = false;
+                      };
+                    };
+                  };
+                  programs.git-worktree-switcher = {
+                    enable = true;
+                  };
+                  programs.mergiraf = {
+                    enable = true;
                   };
 
                   programs.granted = {
                     enable = true;
                     enableZshIntegration = true;
+                    package = nextPkgs.granted;
                   };
 
                   programs.tmux = {
@@ -402,10 +464,6 @@
                   # programs.mpv = {
                   #   enable = true;
                   # };
-
-                  programs.thefuck = {
-                    enable = true;
-                  };
 
                   programs.vscode = {
                     enable = true;
