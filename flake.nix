@@ -41,9 +41,20 @@
           allowUnfreePredicate = (_: true);
           allowUnsupportedSystem = true;
         };
+        overlays = [(final: prev: {
+          yabai = (prev.yabai.overrideAttrs {
+            src = pkgs.fetchzip {
+              url = "https://github.com/koekeishiya/yabai/archive/refs/heads/ff42ceadc92dfc50df63b73e3e1384b8b4059864.zip";
+              hash = "sha256-cDONHrNPBTzEkVqxN1cHDqVumfyfcHrTYGZxn4s/mEA=";
+            };
+            doInstallCheck = false;
+          });
+        })];
       };
       configuration = { pkgs, ... }:
         let
+          yabai = "${nextPkgs.yabai}/bin/yabai";
+          jq = "${pkgs.jq}/bin/jq";
           pnpWrap = { name, bin }:
             pkgs.writers.writeBashBin name ''
               export NODE_OPTIONS="";
@@ -54,6 +65,23 @@
           vscode-eslint-language-server = pnpWrap { name = "vscode-eslint-language-server"; bin = "${pkgs.vscode-langservers-extracted}/lib/node_modules/vscode-langservers-extracted/bin/vscode-eslint-language-server"; };
           vscode-html-language-server = pnpWrap { name = "vscode-html-language-server"; bin = "${pkgs.vscode-langservers-extracted}/lib/node_modules/vscode-langservers-extracted/bin/vscode-html-language-server"; };
           vscode-json-language-server = pnpWrap { name = "vscode-json-language-server"; bin = "${pkgs.vscode-langservers-extracted}/lib/node_modules/vscode-langservers-extracted/bin/vscode-json-language-server"; };
+          yabai-docked = pkgs.writers.writeBashBin "yabai-docked" ''
+            ${yabai} -m rule --apply app="^Brave Browser$" display="3"
+            ${yabai} -m rule --apply app="^Brave Browser$" title="YouTube" display="3"
+
+            ${yabai} -m rule --apply app="^Terminal$" display="2"
+            ${yabai} -m rule --apply app="^Emacs$" display="2"
+
+            youtube=$(${yabai} -m query --windows  | ${jq} '.[] | select(.title | contains("YouTube")) | .id' | tr -d '\n')
+            if [ ! -z $youtube ]; then
+              ${yabai} -m window $youtube --swap west
+              ${yabai} -m window $youtube --resize bottom_right:-700:0
+            fi
+          '';
+          yabai-undocked = pkgs.writers.writeBashBin "yabai-undocked" ''
+            ${yabai} -m rule --apply app="^Terminal$" display="1"
+            ${yabai} -m rule --apply app="^Emacs$" display="1"
+          '';
         in {
         environment.systemPackages =
           with pkgs; [
@@ -103,18 +131,14 @@
             discord
             firefox
             delta
+            yabai-docked
+            yabai-undocked
             # nextPkgs.rustdesk-flutter
           ];
 
         services.yabai = {
           enable = true;
-          package = (nextPkgs.yabai.overrideAttrs {
-            src = pkgs.fetchzip {
-              url = "https://github.com/koekeishiya/yabai/archive/refs/heads/ff42ceadc92dfc50df63b73e3e1384b8b4059864.zip";
-              hash = "sha256-cDONHrNPBTzEkVqxN1cHDqVumfyfcHrTYGZxn4s/mEA=";
-            };
-            doInstallCheck = false;
-          });
+          package = nextPkgs.yabai;
           config = {
             layout = "bsp";
             top_padding = 8;
@@ -126,14 +150,26 @@
           extraConfig = ''
             yabai -m rule --add app="System Settings" manage=off
 
-            yabai -m rule --add app="^Chrome$" space=^3
-            yabai -m rule --add app="^FireFox$" space=^3
-            yabai -m rule --add app="^Telegram$" space=4
-            yabai -m rule --add app="^Music$" space=5
-            yabai -m rule --add app="^Spotify$" space=5
+            numDisplays=$(yabai -m query --displays | ${jq} '. | length')
+            if [[ $numDisplays == "3" ]]; then
+              ${yabai-docked}/bin/yabai-docked
+            else
+              ${yabai-undocked}/bin/yabai-undocked
+            fi
+
+            yabai -m signal --add event=display_added action="${yabai-docked}/bin/yabai-docked"
+            yabai -m signal --add event=display_removed action="${yabai-undocked}/bin/yabai-undocked"
           '';
         };
         services.jankyborders = {
+          package = (pkgs.jankyborders.overrideAttrs {
+            src = pkgs.fetchFromGitHub {
+              owner = "FelixKratz";
+              repo = "JankyBorders";
+              rev = "v1.8.4";
+              hash = "sha256-31Er+cUQNJbZnXKC6KvlrBhOvyPAM7nP3BaxunAtvWg=";
+            };
+          });
           enable = true;
           active_color = "0xFFFF00CC";
           inactive_color = "";
@@ -142,6 +178,20 @@
         networking.hostName = "wololobook";
 
         system.primaryUser = "martinjlowm";
+
+        system.defaults.NSGlobalDomain.KeyRepeat = 2;
+        system.defaults.NSGlobalDomain.InitialKeyRepeat = 15;
+        system.defaults.NSGlobalDomain._HIHideMenuBar = true;
+        system.defaults.NSGlobalDomain."com.apple.keyboard.fnState" = true;
+        system.keyboard.enableKeyMapping = true;
+        system.keyboard.remapCapsLockToControl = true;
+        system.defaults.dock.orientation = "right";
+        system.defaults.dock.autohide = true;
+        system.defaults.dock.wvous-tl-corner = 11;
+
+        security.pam.services.sudo_local.enable = true;
+        security.pam.services.sudo_local.reattach = true;
+        security.pam.services.sudo_local.touchIdAuth = true;
 
         # launchd.user.agents.shortcat = {
         #   serviceConfig.ProgramArguments = [ "${pkgs.shortcat}/Applications/Shortcat.app/Contents/MacOS/Shortcat" ];
