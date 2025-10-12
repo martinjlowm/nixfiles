@@ -66,17 +66,29 @@
           vscode-html-language-server = pnpWrap { name = "vscode-html-language-server"; bin = "${pkgs.vscode-langservers-extracted}/lib/node_modules/vscode-langservers-extracted/bin/vscode-html-language-server"; };
           vscode-json-language-server = pnpWrap { name = "vscode-json-language-server"; bin = "${pkgs.vscode-langservers-extracted}/lib/node_modules/vscode-langservers-extracted/bin/vscode-json-language-server"; };
           yabai-docked = pkgs.writers.writeBashBin "yabai-docked" ''
+            ${yabai} -m rule --apply app="^Slack" display="1"
+
+            ${yabai} -m rule --apply app="^Emacs$" display="2"
+            ${yabai} -m rule --apply app="^Terminal$" display="2"
+
+            emacs=$(${yabai} -m query --windows  | ${jq} '.[] | select(.title | contains("Emacs")) | .id' | tr -d '\n')
+            ${yabai} -m window $emacs --swap west
+
             ${yabai} -m rule --apply app="^Brave Browser$" display="3"
             ${yabai} -m rule --apply app="^Brave Browser$" title="YouTube" display="3"
-
-            ${yabai} -m rule --apply app="^Terminal$" display="2"
-            ${yabai} -m rule --apply app="^Emacs$" display="2"
 
             youtube=$(${yabai} -m query --windows  | ${jq} '.[] | select(.title | contains("YouTube")) | .id' | tr -d '\n')
             if [ ! -z $youtube ]; then
               ${yabai} -m window $youtube --swap west
               ${yabai} -m window $youtube --resize bottom_right:-700:0
             fi
+
+            firefox=$(${yabai} -m query --windows  | ${jq} '.[] | select(.title | contains("Firefox")) | .id' | tr -d '\n')
+            if [ ! -z $firefox ]; then
+              ${yabai} -m rule --apply app="^Firefox$" display="3"
+              ${yabai} -m window $firefox --warp east
+            fi
+
           '';
           yabai-undocked = pkgs.writers.writeBashBin "yabai-undocked" ''
             ${yabai} -m rule --apply app="^Terminal$" display="1"
@@ -133,6 +145,7 @@
             delta
             yabai-docked
             yabai-undocked
+            podman
             # nextPkgs.rustdesk-flutter
           ];
 
@@ -177,6 +190,8 @@
         };
         networking.hostName = "wololobook";
 
+	services.sketchybar.enable = true;
+
         system.primaryUser = "martinjlowm";
 
         system.defaults.NSGlobalDomain.KeyRepeat = 2;
@@ -199,6 +214,25 @@
         #   serviceConfig.KeepAlive = true;
         #   serviceConfig.RunAtLoad = true;
         # };
+
+        launchd.user.agents.remap-keys = {
+          serviceConfig = {
+            ProgramArguments = [
+              "/usr/bin/hidutil"
+              "property"
+              "--set"
+              ''
+              {
+                "UserKeyMapping":[
+                  {"HIDKeyboardModifierMappingSrc":0x700000035,"HIDKeyboardModifierMappingDst":0x700000064},
+                  {"HIDKeyboardModifierMappingSrc":0x700000064,"HIDKeyboardModifierMappingDst":0x700000035}
+                ]
+              }
+              ''
+            ];
+            RunAtLoad = true;
+          };
+        };
 
         programs.zsh = {
           enable = true;
@@ -267,6 +301,10 @@
                   home.file = {
                     ".config/emacs/.local/cache/tree-sitter".source =
                       "${allGrammars}/lib";
+                    ".config/sketchybar" = {
+                      source = ./sketchybar;
+                      recursive = true;
+                    };
                   };
 
                   programs.starship = {
@@ -305,6 +343,11 @@
                     };
                     sessionVariables = {
                       DEVENV_ENABLE_HOOKS = "true";
+                      DEVENV_ENABLE_MCP_SENTRY = "true";
+                      DEVENV_ENABLE_MCP_NOTION = "true";
+                      DEVENV_ENABLE_MCP_SERENA = "true";
+                      DEVENV_ENABLE_MCP_AWS_DIAGRAM = "true";
+                      DOCKER_HOST = "unix:///tmp/podman/podman-machine-default-api.sock";
                       NIXPKGS_ALLOW_UNFREE = 1;
                     };
                     envExtra = ''
