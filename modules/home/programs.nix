@@ -26,8 +26,6 @@
   programs.awscli.enable = true;
   programs.dircolors.enable = true;
   programs.dircolors.enableZshIntegration = true;
-  programs.wezterm.enable = true;
-  programs.wezterm.enableZshIntegration = true;
 
   programs.atuin = {
     enable = true;

@@ -36,18 +36,22 @@
       inherit system;
       nixpkgs = inputs.nextNixpkgs;
     };
+    nextPkgsDevenv = mkPkgs {
+      inherit system;
+      nixpkgs = inputs.nextNixpkgsDevenv;
+    };
   in
     inputs.nix-darwin.lib.darwinSystem {
       inherit pkgs;
       specialArgs = {
-        inherit inputs nextPkgs hostname username;
+        inherit inputs nextPkgs nextPkgsDevenv hostname username;
       };
       modules =
         [
           inputs.home-manager.darwinModules.home-manager
           {
             home-manager.useUserPackages = true;
-            home-manager.extraSpecialArgs = {inherit pkgs nextPkgs inputs;};
+            home-manager.extraSpecialArgs = {inherit pkgs nextPkgs nextPkgsDevenv inputs;};
           }
         ]
         ++ modules;

@@ -54,7 +54,7 @@
   system.stateVersion = 4;
 
   # All nerd fonts
-  fonts.packages = [] ++ builtins.filter pkgs.lib.attrsets.isDerivation (builtins.attrValues pkgs.nerd-fonts);
+  fonts.packages = builtins.filter pkgs.lib.attrsets.isDerivation (builtins.attrValues pkgs.nerd-fonts);
 
   nix.enable = false;
   nix.settings.trusted-users = ["@admin"];

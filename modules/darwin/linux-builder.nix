@@ -1,5 +1,5 @@
 # Linux builder VM for cross-compilation on macOS
-{...}: {
+_: {
   nix.linux-builder = {
     enable = true;
     ephemeral = true;

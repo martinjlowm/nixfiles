@@ -4,7 +4,7 @@
   lib,
   ...
 }: let
-  isDarwin = pkgs.stdenv.isDarwin;
+  inherit (pkgs.stdenv) isDarwin;
   username = "martinjlowm";
 in {
   imports = [
@@ -22,7 +22,7 @@ in {
   # Darwin-specific files
   home.file = lib.optionalAttrs isDarwin {
     ".config/sketchybar" = {
-      source = ../../sketchybar;
+      source = ../../config/sketchybar;
       recursive = true;
     };
   };

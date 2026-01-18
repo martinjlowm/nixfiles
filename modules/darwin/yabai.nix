@@ -1,11 +1,11 @@
 # Yabai window manager configuration for macOS
 {
   pkgs,
-  nextPkgs,
+  nextPkgsDevenv,
   lib,
   ...
 }: let
-  yabai = "${nextPkgs.yabai}/bin/yabai";
+  yabai = "${nextPkgsDevenv.yabai}/bin/yabai";
   jq = "${pkgs.jq}/bin/jq";
 
   yabai-docked = pkgs.writers.writeBashBin "yabai-docked" ''
@@ -45,7 +45,7 @@ in {
 
   services.yabai = {
     enable = true;
-    package = nextPkgs.yabai;
+    package = nextPkgsDevenv.yabai;
     config = {
       layout = "bsp";
       top_padding = 8;

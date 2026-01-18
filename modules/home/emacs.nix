@@ -4,7 +4,7 @@
   lib,
   ...
 }: let
-  isDarwin = pkgs.stdenv.isDarwin;
+  inherit (pkgs.stdenv) isDarwin;
 
   # Use emacs-macport on macOS, regular emacs on Linux
   emacs =

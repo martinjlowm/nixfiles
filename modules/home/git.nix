@@ -1,5 +1,5 @@
 # Git configuration
-{...}: {
+_: {
   programs.git = {
     enable = true;
     settings = {

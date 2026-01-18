@@ -4,7 +4,7 @@
   lib,
   ...
 }: let
-  isDarwin = pkgs.stdenv.isDarwin;
+  inherit (pkgs.stdenv) isDarwin;
 in {
   programs.zsh = {
     enable = true;
@@ -127,7 +127,7 @@ in {
           "aws"
           "common-aliases"
           "direnv"
-          "tmux"
+          # "tmux"
           "isodate"
           "starship"
           "transfer"

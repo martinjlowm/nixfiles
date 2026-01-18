@@ -1,7 +1,7 @@
 # Tmux terminal multiplexer configuration
 {pkgs, ...}: {
   programs.tmux = {
-    enable = true;
+    enable = false;
     keyMode = "emacs";
     mouse = true;
     newSession = true;

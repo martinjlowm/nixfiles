@@ -2,6 +2,7 @@
 {
   pkgs,
   nextPkgs,
+  nextPkgsDevenv,
   ...
 }: let
   pnpWrap = {
@@ -37,67 +38,94 @@
     name = "vscode-json-language-server";
     bin = "${pkgs.vscode-langservers-extracted}/lib/node_modules/vscode-langservers-extracted/bin/vscode-json-language-server";
   };
+  agent-browser = pkgs.buildNpmPackage rec {
+    pname = "agent-browser";
+    version = "0.5.0";
+
+    src = pkgs.fetchurl {
+      url = "https://registry.npmjs.org/agent-browser/-/agent-browser-${version}.tgz";
+      hash = "sha256-IdeLrmuExcdV4V3h3IGeB8Q8jliLHqrran5ewP+k56A=";
+    };
+
+    postPatch = ''
+      cp ${../../lockfiles/agent-browser.json} package-lock.json
+    '';
+
+    npmDepsHash = "sha256-pJgcKu27WP79vEEzEtJD243jT0ItJ6ii/TKym6TLtp0=";
+
+    dontNpmBuild = true;
+
+    # The bin entry is a bash script, not a node script - replace the node wrapper
+    postFixup = ''
+      rm $out/bin/agent-browser
+      ln -s $out/lib/node_modules/agent-browser/bin/agent-browser $out/bin/agent-browser
+    '';
+  };
 in {
-  environment.systemPackages = with pkgs; [
-    # Shell & CLI tools
-    starship
-    gh
-    ripgrep
-    nix-tree
-    nix-index
-    delta
-    alejandra
+  environment.systemPackages = with pkgs;
+    [
+      # Shell & CLI tools
+      starship
+      gh
+      ripgrep
+      nix-tree
+      nix-index
+      delta
+      alejandra
 
-    # Development - Node.js
-    nodejs_24
-    bun
-    yarn
-    typescript-language-server
-    vscode-css-language-server
-    vscode-eslint-language-server
-    vscode-html-language-server
-    vscode-json-language-server
+      magic-wormhole
 
-    # Development - Rust
-    rust-analyzer
-    cargo
-    biome
+      # Development - Node.js
+      nodejs_24
+      bun
+      yarn
+      typescript-language-server
+      vscode-css-language-server
+      vscode-eslint-language-server
+      vscode-html-language-server
+      vscode-json-language-server
+      agent-browser
 
-    # Development - Java
-    jdk
+      # Development - Rust
+      rust-analyzer
+      cargo
+      biome
 
-    # Development - Other
-    ast-grep
-    git-lfs
-    nextPkgs.devenv
-    claude-code
+      # Development - Java
+      jdk
 
-    # Media
-    yt-dlp
-    (ffmpeg.override {withWebp = true;})
-    audacity
+      # Development - Other
+      ast-grep
+      git-lfs
+      nextPkgsDevenv.devenv
 
-    # macOS specific
-    karabiner-elements
-    maccy
+      # Media
+      yt-dlp
+      (ffmpeg.override {withWebp = true;})
+      audacity
 
-    # Cloud & Infrastructure
-    heroku
-    opentelemetry-collector
-    influxdb2-cli
-    ssm-session-manager-plugin
-    attic-client
-    podman
+      # macOS specific
+      karabiner-elements
+      maccy
 
-    # Browsers & Apps
-    brave
-    discord
-    firefox
+      # Cloud & Infrastructure
+      heroku
+      opentelemetry-collector
+      influxdb2-cli
+      ssm-session-manager-plugin
+      attic-client
+      podman
 
-    # LaTeX
-    (texlive.combine {
-      inherit (texlive) scheme-medium inter titlesec svg transparent;
-    })
-    texlab
-  ];
+      # Browsers & Apps
+      brave
+      discord
+      firefox
+
+      # LaTeX
+      (texlive.combine {
+        inherit (texlive) scheme-medium inter titlesec svg transparent;
+      })
+      texlab
+    ]
+    ++ (pkgs.callPackage ../../scripts {});
 }
