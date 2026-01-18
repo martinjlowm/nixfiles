@@ -1,17 +1,18 @@
-# Git configuration
-{nextPkgs, ...}: let
+# Claude Code configuration
+{nextPkgs, lib, ...}: let
   claudeDirectory = ../../config/claude;
+  stripMdExt = name: lib.removeSuffix ".md" name;
 in {
   programs.claude-code = {
     enable = true;
     package = nextPkgs.claude-code;
     agents = builtins.listToAttrs (builtins.map (name: {
-        inherit name;
+        name = stripMdExt name;
         value = claudeDirectory + "/agents/${name}";
       })
       (builtins.attrNames (builtins.readDir "${claudeDirectory}/agents")));
     commands = builtins.listToAttrs (builtins.map (name: {
-        inherit name;
+        name = stripMdExt name;
         value = claudeDirectory + "/commands/${name}";
       })
       (builtins.attrNames (builtins.readDir "${claudeDirectory}/commands")));

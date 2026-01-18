@@ -30,10 +30,10 @@
       -- Scrollable tab bar styling
       config.tab_bar_style = {
         new_tab = wezterm.format {
-          { Text = '''' },
+          { Text = "" },
         },
         new_tab_hover = wezterm.format {
-          { Text = '''' },
+          { Text = "" },
         },
       }
 
