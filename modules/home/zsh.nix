@@ -12,6 +12,7 @@ in {
 
     shellAliases =
       {
+        rustNightlyShell = ''nix shell "github:oxalica/rust-overlay#rust-nightly_$1"'';
         ls = "ls -Gal";
         sl = "ls";
         gs = "git status";
@@ -19,7 +20,6 @@ in {
         keyfinder = "${pkgs.keyfinder-cli}/bin/keyfinder-cli";
         localhost = ''sed -E "s#(https://)([^/]+)#\\1localhost:3000#"'';
         wget = "curl -O --retry 999 --retry-max-time 0 -C -";
-        worktree = "source worktree";
         just = "$HOME/.cargo/bin/just";
       }
       // lib.optionalAttrs isDarwin {

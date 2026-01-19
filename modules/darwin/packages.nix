@@ -61,6 +61,26 @@
       ln -s $out/lib/node_modules/agent-browser/bin/agent-browser $out/bin/agent-browser
     '';
   };
+  zeroshot = pkgs.buildNpmPackage rec {
+    pname = "zeroshot";
+    version = "5.4.0";
+
+    src = pkgs.fetchFromGitHub {
+      owner = "covibes";
+      repo = "zeroshot";
+      tag = "v${version}";
+      hash = "sha256-Q4k2s3lqdaKbSI7FdhztQl9ARFIk2aAK95QPp6RcjD0=";
+    };
+
+    postPatch = ''
+      cp ${../../lockfiles/zeroshot.json} package-lock.json
+    '';
+
+    npmDepsHash = "sha256-8z6vRWSZTftxTcWoG5AnyCqBnCdc7ond4TiSJxq4zVE=";
+
+    dontNpmBuild = true;
+    PUPPETEER_SKIP_DOWNLOAD = "true";
+  };
 in {
   environment.systemPackages = with pkgs;
     [
@@ -84,7 +104,9 @@ in {
       vscode-eslint-language-server
       vscode-html-language-server
       vscode-json-language-server
+
       agent-browser
+      zeroshot
 
       # Development - Rust
       rust-analyzer

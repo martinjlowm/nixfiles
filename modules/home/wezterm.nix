@@ -166,6 +166,10 @@
       config.leader = { key = 'z', mods = 'CTRL', timeout_milliseconds = 1000 }
 
       config.keys = {
+        -- Disable macOS fullscreen
+        { key = 'Enter', mods = 'CMD', action = act.DisableDefaultAssignment },
+        { key = 'f', mods = 'CTRL|CMD', action = act.DisableDefaultAssignment },
+
         -- Copy mode: M-v or Leader+[ (like tmux)
         {
           key = 'v',
