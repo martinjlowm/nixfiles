@@ -6,9 +6,9 @@
 2. Read `./.state/__SPEC__/progress.txt` (check Codebase Patterns first)
 3. Worktree-/branch name: `[SPEC_SLUG]/[STORY]`
 4. Evaluate necessary change requests for all stories, even if `passes: true` and
-  - address any pull request reviews from GitHub (use gh) and
-    rebase based on the base-branch. If the PR is merged into master, rebase
-    based on origin/master
+  - address any pull request reviews from GitHub (use gh) and rebase based on
+    the base-branch - even if progress.txt indicates it's complete. If the PR is
+    merged into master, rebase based on origin/master
   - address any failing GitHub Actions CI PR checks if relevant to
     the changes
   - mark the task incomplete (`passes: false`) if there are any feedback or CI
@@ -32,6 +32,56 @@
 12. Update prd.json: `passes: true`
 13. Append learnings to progress.txt
 14. Push to origin and create a draft PR
+
+## Performance Validation Requirements
+
+When a task involves **performance claims** (e.g., "optimizes queries",
+"improves latency", "adds indexes for performance"), rigorous validation is
+REQUIRED:
+
+### Before/After Report
+
+1. **Test Environment**: Document realistic scale
+   - Use production-representative data volume (100K+ rows, not 10K)
+   - Include hierarchy depth and data distribution that matches real usage
+   - Note: Local warm-cache testing may not reveal production benefits
+
+2. **BEFORE Benchmark** (without the change):
+   - Run `EXPLAIN (ANALYZE, BUFFERS)` on affected queries
+   - Document execution time, planning time, buffer hits
+   - Capture the query plan (which indexes used, seq scans, etc.)
+
+3. **AFTER Benchmark** (with the change):
+   - Same queries with identical test data
+   - Same EXPLAIN output format
+   - Direct comparison
+
+4. **Honest Assessment**:
+   - Document what improved AND what didn't
+   - Explain WHY the improvement occurs (or doesn't)
+   - Note limitations of local testing vs production
+
+### Example PR Comment Format
+
+```markdown
+## Performance Validation
+
+### Test Environment
+- X rows in table Y
+- Realistic data distribution: [describe]
+
+### BEFORE (without change)
+[Query plan output]
+Execution: X.XX ms
+
+### AFTER (with change)
+[Query plan output]
+Execution: X.XX ms
+
+### Result
+- Improvement: X% faster / Marginal / No change
+- Reason: [explain why]
+```
 
 ## Progress Format
 
