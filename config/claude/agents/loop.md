@@ -9,7 +9,7 @@
   - address any pull request reviews from GitHub (use gh) and rebase based on
     the base-branch - even if progress.txt indicates it's complete. If the PR is
     merged into master, rebase based on origin/master
-  - if the PR is closed, simply continue as-is
+  - if the PR is closed, continue as-is
   - address any failing GitHub Actions CI PR checks if relevant to
     the changes
   - mark the task incomplete (`passes: false`) if there are any feedback or CI
