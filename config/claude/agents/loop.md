@@ -40,27 +40,65 @@ When a task involves **performance claims** (e.g., "optimizes queries",
 "improves latency", "adds indexes for performance"), rigorous validation is
 REQUIRED:
 
+### Discover Existing Query Patterns
+
+Before benchmarking, locate existing queries and patterns in the repository:
+
+1. **Find existing queries**:
+   - Search for `.sql` files, migration directories, and embedded SQL
+   - Look for ORM query patterns (Prisma, TypeORM, Drizzle, SQLx, etc.)
+   - Check for GraphQL resolvers with database access
+   - Identify API endpoints that perform database operations
+
+2. **Locate existing test infrastructure**:
+   - Search for performance tests, benchmarks, or load tests
+   - Find seed data scripts or fixtures
+   - Check for existing `EXPLAIN` usage in tests or documentation
+
+3. **Reference repository patterns**:
+   - Use existing query patterns as baseline for comparison
+   - Follow established conventions for query construction
+   - Leverage existing test utilities and database helpers
+
+### Benchmarking Tools
+
+Use appropriate benchmarking tools to evaluate results over multiple iterations:
+
+- **K6**: For HTTP/API endpoint load testing and latency measurements
+- **Hyperfine**: For CLI commands, scripts, or database query benchmarks
+- **pgbench**: For PostgreSQL-specific workload testing
+- **Existing tools**: Check the repository for established benchmarking setups
+
+Always run multiple iterations to account for variance—single-run results are
+not statistically meaningful.
+
 ### Before/After Report
 
 1. **Test Environment**: Document realistic scale
    - Use production-representative data volume (100K+ rows, not 10K)
    - Include hierarchy depth and data distribution that matches real usage
    - Note: Local warm-cache testing may not reveal production benefits
+   - Reference existing seed scripts or test fixtures from the repository
 
 2. **BEFORE Benchmark** (without the change):
    - Run `EXPLAIN (ANALYZE, BUFFERS)` on affected queries
    - Document execution time, planning time, buffer hits
    - Capture the query plan (which indexes used, seq scans, etc.)
+   - Use existing query patterns from the codebase as test cases
+   - Run multiple iterations with benchmarking tools (e.g., `hyperfine`)
 
 3. **AFTER Benchmark** (with the change):
    - Same queries with identical test data
    - Same EXPLAIN output format
+   - Same number of iterations
    - Direct comparison
 
 4. **Honest Assessment**:
    - Document what improved AND what didn't
    - Explain WHY the improvement occurs (or doesn't)
    - Note limitations of local testing vs production
+   - Compare against any existing performance baselines in the repository
+   - Include statistical summary (min, max, mean, std dev) from multi-run benchmarks
 
 ### Example PR Comment Format
 
@@ -70,17 +108,32 @@ REQUIRED:
 ### Test Environment
 - X rows in table Y
 - Realistic data distribution: [describe]
+- Seed script used: `path/to/seed.ts` (if applicable)
+- Benchmarking tool: K6 / Hyperfine / pgbench
+
+### Queries Tested
+- Reference: `path/to/query.sql` or `path/to/resolver.ts:L42`
+- Pattern: [describe the query pattern from the codebase]
 
 ### BEFORE (without change)
 [Query plan output]
 Execution: X.XX ms
 
+Benchmark (N iterations):
+  Mean: X.XX ms ± X.XX ms
+  Min: X.XX ms, Max: X.XX ms
+
 ### AFTER (with change)
 [Query plan output]
 Execution: X.XX ms
 
+Benchmark (N iterations):
+  Mean: X.XX ms ± X.XX ms
+  Min: X.XX ms, Max: X.XX ms
+
 ### Result
 - Improvement: X% faster / Marginal / No change
+- Statistical confidence: [describe variance overlap]
 - Reason: [explain why]
 ```
 
