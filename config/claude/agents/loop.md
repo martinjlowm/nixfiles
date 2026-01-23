@@ -5,15 +5,15 @@
 1. Read `./.state/__SPEC__/prd.json` constructed from `./specs/__SPEC__.md`
 2. Read `./.state/__SPEC__/progress.txt` (check Codebase Patterns first)
 3. Worktree-/branch name: `[SPEC_SLUG]/[STORY]`
-4. Evaluate necessary change requests for all stories, even if `passes: true` and
-  - address any pull request reviews from GitHub (use gh) and rebase based on
-    the base-branch - even if progress.txt indicates it's complete. If the PR is
-    merged into master, rebase based on origin/master
-  - if the PR is closed, continue as-is
-  - address any failing GitHub Actions CI PR checks if relevant to
-    the changes
-  - mark the task incomplete (`passes: false`) if there are any feedback or CI
-    failures to address
+4. **CRITICAL: Review and address PR feedback** for all stories, even if `passes: true`:
+  - Fetch all PR review comments using `gh pr view --comments` and `gh api`
+  - Address **every** unresolved comment before proceeding
+  - Rebase based on the base-branch (or origin/master if PR is merged)
+  - If the PR is closed, continue as-is
+  - Address any failing GitHub Actions CI PR checks if relevant to the changes
+  - Mark the task incomplete (`passes: false`) if there are any unaddressed
+    feedback or CI failures
+  - See **PR Review Feedback Requirements** section below for details
 5. Change context into the correct branch and its worktree
   - branched off of the dependent branch/worktree
   - if there is none, default branching off of origin/master
@@ -32,7 +32,84 @@
     components otherwise specific projects, e.g. ui-app, ms-graphql-devices
 12. Update prd.json: `passes: true`
 13. Append learnings to progress.txt
-14. Push to origin and create a draft PR
+14. Push to origin and create a draft PR (see **PR Limit** below)
+
+## PR Limit
+
+**Maximum 5 open PRs at a time.** Before creating a new PR:
+
+1. Check current open PR count: `gh pr list --state open --author @me | wc -l`
+2. If 5 or more PRs are open:
+   - **Still push the branch** to origin (`git push -u origin <branch>`)
+   - **Do not create a PR** - document in progress.txt that branch is pushed but
+     PR creation is deferred
+   - Continue to the next story
+3. When an existing PR is merged or closed, create PRs for pending branches
+
+Track deferred PRs in `./.state/__SPEC__/deferred-prs.json`:
+```json
+{
+  "deferred": [
+    {"branch": "spec/story-6", "pushed_at": "2024-01-15T10:30:00Z", "reason": "PR limit reached"}
+  ]
+}
+```
+
+## PR Review Feedback Requirements
+
+**Addressing PR review comments is mandatory.** No story is complete until all
+review feedback has been addressed.
+
+### Fetching Review Comments
+
+Use the GitHub CLI to fetch all review comments:
+
+```bash
+# Get PR review comments
+gh api repos/{owner}/{repo}/pulls/{pr_number}/comments
+
+# Get PR reviews with their state
+gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews
+
+# Get general PR comments (conversation)
+gh pr view {pr_number} --comments
+```
+
+### Addressing Comments
+
+1. **Review every comment** - Do not skip or ignore any feedback
+2. **Resolve explicitly** - Either implement the requested change or reply with
+   a clear explanation if you disagree (then implement anyway unless trivial)
+3. **Track progress** - Update `./.state/__SPEC__/review-state.json` with:
+   ```json
+   {
+     "pr_number": 123,
+     "last_addressed_comment_id": "IC_abc123",
+     "last_addressed_at": "2024-01-15T10:30:00Z",
+     "addressed_comments": ["IC_abc123", "IC_def456"],
+     "pending_comments": []
+   }
+   ```
+4. **Re-check after push** - New comments may arrive; always fetch latest before
+   marking complete
+
+### Comment State Tracking
+
+The `review-state.json` file MUST be updated after addressing each comment:
+- `last_addressed_comment_id`: ID of the most recently addressed comment
+- `last_addressed_at`: Timestamp when it was addressed
+- `addressed_comments`: Array of all addressed comment IDs
+- `pending_comments`: Array of comment IDs still requiring action
+
+This allows resumption of work and prevents re-addressing the same comments.
+
+### When to Mark Story Complete
+
+A story can only have `passes: true` when:
+- All review comments have been addressed
+- `pending_comments` array is empty
+- CI checks are passing
+- Changes have been pushed
 
 ## Performance Validation Requirements
 
@@ -144,6 +221,9 @@ APPEND to progress.txt:
 ## [Date] - [Story ID]
 - What was implemented
 - Files changed
+- **PR Review Feedback Addressed:**
+  - [Comment ID]: [Summary of feedback and how it was addressed]
+  - Last addressed: [comment ID] at [timestamp]
 - **Learnings:**
   - Patterns discovered
   - Gotchas encountered
