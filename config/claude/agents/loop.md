@@ -32,7 +32,7 @@
     components otherwise specific projects, e.g. ui-app, ms-graphql-devices
 12. Update prd.json: `passes: true`
 13. Append learnings to progress.txt
-14. Push to origin and create a draft PR (see **PR Limit** below)
+14. Push to origin (NEVER force push) and create a draft PR (see **PR Limit** below)
 
 ## PR Limit
 

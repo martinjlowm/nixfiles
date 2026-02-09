@@ -2,6 +2,7 @@
 {
   pkgs,
   nextPkgs,
+  nextPkgsClaude,
   ...
 }: {
   environment.systemPackages = with pkgs; [
@@ -28,7 +29,7 @@
     ast-grep
     git-lfs
     nextPkgs.devenv
-    claude-code
+    nextPkgsClaude.claude-code
 
     # Media
     yt-dlp

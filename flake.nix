@@ -5,6 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nextNixpkgsDevenv.url = "github:NixOS/nixpkgs/e99366c665bdd53b7b500ccdc5226675cfc51f45";
     nextNixpkgs.url = "github:NixOS/nixpkgs/d1c2cd5033acedf3f29affd8d44e288107e95238";
+    nextNixpkgsClaude.url = "github:NixOS/nixpkgs/f4a9cd4f7cfa0ada33acab7d17eb3a6af3f6ba3b";
 
     nix-darwin.url = "github:martinjlowm/nix-darwin/nix-darwin-25.11";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
@@ -19,6 +20,7 @@
     home-manager,
     nixpkgs,
     nextNixpkgsDevenv,
+    nextNixpkgsClaude,
     nextNixpkgs,
   }: let
     # Import overlays

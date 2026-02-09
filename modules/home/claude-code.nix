@@ -1,11 +1,16 @@
 # Claude Code configuration
-{nextPkgs, lib, ...}: let
+{
+  nextPkgs,
+  nextPkgsClaude,
+  lib,
+  ...
+}: let
   claudeDirectory = ../../config/claude;
   stripMdExt = name: lib.removeSuffix ".md" name;
 in {
   programs.claude-code = {
     enable = true;
-    package = nextPkgs.claude-code;
+    package = nextPkgsClaude.claude-code;
     agents = builtins.listToAttrs (builtins.map (name: {
         name = stripMdExt name;
         value = claudeDirectory + "/agents/${name}";

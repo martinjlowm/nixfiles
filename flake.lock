@@ -37,6 +37,22 @@
         "type": "github"
       }
     },
+    "nextNixpkgsClaude": {
+      "locked": {
+        "lastModified": 1770323838,
+        "narHash": "sha256-SNx4u67iMaX4XouWu+wu14kE6fgPQOsMIU9Z0shmO+A=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "f4a9cd4f7cfa0ada33acab7d17eb3a6af3f6ba3b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "f4a9cd4f7cfa0ada33acab7d17eb3a6af3f6ba3b",
+        "type": "github"
+      }
+    },
     "nextNixpkgsDevenv": {
       "locked": {
         "lastModified": 1761656231,
@@ -94,6 +110,7 @@
       "inputs": {
         "home-manager": "home-manager",
         "nextNixpkgs": "nextNixpkgs",
+        "nextNixpkgsClaude": "nextNixpkgsClaude",
         "nextNixpkgsDevenv": "nextNixpkgsDevenv",
         "nix-darwin": "nix-darwin",
         "nixpkgs": "nixpkgs"

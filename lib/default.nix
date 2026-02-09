@@ -40,6 +40,10 @@
       inherit system;
       nixpkgs = inputs.nextNixpkgsDevenv;
     };
+    nextPkgsClaude = mkPkgs {
+      inherit system;
+      nixpkgs = inputs.nextNixpkgsClaude;
+    };
   in
     inputs.nix-darwin.lib.darwinSystem {
       inherit pkgs;
@@ -51,7 +55,7 @@
           inputs.home-manager.darwinModules.home-manager
           {
             home-manager.useUserPackages = true;
-            home-manager.extraSpecialArgs = {inherit pkgs nextPkgs nextPkgsDevenv inputs;};
+            home-manager.extraSpecialArgs = {inherit pkgs nextPkgs nextPkgsDevenv nextPkgsClaude inputs;};
           }
         ]
         ++ modules;
