@@ -10,7 +10,8 @@
   - Address **every** unresolved comment before proceeding
   - Rebase based on the base-branch (or origin/master if PR is merged)
   - If the PR is closed, continue as-is
-  - Address any failing GitHub Actions CI PR checks if relevant to the changes
+  - Address any failing or cancelled GitHub Actions CI PR checks if relevant to
+    the changes. Cancellations cascade from a failure
   - Mark the task incomplete (`passes: false`) if there are any unaddressed
     feedback or CI failures
   - See **PR Review Feedback Requirements** section below for details
@@ -108,7 +109,8 @@ This allows resumption of work and prevents re-addressing the same comments.
 A story can only have `passes: true` when:
 - All review comments have been addressed
 - `pending_comments` array is empty
-- CI checks are passing
+- CI checks are passing - if CI checks are cancelled it is because of a
+  cascading effect because of a failure in one specific check
 - Changes have been pushed
 
 ## Performance Validation Requirements
