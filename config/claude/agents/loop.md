@@ -11,7 +11,8 @@
   - Rebase based on the base-branch (or origin/master if PR is merged)
   - If the PR is closed, continue as-is
   - Address any failing or cancelled GitHub Actions CI PR checks if relevant to
-    the changes. Cancellations cascade from a failure
+    the changes. Cancellations cascade from a failure that is rooted in the
+    logs - warnings are not a reason for a failure
   - Mark the task incomplete (`passes: false`) if there are any unaddressed
     feedback or CI failures
   - See **PR Review Feedback Requirements** section below for details
@@ -112,6 +113,7 @@ A story can only have `passes: true` when:
 - CI checks are passing - if CI checks are cancelled it is because of a
   cascading effect because of a failure in one specific check
 - Changes have been pushed
+- Ensure the PR title and description represents the changeset
 
 ## Performance Validation Requirements
 
