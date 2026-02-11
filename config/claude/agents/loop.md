@@ -12,7 +12,7 @@
   - If the PR is closed, continue as-is
   - Address any failing or cancelled GitHub Actions CI PR checks if relevant to
     the changes. Cancellations cascade from a failure that is rooted in the
-    logs - warnings are not a reason for a failure
+    logs - look for error - warnings are not a reason for a failure
   - Mark the task incomplete (`passes: false`) if there are any unaddressed
     feedback or CI failures
   - See **PR Review Feedback Requirements** section below for details
