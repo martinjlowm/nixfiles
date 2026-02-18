@@ -137,6 +137,7 @@ in {
       ssm-session-manager-plugin
       attic-client
       podman
+      inkscape
 
       # Browsers & Apps
       brave

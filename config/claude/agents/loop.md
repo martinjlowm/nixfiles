@@ -25,7 +25,7 @@
    you have the tooling you need
   - Pre-commit hooks are generated from this
 7. Pick highest priority story where `passes: false`
-8. Implement that ONE story
+8. Implement or iterate on that *ONE* story
 9. Run typecheck and tests selectively in projects that should be affected
 10. Update AGENTS.md files with learnings
 11. Commit: `[feat|fix|chore]([Component]): [ID] - [Title]` and include a
@@ -34,26 +34,30 @@
     components otherwise specific projects, e.g. ui-app, ms-graphql-devices
 12. Update prd.json: `passes: true`
 13. Append learnings to progress.txt
-14. Push to origin (NEVER force push, but utilize merging instead) and create a
-    draft PR (see **PR Limit** below)
+14. Push to origin (NEVER force push, but utilize upstream merging before
+    pushing instead) and create a draft PR (see **PR Limit** below)
 
 ## PR Limit
 
-**Maximum 5 open PRs at a time.** Before creating a new PR:
+**Maximum 5 open PRs per spec.** The limit is scoped to the current spec being
+implemented — PRs from other specs do not count. Before creating a new PR:
 
-1. Check current open PR count: `gh pr list --state open --author @me | wc -l`
-2. If 5 or more PRs are open:
+1. Check open PR count for this spec:
+   `gh pr list --state open --author @me --search "head:__SPEC_SLUG__/" | wc -l`
+   (where `__SPEC_SLUG__` is the spec's branch prefix, e.g. `my-feature`)
+2. If 5 or more PRs are open for this spec:
    - **Still push the branch** to origin (`git push -u origin <branch>`)
    - **Do not create a PR** - document in progress.txt that branch is pushed but
      PR creation is deferred
    - Continue to the next story
-3. When an existing PR is merged or closed, create PRs for pending branches
+3. When an existing PR for this spec is merged or closed, create PRs for pending
+   branches
 
 Track deferred PRs in `./.state/__SPEC__/deferred-prs.json`:
 ```json
 {
   "deferred": [
-    {"branch": "spec/story-6", "pushed_at": "2024-01-15T10:30:00Z", "reason": "PR limit reached"}
+    {"branch": "spec/story-6", "pushed_at": "2024-01-15T10:30:00Z", "reason": "PR limit reached (5 open for this spec)"}
   ]
 }
 ```
