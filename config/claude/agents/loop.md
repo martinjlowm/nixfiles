@@ -25,7 +25,7 @@
    you have the tooling you need
   - Pre-commit hooks are generated from this
 7. Pick highest priority story where `passes: false`
-8. Implement or iterate on that *ONE* story
+8. Implement, revisit or revise (see **Revising** below) that **ONE** story
 9. Run typecheck and tests selectively in projects that should be affected
 10. Update AGENTS.md files with learnings
 11. Commit: `[feat|fix|chore]([Component]): [ID] - [Title]` and include a
@@ -36,6 +36,19 @@
 13. Append learnings to progress.txt
 14. Push to origin (NEVER force push, but utilize upstream merging before
     pushing instead) and create a draft PR (see **PR Limit** below)
+15. Revise the PR title and description summarizing the factual changes
+
+## Revising
+
+**All CI checks must pass.** Determine if failing CI checks are relevant to the
+story in question. If CI checks are cancelled it is because of a cascading
+effect from a cancel-workflow action that cancels all other jobs. There will be
+at least one check that fails. Grep for errors in the logs. The logs can contain
+A LOT of data, so grepping is a must.
+
+**The changes must represent the latest revised version of the story.** Any
+changes that aren't relevant to fulfilling the success criteria must be
+discarded.
 
 ## PR Limit
 
