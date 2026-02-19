@@ -24,7 +24,8 @@
 6. Before doing any work in the worktree, enter the Nix dev shell to make sure
    you have the tooling you need
   - Pre-commit hooks are generated from this
-7. Pick highest priority story where `passes: false`
+7. Pick highest priority story where `passes: false` **and no CI checks are
+   currently running** (see **CI Check Flow** below)
 8. Implement, revisit or revise (see **Revising** below) that **ONE** story
 9. Run typecheck and tests selectively in projects that should be affected
 10. Update AGENTS.md files with learnings
@@ -32,11 +33,46 @@
     reference to the `<base-branch>` - if a pull request exists for the
     base-branch, use that instead. Component can be `*` to represent many
     components otherwise specific projects, e.g. ui-app, ms-graphql-devices
-12. Update prd.json: `passes: true`
-13. Append learnings to progress.txt
-14. Push to origin (NEVER force push, but utilize upstream merging before
+12. Push to origin (NEVER force push, but utilize upstream merging before
     pushing instead) and create a draft PR (see **PR Limit** below)
-15. Revise the PR title and description summarizing the factual changes
+13. Revise the PR title and description summarizing the factual changes
+14. **Do not mark `passes: true` yet** — CI checks must complete first (see
+    **CI Check Flow**). Continue to the next story immediately.
+15. Append learnings to progress.txt
+16. On subsequent iterations, re-check CI for previously pushed stories and
+    update prd.json: `passes: true` only when all checks have passed
+
+## CI Check Flow
+
+**Do not wait for CI checks after pushing.** After pushing and creating/updating
+a PR, move on to the next story immediately. CI checks triggered by a push run
+asynchronously — do not block on them.
+
+### Selecting stories
+
+When picking the next story to work on (step 7), **skip** any story whose PR has
+CI checks currently in progress (`in_progress`, `queued`, or `pending` status).
+Check with:
+
+```bash
+gh pr checks <pr_number> --json name,state,status
+```
+
+- If any check has `status: "in_progress"` or `status: "queued"`, skip that
+  story and move to the next highest priority story with `passes: false`
+- If all stories with `passes: false` have running CI, end the iteration
+  normally — do not wait
+
+### Marking stories as passing
+
+A story may only be marked `passes: true` when CI checks have **all completed
+successfully**. On a subsequent iteration, re-check CI status for stories that
+were pushed but not yet marked passing:
+
+1. Run `gh pr checks <pr_number>` to get final CI status
+2. If all checks passed → mark `passes: true`
+3. If any checks failed → investigate and fix (see **Revising** below)
+4. If checks are still running → skip, pick another story
 
 ## Revising
 
@@ -128,8 +164,9 @@ This allows resumption of work and prevents re-addressing the same comments.
 A story can only have `passes: true` when:
 - All review comments have been addressed
 - `pending_comments` array is empty
-- CI checks are passing - if CI checks are cancelled it is because of a
-  cascading effect because of a failure in one specific check
+- CI checks have **all completed successfully** (not just initiated) — if checks
+  are still running, skip and revisit on a later iteration. Cancelled checks
+  cascade from a failure in one specific check
 - Changes have been pushed
 - Ensure the PR title and description represents the changeset
 
