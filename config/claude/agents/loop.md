@@ -83,7 +83,7 @@ at least one check that fails. Grep for errors in the logs. The logs can contain
 A LOT of data, so grepping is a must.
 
 **The changes must represent the latest revised version of the story.** Any
-changes that aren't relevant to fulfilling the success criteria must be
+changes that aren't relevant to fulfilling the acceptance criteria must be
 discarded.
 
 ## PR Limit
@@ -113,23 +113,8 @@ Track deferred PRs in `./.state/__SPEC__/deferred-prs.json`:
 
 ## PR Review Feedback Requirements
 
-**Addressing PR review comments is mandatory.** No story is complete until all
+**Addressing PR review comments is mandatory.** No story is complete until ALL
 review feedback has been addressed.
-
-### Fetching Review Comments
-
-Use the GitHub CLI to fetch all review comments:
-
-```bash
-# Get PR review comments
-gh api repos/{owner}/{repo}/pulls/{pr_number}/comments
-
-# Get PR reviews with their state
-gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews
-
-# Get general PR comments (conversation)
-gh pr view {pr_number} --comments
-```
 
 ### Addressing Comments
 
