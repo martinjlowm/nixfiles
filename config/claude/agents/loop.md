@@ -1,288 +1,105 @@
-# Loop Agent Instructions
+# Agent Instructions
 
-## Your Task
+## Workflow
 
-1. Read `./.state/__SPEC__/prd.json` constructed from `./specs/__SPEC__.md`
-2. Read `./.state/__SPEC__/progress.txt` (check Codebase Patterns first)
-3. Worktree-/branch name: `[SPEC_SLUG]/[STORY]`
-4. **CRITICAL: Review and address PR feedback** for all stories, even if `passes: true`:
-  - Fetch all PR review comments using `gh pr view --comments` and `gh api`
-  - Address **every** unresolved comment before proceeding
-  - Rebase based on the base-branch (or origin/master if PR is merged)
-  - If the PR is closed, continue as-is
-  - Address any failing or cancelled GitHub Actions CI PR checks if relevant to
-    the changes. Cancellations cascade from a failure that is rooted in the
-    logs - look for error - warnings are not a reason for a failure
-  - Mark the task incomplete (`passes: false`) if there are any unaddressed
-    feedback or CI failures
-  - See **PR Review Feedback Requirements** section below for details
-5. Change context into the correct branch and its worktree
-  - branched off of the dependent branch/worktree
-  - if there is none, default branching off of origin/master
-  - use the `worktree <worktree-name> --base <base-branch>` tool that is
-    available in PATH to prepare the worktree (this may take a few minutes!)
-6. Before doing any work in the worktree, enter the Nix dev shell to make sure
-   you have the tooling you need
-  - Pre-commit hooks are generated from this
-7. Pick highest priority story where `passes: false` **and no CI checks are
-   currently running** (see **CI Check Flow** below)
-8. Implement, revisit or revise (see **Revising** below) that **ONE** story
-9. Run typecheck and tests selectively in projects that should be affected
-10. Update AGENTS.md files with learnings
-11. Commit: `[feat|fix|chore]([Component]): [ID] - [Title]` and include a
-    reference to the `<base-branch>` - if a pull request exists for the
-    base-branch, use that instead. Component can be `*` to represent many
-    components otherwise specific projects, e.g. ui-app, ms-graphql-devices
-12. Push to origin (NEVER force push, but utilize upstream merging before
-    pushing instead) and create a draft PR (see **PR Limit** below)
-13. Revise the PR title and description summarizing the factual changes
-14. **Do not mark `passes: true` yet** — CI checks must complete first (see
-    **CI Check Flow**). Continue to the next story immediately.
-15. Append learnings to progress.txt
-16. On subsequent iterations, re-check CI for previously pushed stories and
-    update prd.json: `passes: true` only when all checks have passed
+1. Read `./.state/__SPEC__/prd.json` (from `./specs/__SPEC__.md`) and `./.state/__SPEC__/progress.txt` (check Codebase Patterns first)
+2. **Review PR feedback for all stories** (even if `passes: true`):
+   - Fetch comments via `gh pr view --comments` and `gh api`
+   - Address **every** unresolved comment; rebase on base-branch (or origin/master if merged); skip if PR closed
+   - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
+   - Set `passes: false` if unaddressed feedback or CI failures remain
+3. Set up worktree: branch `[SPEC_SLUG]/[STORY]` off dependent branch (or origin/master). Run: `worktree <name> --base <base-branch>`
+4. Enter Nix dev shell before any work (generates pre-commit hooks)
+5. Pick highest priority story with `passes: false` and **no running CI** (`gh pr checks <pr> --json name,state,status` — skip if any `in_progress`/`queued`/`pending`; if all blocked, **end the task immediately**)
+6. Implement/revise that **one** story. Run typecheck and tests for affected projects
+7. Update AGENTS.md with learnings
+8. Commit: `[feat|fix|chore]([Component]): [ID] - [Title]` referencing base-branch PR. Component: specific project or `*` for many
+9. Push (NEVER force push — merge upstream first). Create draft PR respecting **PR Limit**. Update PR title/description
+10. **Do not mark `passes: true`** — move to next story immediately. On later iterations, re-check CI: all passed → `passes: true`; failed → fix; running → skip
+11. Append learnings to progress.txt
 
-## CI Check Flow
-
-**Do not wait for CI checks after pushing.** After pushing and creating/updating
-a PR, move on to the next story immediately. CI checks triggered by a push run
-asynchronously — do not block on them.
-
-### Selecting stories
-
-When picking the next story to work on (step 7), **skip** any story whose PR has
-CI checks currently in progress (`in_progress`, `queued`, or `pending` status).
-Check with:
-
-```bash
-gh pr checks <pr_number> --json name,state,status
-```
-
-- If any check has `status: "in_progress"` or `status: "queued"`, skip that
-  story and move to the next highest priority story with `passes: false`
-- If all stories with `passes: false` have running CI, end the iteration
-  normally — do not wait
-
-### Marking stories as passing
-
-A story may only be marked `passes: true` when CI checks have **all completed
-successfully**. On a subsequent iteration, re-check CI status for stories that
-were pushed but not yet marked passing:
-
-1. Run `gh pr checks <pr_number>` to get final CI status
-2. If all checks passed → mark `passes: true`
-3. If any checks failed → investigate and fix (see **Revising** below)
-4. If checks are still running → skip, pick another story
+**NEVER wait or poll for CI.** Check CI status once — if checks are still running, move on or end the task. Waiting longer than 1 minute for CI results means you must stop immediately. CI runs are long; your time is better spent on the next actionable story. Come back on the next iteration when results are available.
 
 ## Revising
 
-**All CI checks must pass.** Determine if failing CI checks are relevant to the
-story in question. If CI checks are cancelled it is because of a cascading
-effect from a cancel-workflow action that cancels all other jobs. There will be
-at least one check that fails. Grep for errors in the logs. The logs can contain
-A LOT of data, so grepping is a must.
+All CI must pass. Discard changes not relevant to acceptance criteria.
 
-**The changes must represent the latest revised version of the story.** Any
-changes that aren't relevant to fulfilling the acceptance criteria must be
-discarded.
+### Troubleshooting Cancelled Workflows
+
+When most/all jobs show as `cancelled`, exactly ONE job will have a non-zero exit code — that's the root cause. The rest were cancelled as a cascade effect.
+
+**Finding the failing job:**
+
+1. List jobs for the failed run:
+   ```
+   gh api repos/{owner}/{repo}/actions/runs/{run_id}/jobs --jq '.jobs[] | select(.conclusion == "failure") | {name, conclusion, html_url}'
+   ```
+   If no `failure` conclusion, check for `startup_failure` or `timed_out` as well.
+
+2. Get the failed job's logs:
+   ```
+   gh run view {run_id} --log-failed
+   ```
+   Logs are large — pipe through `grep -i 'error\|failed\|exit code' | head -50` to find the root cause quickly.
+
+3. If `--log-failed` returns nothing (can happen when the failure is infrastructure-level), download full logs:
+   ```
+   gh run view {run_id} --log | grep -B5 -A5 'exit code [1-9]'
+   ```
+
+**Why everything else was cancelled:** GitHub Actions cancels all remaining jobs in a workflow run when a required job fails. The cancelled jobs did NOT fail on their own — they never ran (or were killed mid-run) because the failing job was either:
+- A direct dependency via `needs:` — downstream jobs can't start
+- Part of a matrix where `fail-fast: true` (default) kills sibling jobs
+- In the same `concurrency` group, causing the run to abort
+
+**Action:** Fix only the root-cause job's failure. Do not investigate cancelled jobs — they will pass once the root cause is resolved.
 
 ## PR Limit
 
-**Maximum 5 open PRs per spec.** The limit is scoped to the current spec being
-implemented — PRs from other specs do not count. Before creating a new PR:
+Max **5 open PRs per spec**. Check: `gh pr list --state open --author @me --search "head:__SPEC_SLUG__/" | wc -l`
 
-1. Check open PR count for this spec:
-   `gh pr list --state open --author @me --search "head:__SPEC_SLUG__/" | wc -l`
-   (where `__SPEC_SLUG__` is the spec's branch prefix, e.g. `my-feature`)
-2. If 5 or more PRs are open for this spec:
-   - **Still push the branch** to origin (`git push -u origin <branch>`)
-   - **Do not create a PR** - document in progress.txt that branch is pushed but
-     PR creation is deferred
-   - Continue to the next story
-3. When an existing PR for this spec is merged or closed, create PRs for pending
-   branches
-
-Track deferred PRs in `./.state/__SPEC__/deferred-prs.json`:
+If ≥5: push branch but don't create PR. Track in `./.state/__SPEC__/deferred-prs.json`:
 ```json
-{
-  "deferred": [
-    {"branch": "spec/story-6", "pushed_at": "2024-01-15T10:30:00Z", "reason": "PR limit reached (5 open for this spec)"}
-  ]
-}
+{"deferred": [{"branch": "spec/story-6", "pushed_at": "<ISO>", "reason": "PR limit reached"}]}
 ```
+Create deferred PRs when existing ones merge/close.
 
-## PR Review Feedback Requirements
+## PR Review Tracking
 
-**Addressing PR review comments is mandatory.** No story is complete until ALL
-review feedback has been addressed.
+Address every comment (implement or explain disagreement). Track in `./.state/__SPEC__/review-state.json`:
+```json
+{"pr_number": 123, "last_addressed_comment_id": "IC_abc", "last_addressed_at": "<ISO>", "addressed_comments": [], "pending_comments": []}
+```
+Re-fetch after push — new comments may arrive.
 
-### Addressing Comments
+### Story Completion Criteria
 
-1. **Review every comment** - Do not skip or ignore any feedback
-2. **Resolve explicitly** - Either implement the requested change or reply with
-   a clear explanation if you disagree (then implement anyway unless trivial)
-3. **Track progress** - Update `./.state/__SPEC__/review-state.json` with:
-   ```json
-   {
-     "pr_number": 123,
-     "last_addressed_comment_id": "IC_abc123",
-     "last_addressed_at": "2024-01-15T10:30:00Z",
-     "addressed_comments": ["IC_abc123", "IC_def456"],
-     "pending_comments": []
-   }
-   ```
-4. **Re-check after push** - New comments may arrive; always fetch latest before
-   marking complete
+`passes: true` requires: all review comments addressed (`pending_comments` empty) + all CI passed + changes pushed + PR title/description accurate.
 
-### Comment State Tracking
-
-The `review-state.json` file MUST be updated after addressing each comment:
-- `last_addressed_comment_id`: ID of the most recently addressed comment
-- `last_addressed_at`: Timestamp when it was addressed
-- `addressed_comments`: Array of all addressed comment IDs
-- `pending_comments`: Array of comment IDs still requiring action
-
-This allows resumption of work and prevents re-addressing the same comments.
-
-### When to Mark Story Complete
-
-A story can only have `passes: true` when:
-- All review comments have been addressed
-- `pending_comments` array is empty
-- CI checks have **all completed successfully** (not just initiated) — if checks
-  are still running, skip and revisit on a later iteration. Cancelled checks
-  cascade from a failure in one specific check
-- Changes have been pushed
-- Ensure the PR title and description represents the changeset
-
-## Performance Validation Requirements
-
-When a task involves **performance claims** (e.g., "optimizes queries",
-"improves latency", "adds indexes for performance"), rigorous validation is
-REQUIRED:
-
-### Discover Existing Query Patterns
-
-Before benchmarking, locate existing queries and patterns in the repository:
-
-1. **Find existing queries**:
-   - Search for `.sql` files, migration directories, and embedded SQL
-   - Look for ORM query patterns (Prisma, TypeORM, Drizzle, SQLx, etc.)
-   - Check for GraphQL resolvers with database access
-   - Identify API endpoints that perform database operations
-
-2. **Locate existing test infrastructure**:
-   - Search for performance tests, benchmarks, or load tests
-   - Find seed data scripts or fixtures
-   - Check for existing `EXPLAIN` usage in tests or documentation
-
-3. **Reference repository patterns**:
-   - Use existing query patterns as baseline for comparison
-   - Follow established conventions for query construction
-   - Leverage existing test utilities and database helpers
-
-### Benchmarking Tools
-
-Use appropriate benchmarking tools to evaluate results over multiple iterations:
-
-- **K6**: For HTTP/API endpoint load testing and latency measurements
-- **Hyperfine**: For CLI commands, scripts, or database query benchmarks
-- **pgbench**: For PostgreSQL-specific workload testing
-- **Existing tools**: Check the repository for established benchmarking setups
-
-Always run multiple iterations to account for variance—single-run results are
-not statistically meaningful.
-
-### Before/After Report
-
-1. **Test Environment**: Document realistic scale
-   - Use production-representative data volume (100K+ rows, not 10K)
-   - Include hierarchy depth and data distribution that matches real usage
-   - Note: Local warm-cache testing may not reveal production benefits
-   - Reference existing seed scripts or test fixtures from the repository
-
-2. **BEFORE Benchmark** (without the change):
-   - Run `EXPLAIN (ANALYZE, BUFFERS)` on affected queries
-   - Document execution time, planning time, buffer hits
-   - Capture the query plan (which indexes used, seq scans, etc.)
-   - Use existing query patterns from the codebase as test cases
-   - Run multiple iterations with benchmarking tools (e.g., `hyperfine`)
-
-3. **AFTER Benchmark** (with the change):
-   - Same queries with identical test data
-   - Same EXPLAIN output format
-   - Same number of iterations
-   - Direct comparison
-
-4. **Honest Assessment**:
-   - Document what improved AND what didn't
-   - Explain WHY the improvement occurs (or doesn't)
-   - Note limitations of local testing vs production
-   - Compare against any existing performance baselines in the repository
-   - Include statistical summary (min, max, mean, std dev) from multi-run benchmarks
-
-### Example PR Comment Format
-
-```markdown
 ## Performance Validation
 
-### Test Environment
-- X rows in table Y
-- Realistic data distribution: [describe]
-- Seed script used: `path/to/seed.ts` (if applicable)
-- Benchmarking tool: K6 / Hyperfine / pgbench
+Required for performance claims (optimized queries, improved latency, added indexes, etc.):
 
-### Queries Tested
-- Reference: `path/to/query.sql` or `path/to/resolver.ts:L42`
-- Pattern: [describe the query pattern from the codebase]
-
-### BEFORE (without change)
-[Query plan output]
-Execution: X.XX ms
-
-Benchmark (N iterations):
-  Mean: X.XX ms ± X.XX ms
-  Min: X.XX ms, Max: X.XX ms
-
-### AFTER (with change)
-[Query plan output]
-Execution: X.XX ms
-
-Benchmark (N iterations):
-  Mean: X.XX ms ± X.XX ms
-  Min: X.XX ms, Max: X.XX ms
-
-### Result
-- Improvement: X% faster / Marginal / No change
-- Statistical confidence: [describe variance overlap]
-- Reason: [explain why]
-```
+1. **Discover** existing queries (.sql, ORM patterns, resolvers) and test infrastructure (benchmarks, seeds, EXPLAIN usage)
+2. **Benchmark before/after** with multiple iterations using K6, Hyperfine, or pgbench:
+   - Production-representative data (100K+ rows)
+   - `EXPLAIN (ANALYZE, BUFFERS)` on affected queries
+   - Record execution time, planning time, buffer hits, query plan
+3. **Report** in PR: test environment, queries tested (with file references), before/after results with stats (mean ± stddev, min, max), honest assessment of what improved and why
 
 ## Progress Format
 
-APPEND to progress.txt:
-
+Append to progress.txt:
+```
 ## [Date] - [Story ID]
 - What was implemented
 - Files changed
-- **PR Review Feedback Addressed:**
-  - [Comment ID]: [Summary of feedback and how it was addressed]
-  - Last addressed: [comment ID] at [timestamp]
-- **Learnings:**
-  - Patterns discovered
-  - Gotchas encountered
+- PR Feedback: [Comment ID]: [summary] — Last: [id] at [timestamp]
+- Learnings: patterns, gotchas
 ---
-
-## Codebase Patterns
-
-Add reusable patterns to the TOP of progress.txt:
-
-## Codebase Patterns
-- Migrations: Use IF NOT EXISTS
-- React: useRef<Timeout | null>(null)
+```
+Add reusable **Codebase Patterns** to the TOP of progress.txt.
 
 ## Stop Condition
 
-If ALL stories pass, reply: <promise>COMPLETE</promise>
-
-Otherwise end normally.
+If ALL stories pass: <promise>COMPLETE</promise>
