@@ -17,6 +17,7 @@
 9. Push (NEVER force push — merge upstream first). Create draft PR respecting **PR Limit**. Update PR title/description
 10. **Do not mark `passes: true`** — move to next story immediately. On later iterations, re-check CI: all passed → `passes: true`; failed → fix; running → skip
 11. Append learnings to progress.txt
+12. Re-read `progress.txt` and `prd.json` — if either has changed since the start of this iteration (external edits, new instructions, priority changes), address the new information before continuing
 
 **NEVER wait or poll for CI.** Check CI status once — if checks are still running, move on or end the task. Waiting longer than 1 minute for CI results means you must stop immediately. CI runs are long; your time is better spent on the next actionable story. Come back on the next iteration when results are available.
 
