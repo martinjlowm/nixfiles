@@ -10,7 +10,7 @@
    - Set `passes: false` if unaddressed feedback or CI failures remain
 3. Set up worktree: branch `[SPEC_SLUG]/[STORY]` off dependent branch (or origin/master). Run: `worktree <name> --base <base-branch>`
 4. Enter Nix dev shell before any work (generates pre-commit hooks)
-5. Pick highest priority story with `passes: false` and **no running CI** (`gh pr checks <pr> --json name,state,status` — skip if any `in_progress`/`queued`/`pending`; if all blocked, **end the task immediately**)
+5. Pick highest priority story with `passes: false` and **no running CI** (`gh pr checks <pr> --json name,state` — skip if any state is `PENDING`; if all blocked, **end the task immediately**)
 6. Implement/revise that **one** story. Run typecheck and tests for affected projects
 7. Update AGENTS.md with learnings
 8. Commit: `[feat|fix|chore]([Component]): [ID] - [Title]` referencing base-branch PR. Component: specific project or `*` for many
@@ -26,33 +26,20 @@ All CI must pass. Discard changes not relevant to acceptance criteria.
 
 ### Troubleshooting Cancelled Workflows
 
-When most/all jobs show as `cancelled`, exactly ONE job will have a non-zero exit code — that's the root cause. The rest were cancelled as a cascade effect.
+When most/all jobs show as `cancelled`, one job has a non-zero exit code — the rest are a cascade. "Complete" checks are gate jobs (`needs:` aggregators) — never the root cause.
 
-**Finding the failing job:**
-
-1. List jobs for the failed run:
+1. **Identify** the failing job:
    ```
-   gh api repos/{owner}/{repo}/actions/runs/{run_id}/jobs --jq '.jobs[] | select(.conclusion == "failure") | {name, conclusion, html_url}'
+   gh run view {run_id} --log | grep 'exit code' | grep -v 'Complete'
    ```
-   If no `failure` conclusion, check for `startup_failure` or `timed_out` as well.
-
-2. Get the failed job's logs:
+2. **Investigate** why it failed — grep the full logs for that job name and look for the actual error:
    ```
-   gh run view {run_id} --log-failed
-   ```
-   Logs are large — pipe through `grep -i 'error\|failed\|exit code' | head -50` to find the root cause quickly.
-
-3. If `--log-failed` returns nothing (can happen when the failure is infrastructure-level), download full logs:
-   ```
-   gh run view {run_id} --log | grep -B5 -A5 'exit code [1-9]'
+   gh run view {run_id} --log | grep '{job_name}' | cut -f3- | grep -B10 -i 'error\|failed\|exception'
    ```
 
-**Why everything else was cancelled:** GitHub Actions cancels all remaining jobs in a workflow run when a required job fails. The cancelled jobs did NOT fail on their own — they never ran (or were killed mid-run) because the failing job was either:
-- A direct dependency via `needs:` — downstream jobs can't start
-- Part of a matrix where `fail-fast: true` (default) kills sibling jobs
-- In the same `concurrency` group, causing the run to abort
+Fix only the identified failure; cancelled jobs and gates will pass once resolved.
 
-**Action:** Fix only the root-cause job's failure. Do not investigate cancelled jobs — they will pass once the root cause is resolved.
+**Never blindly re-trigger CI.** If a workflow was cancelled, there is always a reason. Do not merge master and push just to re-trigger — investigate why it was cancelled first using the steps above.
 
 ## PR Limit
 
