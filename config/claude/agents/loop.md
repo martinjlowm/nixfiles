@@ -11,15 +11,17 @@
 3. Set up worktree: branch `[SPEC_SLUG]/[STORY]` off dependent branch (or origin/master). Run: `worktree <name> --base <base-branch>`
 4. Enter Nix dev shell before any work (generates pre-commit hooks)
 5. Pick highest priority story with `passes: false` and **no running CI** (`gh pr checks <pr> --json name,state` — skip if any state is `PENDING`; if all blocked, **end the task immediately**)
-6. Implement/revise that **one** story. Run typecheck and tests for affected projects
+6. Implement/revise that **one** story. Verify **every item** in `acceptanceCriteria` is met before moving on. Run typecheck and tests for affected projects
 7. Update AGENTS.md with learnings
 8. Commit: `[feat|fix|chore]([Component]): [ID] - [Title]` referencing base-branch PR. Component: specific project or `*` for many
 9. Push (NEVER force push — merge upstream first). Create draft PR respecting **PR Limit**. Update PR title/description
-10. **Do not mark `passes: true`** — move to next story immediately. On later iterations, re-check CI: all passed → `passes: true`; failed → fix; running → skip
+10. **Do not mark `passes: true`** unless CI has passed AND every `acceptanceCriteria` item is verified. **CI success alone is NOT sufficient.** Read the actual code in the PR and verify each `acceptanceCriteria` item one by one. Never batch-mark stories — check each story individually against its criteria. If CI is still running, skip — do not wait
 11. Append learnings to progress.txt
-12. Re-read `progress.txt` and `prd.json` — if either has changed since the start of this iteration (external edits, new instructions, priority changes), address the new information before continuing
+12. Re-read `progress.txt` and `prd.json` — if either has changed since the start of this task (external edits, new instructions, priority changes), address the new information before continuing
 
-**NEVER wait or poll for CI.** Check CI status once — if checks are still running, move on or end the task. Waiting longer than 1 minute for CI results means you must stop immediately. CI runs are long; your time is better spent on the next actionable story. Come back on the next iteration when results are available.
+**1 PR = 1 Story.** Each story gets exactly one PR. The task is done when all steps above (1–12) have been completed.
+
+**NEVER wait or poll for CI.** Check CI status once — if checks are still running, move on or end the task. Waiting longer than 1 minute for CI results means you must stop immediately.
 
 ## Revising
 
