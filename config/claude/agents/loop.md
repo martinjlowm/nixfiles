@@ -7,6 +7,7 @@
    - Fetch comments via `gh pr view --comments` and `gh api`
    - Address **every** unresolved comment; rebase on base-branch (or origin/master if merged); skip if PR closed
    - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
+   - **Check CI for passing stories too** — if any required check has failed or been cancelled, set `passes: false`
    - Set `passes: false` if unaddressed feedback or CI failures remain
 3. Set up worktree: branch `[SPEC_SLUG]/[STORY]` off dependent branch (or origin/master). Run: `worktree <name> --base <base-branch>`
 4. Enter Nix dev shell before any work (generates pre-commit hooks)
@@ -43,6 +44,8 @@ When most/all jobs show as `cancelled`, one job has a non-zero exit code — the
 Fix only the identified failure; cancelled jobs and gates will pass once resolved.
 
 **Never blindly re-trigger CI.** If a workflow was cancelled, there is always a reason. Do not merge master and push just to re-trigger — investigate why it was cancelled first using the steps above.
+
+**Exception — timeouts:** If a job timed out (`timed_out` conclusion), retry the run with `gh run rerun {run_id} --failed`. Timeouts are transient infrastructure issues, not code failures.
 
 ## PR Limit
 
@@ -88,6 +91,7 @@ Append to progress.txt:
 - Learnings: patterns, gotchas
 ---
 ```
+**Do NOT write story status (passes/fails, CI results) to progress.txt.** It is for notes and learnings only. Story pass/fail state lives exclusively in the `passes` field in `prd.json`.
 Add reusable **Codebase Patterns** to the TOP of progress.txt.
 
 ## Stop Condition
