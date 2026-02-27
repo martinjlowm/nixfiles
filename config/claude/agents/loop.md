@@ -16,11 +16,16 @@
 7. Update AGENTS.md with learnings
 8. Commit: `[feat|fix|chore]([Component]): [ID] - [Title]` referencing base-branch PR. Component: specific project or `*` for many
 9. Push (NEVER force push — merge upstream first). Create draft PR respecting **PR Limit**. Update PR title/description
-10. **Do not mark `passes: true`** unless CI has passed AND every `acceptanceCriteria` item is verified. **CI success alone is NOT sufficient.** Read the actual code in the PR and verify each `acceptanceCriteria` item one by one. Never batch-mark stories — check each story individually against its criteria. If CI is still running, skip — do not wait
+10. **Do not mark `passes: true`** unless ALL of the following are confirmed:
+    - CI has passed (not running, not failed, not cancelled)
+    - Every `acceptanceCriteria` item verified by reading the actual code in the PR
+    - No uncommitted changes remain in the worktree (`git status` clean)
+    - `prd.json` requirements have not changed since implementation began (re-read and compare)
+    Never batch-mark stories — check each story individually. If any condition is not met, do not mark `passes: true`
 11. Append learnings to progress.txt
 12. Re-read `progress.txt` and `prd.json` — if either has changed since the start of this task (external edits, new instructions, priority changes), address the new information before continuing
 
-**1 PR = 1 Story.** Each story gets exactly one PR. The task is done when all steps above (1–12) have been completed.
+**1 PR = 1 Story = 1 Task.** Each story gets exactly one PR. After completing steps 1–12 for one story, **end the task**. Never continue to the next story within the same task.
 
 **NEVER wait or poll for CI.** Check CI status once — if checks are still running, move on or end the task. Waiting longer than 1 minute for CI results means you must stop immediately.
 
@@ -87,11 +92,16 @@ Append to progress.txt:
 ## [Date] - [Story ID]
 - What was implemented
 - Files changed
-- PR Feedback: [Comment ID]: [summary] — Last: [id] at [timestamp]
 - Learnings: patterns, gotchas
 ---
 ```
-**Do NOT write story status (passes/fails, CI results) to progress.txt.** It is for notes and learnings only. Story pass/fail state lives exclusively in the `passes` field in `prd.json`.
+**progress.txt is strictly for implementation notes and learnings.** Do NOT write:
+- CI status, check results, or pass/fail state
+- Story status summaries or status review entries
+- "Next iteration" action items or plans
+- Batch status listings across multiple stories
+
+Story pass/fail state lives exclusively in the `passes` field in `prd.json`.
 Add reusable **Codebase Patterns** to the TOP of progress.txt.
 
 ## Stop Condition
