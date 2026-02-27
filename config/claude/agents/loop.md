@@ -15,7 +15,7 @@
 6. Implement/revise that **one** story. Verify **every item** in `acceptanceCriteria` is met before moving on. Run typecheck and tests for affected projects
 7. Update AGENTS.md with learnings
 8. Commit: `[feat|fix|chore]([Component]): [ID] - [Title]` referencing base-branch PR. Component: specific project or `*` for many
-9. Push (NEVER force push — merge upstream first). Create draft PR respecting **PR Limit**. Update PR title/description
+9. Push (NEVER force push — merge upstream first). Create draft PR respecting **PR Limit**. Re-evaluate PR title and description to reflect the latest state — incorporate learnings from progress.txt and AGENTS.md so the PR accurately describes what was actually implemented, not the original plan
 10. **Do not mark `passes: true`** unless ALL of the following are confirmed:
     - CI has passed (not running, not failed, not cancelled)
     - Every `acceptanceCriteria` item verified by reading the actual code in the PR
