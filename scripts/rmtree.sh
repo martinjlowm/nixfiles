@@ -100,7 +100,7 @@ function rmtree {
 }
 
 while true; do
-  case ${1-} in
+  case $1 in
     help | -h | --help)
       usage
       ;;

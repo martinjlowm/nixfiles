@@ -8,7 +8,8 @@
    - Address **every** unresolved comment; rebase on base-branch (or origin/master if merged); skip if PR closed
    - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
    - **Check CI for passing stories too** — if any required check has failed or been cancelled, set `passes: false`
-   - Set `passes: false` if unaddressed feedback or CI failures remain
+   - **Check for merge conflicts on every PR** (even passing ones): `gh pr view <pr> --json mergeable` — if `mergeable` is `CONFLICTING`, set `passes: false` and resolve the conflicts by rebasing on the base branch
+   - Set `passes: false` if unaddressed feedback, CI failures, or merge conflicts remain
 3. Set up worktree: branch `[SPEC_SLUG]/[STORY]` off dependent branch (or origin/master). Run: `worktree <name> --base <base-branch>`
 4. Enter Nix dev shell before any work (generates pre-commit hooks)
 5. Pick highest priority story with `passes: false` and **no running CI** (`gh pr checks <pr> --json name,state` — skip if any state is `PENDING`; if all blocked, **end the task immediately**)
@@ -18,6 +19,7 @@
 9. Push (NEVER force push — merge upstream first). Create draft PR respecting **PR Limit**. Re-evaluate PR title and description to reflect the latest state — incorporate learnings from progress.txt and AGENTS.md so the PR accurately describes what was actually implemented, not the original plan
 10. **Do not mark `passes: true`** unless ALL of the following are confirmed:
     - CI has passed (not running, not failed, not cancelled)
+    - PR has no merge conflicts (`gh pr view <pr> --json mergeable` shows `MERGEABLE`, not `CONFLICTING`)
     - Every `acceptanceCriteria` item verified by reading the actual code in the PR
     - No uncommitted changes remain in the worktree (`git status` clean)
     - `prd.json` requirements have not changed since implementation began (re-read and compare)
@@ -72,7 +74,7 @@ Re-fetch after push — new comments may arrive.
 
 ### Story Completion Criteria
 
-`passes: true` requires: all review comments addressed (`pending_comments` empty) + all CI passed + changes pushed + PR title/description accurate.
+`passes: true` requires: all review comments addressed (`pending_comments` empty) + all CI passed + no merge conflicts + changes pushed + PR title/description accurate.
 
 ## Performance Validation
 

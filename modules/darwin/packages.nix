@@ -143,6 +143,7 @@ in {
       brave
       discord
       firefox
+      whatsapp-for-mac
 
       # LaTeX
       (texlive.combine {
