@@ -4,12 +4,13 @@
 
 1. Read `./.state/__SPEC__/prd.json` (from `./specs/__SPEC__.md`) and `./.state/__SPEC__/progress.txt` (check Codebase Patterns first)
 2. **Review PR feedback for all stories** (even if `passes: true`):
-   - Fetch comments via `gh pr view --comments` and `gh api`
-   - Address **every** unresolved comment; rebase on base-branch (or origin/master if merged); skip if PR closed
+   - Fetch comments via `gh pr view --comments` and `gh api repos/{owner}/{repo}/pulls/{number}/comments`
+   - Address **every** unresolved comment — including nits, style suggestions, and minor feedback. Nothing gets ignored; skip only if PR is closed
+   - Rebase on base-branch (or origin/master if merged)
    - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
    - **Check CI for passing stories too** — if any required check has failed or been cancelled, set `passes: false`
    - **Check for merge conflicts on every PR** (even passing ones): `gh pr view <pr> --json mergeable` — if `mergeable` is `CONFLICTING`, set `passes: false` and resolve the conflicts by rebasing on the base branch
-   - Set `passes: false` if unaddressed feedback, CI failures, or merge conflicts remain
+   - Set `passes: false` if unaddressed feedback (including nits), CI failures, or merge conflicts remain
 3. Set up worktree: branch `[SPEC_SLUG]/[STORY]` off dependent branch (or origin/master). Run: `worktree <name> --base <base-branch>`
 4. Enter Nix dev shell before any work (generates pre-commit hooks)
 5. Pick highest priority story with `passes: false` and **no running CI** (`gh pr checks <pr> --json name,state` — skip if any state is `PENDING`; if all blocked, **end the task immediately**)
@@ -74,7 +75,7 @@ Re-fetch after push — new comments may arrive.
 
 ### Story Completion Criteria
 
-`passes: true` requires: all review comments addressed (`pending_comments` empty) + all CI passed + no merge conflicts + changes pushed + PR title/description accurate.
+`passes: true` requires: all review comments addressed — including nits (`pending_comments` empty) + all CI passed + no merge conflicts + changes pushed + PR title/description accurate.
 
 ## Performance Validation
 

@@ -22,5 +22,6 @@ in [
   (pkgs.writeShellScriptBin "loop" (builtins.readFile ./loop.sh))
   (pkgs.writeShellScriptBin "dependabot" (builtins.readFile ./dependabot.sh))
   (pkgs.writeShellScriptBin "project" (builtins.readFile ./project.sh))
+  (pkgs.writeShellScriptBin "pr-maintenance" (builtins.readFile ./pr-maintenance.sh))
   (pkgs.writeShellScriptBin "github-issues" (builtins.readFile ./github-issues.sh))
 ]
