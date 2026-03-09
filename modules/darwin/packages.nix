@@ -61,6 +61,22 @@
       ln -s $out/lib/node_modules/agent-browser/bin/agent-browser $out/bin/agent-browser
     '';
   };
+  safehouse = pkgs.stdenvNoCC.mkDerivation {
+    pname = "agent-safehouse";
+    version = "unstable-2025-06-01";
+
+    src = pkgs.fetchurl {
+      url = "https://raw.githubusercontent.com/eugene1g/agent-safehouse/main/dist/safehouse.sh";
+      hash = "sha256-SRLuZQUqqLb8ZMbaWfHqusxs20HedwIccM3gWQIUC0I=";
+    };
+
+    dontUnpack = true;
+
+    installPhase = ''
+      install -Dm755 $src $out/bin/safehouse
+    '';
+  };
+
   zeroshot = pkgs.buildNpmPackage rec {
     pname = "zeroshot";
     version = "5.4.0";
@@ -106,6 +122,7 @@ in {
       vscode-json-language-server
 
       agent-browser
+      safehouse
       zeroshot
 
       # Development - Rust
