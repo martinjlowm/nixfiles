@@ -61,21 +61,26 @@
       ln -s $out/lib/node_modules/agent-browser/bin/agent-browser $out/bin/agent-browser
     '';
   };
-  safehouse = pkgs.stdenvNoCC.mkDerivation {
-    pname = "agent-safehouse";
-    version = "unstable-2025-06-01";
+  safehouse = let
+    unwrapped = pkgs.stdenvNoCC.mkDerivation {
+      pname = "agent-safehouse";
+      version = "unstable-2025-06-01";
 
-    src = pkgs.fetchurl {
-      url = "https://raw.githubusercontent.com/eugene1g/agent-safehouse/main/dist/safehouse.sh";
-      hash = "sha256-SRLuZQUqqLb8ZMbaWfHqusxs20HedwIccM3gWQIUC0I=";
+      src = pkgs.fetchurl {
+        url = "https://raw.githubusercontent.com/eugene1g/agent-safehouse/main/dist/safehouse.sh";
+        hash = "sha256-SRLuZQUqqLb8ZMbaWfHqusxs20HedwIccM3gWQIUC0I=";
+      };
+
+      dontUnpack = true;
+
+      installPhase = ''
+        install -Dm755 $src $out/bin/safehouse
+      '';
     };
-
-    dontUnpack = true;
-
-    installPhase = ''
-      install -Dm755 $src $out/bin/safehouse
+  in
+    pkgs.writeShellScriptBin "safehouse" ''
+      exec ${unwrapped}/bin/safehouse --add-dirs-ro=/nix --add-dirs-ro=/private/etc "$@"
     '';
-  };
 
   zeroshot = pkgs.buildNpmPackage rec {
     pname = "zeroshot";

@@ -178,7 +178,7 @@ if [ "${1:-}" = "--run" ]; then
     ) &
     WATCHER_PID=$!
 
-    OUTPUT=$(echo "$AGENT_PROMPT" | safehouse claude --dangerously-skip-permissions 2>&1 | tee -a "$LOG_FILE" /dev/stderr) || true
+    OUTPUT=$(echo "$AGENT_PROMPT" | safehouse -- claude --dangerously-skip-permissions 2>&1 | tee -a "$LOG_FILE" /dev/stderr) || true
 
     # Stop the background watcher and tail
     kill $WATCHER_PID 2>/dev/null || true
