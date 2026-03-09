@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nextNixpkgsDevenv.url = "github:NixOS/nixpkgs/e99366c665bdd53b7b500ccdc5226675cfc51f45";
     nextNixpkgs.url = "github:NixOS/nixpkgs/d1c2cd5033acedf3f29affd8d44e288107e95238";
-    nextNixpkgsClaude.url = "github:NixOS/nixpkgs/4326e117670285283bc55989eb4b50d5f4ef0ef5";
+    nextNixpkgsClaude.url = "github:NixOS/nixpkgs/e552f73adecc5e4f5314b525f287a1aac02b4f3e";
 
     nix-darwin.url = "github:martinjlowm/nix-darwin/nix-darwin-25.11";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
