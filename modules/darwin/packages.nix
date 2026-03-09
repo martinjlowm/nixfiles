@@ -62,12 +62,12 @@
     '';
   };
   safehouse = let
-    unwrapped = pkgs.stdenvNoCC.mkDerivation {
+    unwrapped = pkgs.stdenvNoCC.mkDerivation rec {
       pname = "agent-safehouse";
-      version = "unstable-2025-06-01";
+      version = "a7377924efadf5e3b9eac6924dcf979f1dec0f8e";
 
       src = pkgs.fetchurl {
-        url = "https://raw.githubusercontent.com/eugene1g/agent-safehouse/main/dist/safehouse.sh";
+        url = "https://raw.githubusercontent.com/eugene1g/agent-safehouse/${version}/dist/safehouse.sh";
         hash = "sha256-SRLuZQUqqLb8ZMbaWfHqusxs20HedwIccM3gWQIUC0I=";
       };
 
