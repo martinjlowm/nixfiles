@@ -6,6 +6,12 @@
 2. **Review PR feedback for all stories** (even if `passes: true`):
    - Fetch comments via `gh pr view --comments` and `gh api repos/{owner}/{repo}/pulls/{number}/comments`
    - Address **every** unresolved comment — including nits, style suggestions, and minor feedback. Nothing gets ignored; skip only if PR is closed
+   - **Exception — non-actionable comments:** Skip one-statement comments that are purely observational and don't request any change (e.g., "Interesting feature!", "Nice approach", "Cool"). These require no response or action
+   - **Tone in comment replies:** Only comment on actions taken (e.g., "Fixed", "Updated to use X instead"). Do NOT engage in conversational banter, pick up on jokes or humorous remarks, or attempt to be witty. Keep replies strictly factual and action-oriented
+   - **Attribution:** Prefix all PR comments with `🤖 Robotto:`
+   - **Self-loop prevention:** Skip any comment that starts with `🤖 Robotto:` — these are from the agent itself. Never respond to your own comments
+   - **Code changes require tests:** When implementing code changes in response to review feedback, you MUST include corresponding tests. Never push new or modified code without test coverage. If you cannot write a meaningful test for a change, flag it in the PR comment rather than pushing untested code
+   - **References must be accurate:** When commenting on code or adding inline documentation, only reference actual implementation details you have verified. Prefer linking to source code (with the correct tagged version, e.g., `https://github.com/org/repo/blob/v1.2.3/src/file.rs#L42`) over docs.rs or other generated documentation — docs can drift from the real implementation. Never cite a function's behavior based on documentation alone; read the source to confirm
    - Rebase on base-branch (or origin/master if merged)
    - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
    - **Check CI for passing stories too** — if any required check has failed or been cancelled, set `passes: false`
