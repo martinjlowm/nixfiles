@@ -66,6 +66,8 @@ This agent focuses exclusively on getting existing PRs merged. It does NOT creat
     - **Merge conflicts:** rebase on the PR's base branch and resolve conflicts
     - **Failing CI:** investigate root cause (see **Troubleshooting Cancelled Workflows**), fix the code, commit
     - **PR comments:** address **every** unresolved comment — including nits, style suggestions, and minor feedback. Implement or explain disagreement. Nothing gets ignored
+      - **Exception — non-actionable comments:** Skip one-statement comments that are purely observational and don't request any change (e.g., "Interesting feature!", "Nice approach", "Cool"). These require no response or action — replying to them is noisy and unhelpful
+      - **Code changes require tests:** When implementing code changes in response to review feedback, you MUST include corresponding tests. Never push new or modified code without test coverage. If you cannot write a meaningful test for a change, flag it in the PR comment rather than pushing untested code
     - **Missing issue linkage:** if the branch references an issue number, edit the PR body to include `Closes <issue-url>` (`gh pr edit <pr> --body ...`)
     - **Review decision:** if changes were requested, re-request review after addressing all feedback
 12. Commit fixes: `[fix|chore](<Component>): Address PR feedback`
