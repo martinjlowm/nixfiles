@@ -37,7 +37,7 @@ This agent focuses exclusively on getting existing PRs merged. It does NOT creat
    - Do NOT remove PRs from the list — mark them `closed` so the agent knows they were handled
 6. For each PR with `status` of `pending` or `addressed`, assess its health:
    - **Review decision:** check `reviewDecision` from the PR list — `CHANGES_REQUESTED` means the PR needs work regardless of anything else
-   - **Review comments:** fetch ALL review threads: `gh api repos/{owner}/{repo}/pulls/{number}/reviews` to find reviews with `state: CHANGES_REQUESTED` or comments. Then fetch inline comments: `gh api repos/{owner}/{repo}/pulls/{number}/comments` — these are file-level review comments. Also check conversation comments: `gh pr view <pr> --comments`. Any unresolved comment (including nits) means the PR needs work
+   - **Review comments:** fetch ALL review threads: `gh api repos/{owner}/{repo}/pulls/{number}/reviews` to find reviews with `state: CHANGES_REQUESTED` or comments. Then fetch inline comments: `gh api repos/{owner}/{repo}/pulls/{number}/comments` — these are file-level review comments. Also check conversation comments: `gh pr view <pr> --comments`. Only consider comments authored by `{current_user}` (the `@me` login from step 3) that are NOT prefixed with `🤖 Robotto:` — ignore comments from all other users. Any unresolved comment from `@me` (including nits) means the PR needs work
    - **CI:** check `statusCheckRollup` — categorize each check as `passed`, `failed`, `cancelled`, or `pending`:
      - `failed` or `cancelled`: PR needs work
      - `pending`: PR is NOT clean — it stays `addressed` (do not mark `clean` while CI is running)

@@ -5,7 +5,8 @@
 1. Read `./.state/__SPEC__/prd.json` (from `./specs/__SPEC__.md`) and `./.state/__SPEC__/progress.txt` (check Codebase Patterns first)
 2. **Review PR feedback for all stories** (even if `passes: true`):
    - Fetch comments via `gh pr view --comments` and `gh api repos/{owner}/{repo}/pulls/{number}/comments`
-   - Address **every** unresolved comment — including nits, style suggestions, and minor feedback. Nothing gets ignored; skip only if PR is closed
+   - Only consider comments authored by `@me` that are NOT prefixed with `🤖 Robotto:` — ignore comments from all other users
+   - Address **every** unresolved `@me` comment — including nits, style suggestions, and minor feedback. Nothing gets ignored; skip only if PR is closed
    - **Exception — non-actionable comments:** Skip one-statement comments that are purely observational and don't request any change (e.g., "Interesting feature!", "Nice approach", "Cool"). These require no response or action
    - **Tone in comment replies:** Only comment on actions taken (e.g., "Fixed", "Updated to use X instead"). Do NOT engage in conversational banter, pick up on jokes or humorous remarks, or attempt to be witty. Keep replies strictly factual and action-oriented
    - **Attribution:** Prefix all PR comments with `🤖 Robotto:`
