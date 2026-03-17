@@ -71,5 +71,19 @@
 
     # Expose packages for convenience
     darwinPackages = wololobook.pkgs;
+
+    # Script packages
+    packages = let
+      systems = ["aarch64-darwin" "x86_64-linux" "x86_64-darwin" "aarch64-linux"];
+      scriptNames = ["dependabot" "github-issues" "loop" "pr-maintenance" "project" "rmtree" "worktree"];
+    in
+      builtins.listToAttrs (map (system: {
+        name = system;
+        value = let
+          pkgs = lib.mkPkgs {inherit system;};
+          scripts = pkgs.callPackage ./scripts {};
+        in
+          nixpkgs.lib.getAttrs scriptNames scripts;
+      }) systems);
   };
 }

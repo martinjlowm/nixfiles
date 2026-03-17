@@ -1,4 +1,13 @@
 {pkgs, ...}: let
+  wezterm = pkgs.wezterm;
+
+  mkWeztermScript = name:
+    pkgs.writeShellApplication {
+      inherit name;
+      runtimeInputs = [wezterm];
+      text = builtins.readFile ./${name}.sh;
+    };
+in {
   worktree = pkgs.writeShellApplication {
     name = "worktree";
     runtimeInputs = [
@@ -16,12 +25,9 @@
     ];
     text = builtins.readFile ./rmtree.sh;
   };
-in [
-  worktree
-  rmtree
-  (pkgs.writeShellScriptBin "loop" (builtins.readFile ./loop.sh))
-  (pkgs.writeShellScriptBin "dependabot" (builtins.readFile ./dependabot.sh))
-  (pkgs.writeShellScriptBin "project" (builtins.readFile ./project.sh))
-  (pkgs.writeShellScriptBin "pr-maintenance" (builtins.readFile ./pr-maintenance.sh))
-  (pkgs.writeShellScriptBin "github-issues" (builtins.readFile ./github-issues.sh))
-]
+  loop = mkWeztermScript "loop";
+  dependabot = mkWeztermScript "dependabot";
+  project = mkWeztermScript "project";
+  pr-maintenance = mkWeztermScript "pr-maintenance";
+  github-issues = mkWeztermScript "github-issues";
+}

@@ -173,5 +173,5 @@ in {
       })
       texlab
     ]
-    ++ (pkgs.callPackage ../../scripts {});
+    ++ (builtins.attrValues (pkgs.callPackage ../../scripts {}));
 }
