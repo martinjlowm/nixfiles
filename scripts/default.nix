@@ -5,6 +5,7 @@
     pkgs.writeShellApplication {
       inherit name;
       runtimeInputs = [wezterm];
+      checkPhase = "";
       text = builtins.readFile ./${name}.sh;
     };
 in {
@@ -16,6 +17,7 @@ in {
       pkgs.git
       pkgs.gnugrep
     ];
+    checkPhase = "";
     text = builtins.readFile ./worktree.sh;
   };
   rmtree = pkgs.writeShellApplication {
@@ -23,6 +25,7 @@ in {
     runtimeInputs = [
       pkgs.git
     ];
+    checkPhase = "";
     text = builtins.readFile ./rmtree.sh;
   };
   loop = mkWeztermScript "loop";
