@@ -58,25 +58,23 @@ function rmtree {
     die "You must provide a worktree name to remove. Use --list to see available worktrees."
   fi
 
-  # Get the base directory for worktrees (parent of git common dir)
-  GIT_COMMON_DIR="$(git rev-parse --git-common-dir)"
-  WORKTREE_BASE="$(dirname "$GIT_COMMON_DIR")"
-
   # for each argument, find and delete the worktree
-  while [ -n "$1" ]; do
-    treename="$1"
-    WORKTREE_PATH="$WORKTREE_BASE/$treename"
+  while [ $# -gt 0 ]; do
+    # Replace slashes with underscores to match worktree.sh naming convention
+    treename="${1//\//_}"
 
-    # Check if worktree exists
-    if ! git worktree list --porcelain | grep -q "^worktree $WORKTREE_PATH$"; then
-      err "Worktree '$treename' not found at $WORKTREE_PATH, skipping"
+    # Find worktree path by matching the basename from porcelain output
+    WORKTREE_PATH=$(git worktree list --porcelain | grep "^worktree " | sed 's/^worktree //' | grep "/${treename}$")
+
+    if [ -z "$WORKTREE_PATH" ]; then
+      err "Worktree '$treename' not found, skipping"
       list_worktrees
       shift
       continue
     fi
 
     # Get branch name from the worktree
-    branch_name=$(git worktree list --porcelain | grep -A2 "^worktree $WORKTREE_PATH$" | grep "^branch " | sed 's/^branch refs\/heads\///')
+    branch_name=$(git worktree list --porcelain | grep -A2 "^worktree ${WORKTREE_PATH}$" | grep "^branch " | sed 's/^branch refs\/heads\///')
 
     warn "Removing worktree: $treename (branch: $branch_name)"
 
@@ -99,7 +97,7 @@ function rmtree {
   done
 }
 
-while true; do
+while [ $# -gt 0 ]; do
   case $1 in
     help | -h | --help)
       usage

@@ -20,7 +20,7 @@
    - Set `passes: false` if unaddressed feedback (including nits), CI failures, or merge conflicts remain
 3. Set up worktree: branch `[SPEC_SLUG]/[STORY]` off dependent branch (or origin/master). Run: `worktree <name> --base <base-branch>`
 4. Enter Nix dev shell before any work (generates pre-commit hooks)
-5. Pick highest priority story with `passes: false` and **no running CI** (`gh pr checks <pr> --json name,state` — skip if any state is `PENDING`; if all blocked, **end the task immediately**)
+5. Pick highest priority story with `passes: false` and **no running CI** (`gh pr checks <pr> --json name,state` — skip if any state is `PENDING`; if all blocked, **end the task immediately**). **Exception:** if any checks have already failed or been cancelled while others are still pending, do NOT skip — investigate and fix the failures immediately
 6. Implement/revise that **one** story. Verify **every item** in `acceptanceCriteria` is met before moving on. Run typecheck and tests for affected projects
 7. Update AGENTS.md with learnings
 8. Commit: `[feat|fix|chore]([Component]): [ID] - [Title]` referencing base-branch PR. Component: specific project or `*` for many
