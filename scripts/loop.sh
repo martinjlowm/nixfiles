@@ -211,7 +211,7 @@ if [ "${1:-}" = "--run" ]; then
 fi
 
 # Validate arguments
-SPEC_NAME="$1"
+SPEC_NAME="${1:-}"
 MAX_ITERATIONS=${2:-10}
 
 if [ -z "$SPEC_NAME" ]; then
