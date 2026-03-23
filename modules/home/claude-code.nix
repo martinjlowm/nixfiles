@@ -1,6 +1,5 @@
 # Claude Code configuration
 {
-  nextPkgs,
   nextPkgsClaude,
   lib,
   ...

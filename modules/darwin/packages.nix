@@ -172,6 +172,16 @@ in {
         inherit (texlive) scheme-medium inter titlesec svg transparent;
       })
       texlab
+
+      # localproxy
     ]
-    ++ (builtins.attrValues (pkgs.callPackage ../../scripts {}));
+    ++ (let scripts = pkgs.callPackage ../../scripts {}; in [
+      scripts.worktree
+      scripts.rmtree
+      scripts.loop
+      scripts.dependabot
+      scripts.project
+      scripts.pr-maintenance
+      scripts.github-issues
+    ]);
 }
