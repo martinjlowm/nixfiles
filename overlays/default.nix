@@ -38,15 +38,32 @@
           '';
         };
       unwrapped = prev.claude-code;
+      nixRunProfile = final.writeText "nix-run-symlink.sb" ''
+        ;; Allow reading /run symlink so /run/current-system/sw/bin resolves.
+        ;; safehouse's --add-dirs-ro resolves symlinks via realpath, so /run
+        ;; is never emitted as a literal in the sandbox profile.
+        (allow file-read* (literal "/run"))
+      '';
+      wrapper = final.writeShellScript "claude" ''
+        add_dirs="$PWD"
+        if [[ -n "$CARGO_TARGET_DIR" ]]; then
+          add_dirs="$add_dirs:$CARGO_TARGET_DIR"
+        fi
+        exec ${safehouse}/bin/safehouse \
+          --add-dirs-ro=/nix \
+          --add-dirs-ro=/private/etc \
+          --append-profile=${nixRunProfile} \
+          --add-dirs="$add_dirs:$HOME/.cache/nix" \
+          --env-pass=PATH,ZENDESK_SUBDOMAIN,ZENDESK_EMAIL,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,AWS_REGION,AWS_DEFAULT_REGION,NIX_CFLAGS_COMPILE,NIX_CFLAGS_COMPILE_FOR_BUILD,NIX_LDFLAGS,NIX_LDFLAGS_FOR_BUILD,CARGO_TARGET_DIR,RUST_SRC_PATH,NODE_OPTIONS,PLAYWRIGHT_BROWSERS_PATH,PUPPETEER_EXECUTABLE_PATH \
+          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "$@"
+      '';
     in
       final.symlinkJoin {
         name = "claude-code-safehouse";
         paths = [unwrapped];
-        nativeBuildInputs = [final.makeWrapper];
         postBuild = ''
           rm $out/bin/claude
-          makeWrapper ${safehouse}/bin/safehouse $out/bin/claude \
-            --add-flags "--add-dirs-ro=/nix --add-dirs-ro=/private/etc -- ${unwrapped}/bin/claude --dangerously-skip-permissions"
+          ln -s ${wrapper} $out/bin/claude
         '';
       };
     whatsapp-for-mac = prev.whatsapp-for-mac.overrideAttrs (old: {

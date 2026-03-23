@@ -38,6 +38,8 @@ in {
       DEVENV_ENABLE_MCP_AWS_DIAGRAM = "true";
       DOCKER_HOST = "unix:///tmp/podman/podman-machine-default-api.sock";
       NIXPKGS_ALLOW_UNFREE = 1;
+      ZENDESK_SUBDOMAIN = "factbird";
+      ZENDESK_EMAIL = "mj@factbird.com";
     };
 
     envExtra = ''
