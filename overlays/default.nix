@@ -44,6 +44,10 @@
         ;; is never emitted as a literal in the sandbox profile.
         (allow file-read* (literal "/run"))
       '';
+
+      triple = final.stdenv.hostPlatform.config; # e.g. "aarch64-apple-darwin"
+      suffix = builtins.replaceStrings ["-"] ["_"] triple; # "aarch64_apple_darwin"
+
       wrapper = final.writeShellScript "claude" ''
         add_dirs="$PWD"
         if [[ -n "$CARGO_TARGET_DIR" ]]; then
@@ -54,7 +58,7 @@
           --add-dirs-ro=/private/etc \
           --append-profile=${nixRunProfile} \
           --add-dirs="$add_dirs:$HOME/.cache/nix:$HOME/.local/share" \
-          --env-pass=PATH,ZENDESK_SUBDOMAIN,ZENDESK_EMAIL,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,AWS_REGION,AWS_DEFAULT_REGION,NIX_CFLAGS_COMPILE,NIX_CFLAGS_COMPILE_FOR_BUILD,NIX_LDFLAGS,NIX_LDFLAGS_FOR_BUILD,CARGO_TARGET_DIR,RUST_SRC_PATH,NODE_OPTIONS,PLAYWRIGHT_BROWSERS_PATH,PUPPETEER_EXECUTABLE_PATH \
+          --env-pass=PATH,ZENDESK_SUBDOMAIN,ZENDESK_EMAIL,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,AWS_REGION,AWS_DEFAULT_REGION,NIX_CFLAGS_COMPILE,NIX_CFLAGS_COMPILE_FOR_BUILD,NIX_LDFLAGS,NIX_LDFLAGS_FOR_BUILD,CARGO_TARGET_DIR,RUST_SRC_PATH,NODE_OPTIONS,PLAYWRIGHT_BROWSERS_PATH,PUPPETEER_EXECUTABLE_PATH,NIX_CC_WRAPPER_TARGET_HOST_${suffix},NIX_CC_WRAPPER_TARGET_BUILD_${suffix} \
           -- ${unwrapped}/bin/claude --dangerously-skip-permissions "$@"
       '';
     in

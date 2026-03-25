@@ -2,15 +2,33 @@
 
 ## Workflow
 
+### Phase 0: Worktree setup
+
+1. Check if a `dependabot` worktree already exists:
+   ```
+   git worktree list --porcelain | grep -A2 'worktree.*dependabot$'
+   ```
+2. If it does **not** exist, create one:
+   ```
+   worktree dependabot --base origin/master
+   ```
+3. If it **does** exist, reuse it — `cd` into the worktree path and update it:
+   ```
+   cd <worktree-path>
+   git fetch origin master
+   git rebase origin/master
+   ```
+4. All subsequent work happens **inside the worktree**. State files (`.state/dependabot/`) live in the **main repo**, not the worktree — use absolute paths or `$REPO_ROOT/.state/dependabot/` when reading/writing state.
+
 ### Phase 1: Build or refresh the worklist
 
-1. Read `./.state/dependabot/progress.txt` for previously handled PRs and learnings
-2. Check if `./.state/dependabot/worklist.json` exists and read it
+1. Read `$REPO_ROOT/.state/dependabot/progress.txt` for previously handled PRs and learnings
+2. Check if `$REPO_ROOT/.state/dependabot/worklist.json` exists and read it
 3. List all open Dependabot PRs:
    ```
    gh pr list --author "app/dependabot" --state open --json number,title,headRefName,mergeable,statusCheckRollup
    ```
-4. **Create or update** `./.state/dependabot/worklist.json` with ALL open Dependabot PRs:
+4. **Create or update** `$REPO_ROOT/.state/dependabot/worklist.json` with ALL open Dependabot PRs:
    ```json
    {
      "created_at": "<ISO>",
@@ -47,15 +65,45 @@
 8. **Review the diff**: `gh pr diff <number>`
    - Verify the change is a straightforward dependency bump (version change in lockfile / manifest)
    - If the change looks suspicious or contains non-dependency changes, set status to `skipped` with reason noted
-9. **Approve and merge**:
+9. **⚠️ CRITICAL — Security audit of upgraded dependency source code:**
+   This step is **mandatory** and must NOT be skipped. Evaluate the actual source code of the new dependency version from a security engineer's perspective.
+
+   a. **Obtain the source code** — use whichever method works for the package ecosystem:
+      - Clone the dependency repo at the exact new version tag into a temporary directory:
+        ```
+        TMPDIR=$(mktemp -d)
+        git clone --depth 1 --branch <new-version-tag> <repo-url> "$TMPDIR/<package>"
+        ```
+      - Or download and extract the release tarball/zip:
+        ```
+        TMPDIR=$(mktemp -d)
+        curl -sL <tarball-url> | tar xz -C "$TMPDIR"
+        ```
+   b. **Diff the old vs new version source** — if practical, clone both versions and diff them. Focus on:
+      - New or modified install/post-install scripts (`postinstall`, `preinstall`, setup.py `cmdclass`, Makefile targets)
+      - Network calls, shell/exec invocations, filesystem writes outside the package directory
+      - Obfuscated code, encoded strings (base64, hex), `eval()`, dynamic `require()`/`import()` of URLs
+      - Changes to authentication, cryptographic, or permission-related code
+      - New native/binary dependencies or compiled artifacts that weren't present before
+      - Unexpected scope expansion (a "patch" bump that adds major new capabilities)
+   c. **Verdict** — record one of:
+      - `PASS` — changes are consistent with the declared version bump, no suspicious patterns found
+      - `FAIL` — suspicious or malicious patterns detected → set PR status to `skipped` with detailed reason, do NOT approve
+      - `INCONCLUSIVE` — source is too large or complex to audit fully → set PR status to `skipped` with reason "manual security review required"
+   d. **Clean up** — remove the temporary directory: `rm -rf "$TMPDIR"`
+   e. **Include the verdict** in the approval comment (step 10) or skip reason
+
+   **Do NOT approve any PR that has not passed this security audit.**
+
+10. **Approve and merge** (only if security audit verdict is `PASS`):
    ```
-   gh pr review <number> --approve --body "Dependency update looks good. CI passes."
+   gh pr review <number> --approve --body "Dependency update looks good. CI passes. Security audit: PASS — source reviewed at <version-tag>, no suspicious changes found."
    gh pr merge <number> --squash --auto
    ```
-10. Update `worklist.json`: set the PR's status to `merged`
-11. **Log the result** in `./.state/dependabot/progress.txt`
+11. Update `worklist.json`: set the PR's status to `merged` (or `skipped` if audit failed)
+12. **Log the result** in `$REPO_ROOT/.state/dependabot/progress.txt` — include the security audit verdict and any findings
 
-**1 PR = 1 iteration.** After completing steps 6–11 for one PR, **end the task** so the next iteration can begin.
+**1 PR = 1 task.** After completing steps 6–12 for one PR, **end the task**.
 
 **NEVER wait or poll for CI.** Check CI status once — if checks are still running, move on or end the task. Waiting longer than 1 minute for CI results means you must stop immediately.
 
@@ -83,11 +131,12 @@ Fix only the identified failure; cancelled jobs and gates will pass once resolve
 
 ## Progress Format
 
-Append to `./.state/dependabot/progress.txt`:
+Append to `$REPO_ROOT/.state/dependabot/progress.txt`:
 ```
 ## [Date] - PR #[number]
 - Title: [PR title]
 - Action: [merged|skipped|rebased|closed]
+- Security audit: [PASS|FAIL|INCONCLUSIVE] — [brief summary of findings]
 - Reason: [why, if skipped or failed]
 ---
 ```
@@ -98,4 +147,4 @@ Output `<promise>COMPLETE</promise>` when **every** PR in `worklist.json` has a 
 
 If the worklist has zero PRs: <promise>COMPLETE</promise>
 
-Otherwise, after handling one PR, simply end the task **without** outputting `<promise>COMPLETE</promise>`. The outer loop will start the next iteration.
+Otherwise, after handling one PR, simply end the task **without** outputting `<promise>COMPLETE</promise>`.
