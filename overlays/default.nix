@@ -53,7 +53,7 @@
           --add-dirs-ro=/nix \
           --add-dirs-ro=/private/etc \
           --append-profile=${nixRunProfile} \
-          --add-dirs="$add_dirs:$HOME/.cache/nix" \
+          --add-dirs="$add_dirs:$HOME/.cache/nix:$HOME/.local/share" \
           --env-pass=PATH,ZENDESK_SUBDOMAIN,ZENDESK_EMAIL,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,AWS_REGION,AWS_DEFAULT_REGION,NIX_CFLAGS_COMPILE,NIX_CFLAGS_COMPILE_FOR_BUILD,NIX_LDFLAGS,NIX_LDFLAGS_FOR_BUILD,CARGO_TARGET_DIR,RUST_SRC_PATH,NODE_OPTIONS,PLAYWRIGHT_BROWSERS_PATH,PUPPETEER_EXECUTABLE_PATH \
           -- ${unwrapped}/bin/claude --dangerously-skip-permissions "$@"
       '';
