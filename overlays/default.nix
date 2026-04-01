@@ -53,13 +53,37 @@
         if [[ -n "$CARGO_TARGET_DIR" ]]; then
           add_dirs="$add_dirs:$CARGO_TARGET_DIR"
         fi
+
+        extra_ro_dirs=""
+        claude_args=()
+        while [[ $# -gt 0 ]]; do
+          case "$1" in
+            --add-dirs-ro=*)
+              extra_ro_dirs="''${extra_ro_dirs:+$extra_ro_dirs:}''${1#--add-dirs-ro=}"
+              shift
+              ;;
+            --add-dirs-ro)
+              extra_ro_dirs="''${extra_ro_dirs:+$extra_ro_dirs:}$2"
+              shift 2
+              ;;
+            *)
+              claude_args+=("$1")
+              shift
+              ;;
+          esac
+        done
+
+        ro_dirs="/nix:/private/etc:$HOME/.nix-defexpr"
+        if [[ -n "$extra_ro_dirs" ]]; then
+          ro_dirs="$ro_dirs:$extra_ro_dirs"
+        fi
+
         exec ${safehouse}/bin/safehouse \
-          --add-dirs-ro=/nix \
-          --add-dirs-ro=/private/etc \
+          --add-dirs-ro="$ro_dirs" \
           --append-profile=${nixRunProfile} \
           --add-dirs="$add_dirs:$HOME/.cache/nix:$HOME/.local/share" \
           --env-pass=PATH,ZENDESK_SUBDOMAIN,ZENDESK_EMAIL,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,AWS_REGION,AWS_DEFAULT_REGION,NIX_CFLAGS_COMPILE,NIX_CFLAGS_COMPILE_FOR_BUILD,NIX_LDFLAGS,NIX_LDFLAGS_FOR_BUILD,CARGO_TARGET_DIR,RUST_SRC_PATH,NODE_OPTIONS,PLAYWRIGHT_BROWSERS_PATH,PUPPETEER_EXECUTABLE_PATH,NIX_CC_WRAPPER_TARGET_HOST_${suffix},NIX_CC_WRAPPER_TARGET_BUILD_${suffix} \
-          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "$@"
+          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}"
       '';
     in
       final.symlinkJoin {
