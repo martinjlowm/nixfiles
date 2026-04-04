@@ -11,6 +11,7 @@
 
   mkClaudeFlavor = {
     name,
+    purpose,
     mcpServers,
   }: let
     mcpConfig = pkgs.writeText "${name}-mcp.json" (builtins.toJSON {
@@ -21,6 +22,7 @@
       inherit name;
       checkPhase = "";
       text = ''
+        echo "🎯 ${name}: ${purpose}"
         exec claude --mcp-config ${mcpConfig} "$@"
       '';
     };
@@ -70,6 +72,7 @@ in {
   };
   claude-pm = mkClaudeFlavor {
     name = "claude-pm";
+    purpose = "Project Management — Notion and Figma integrations for planning and design workflows";
     mcpServers = {
       notion = {
         type = "http";
@@ -83,6 +86,7 @@ in {
   };
   claude-ops = mkClaudeFlavor {
     name = "claude-ops";
+    purpose = "Operations — Sentry and Datadog integrations for monitoring and incident response";
     mcpServers = {
       sentry = {
         type = "http";
