@@ -77,7 +77,7 @@
     gh issue edit <number> --repo <owner>/<repo> --add-assignee @me
     ```
 12. **Record timing — issue picked up.** Write/update `./.state/__STATE_NAME__/timing/<issue-number>.json` (see **Timing Tracking** below) with `picked_up_at` set to the current UTC time
-13. Set up worktree: branch `project-__PROJECT_NUMBER__/<issue-number>-<slug>` off `origin/master`. Run: `worktree <name> --base origin/master`
+13. Set up worktree by running: `worktree project-__PROJECT_NUMBER__/<issue-number>-<slug>` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool. Then `cd` into the created worktree directory
 14. Enter Nix dev shell before any work (generates pre-commit hooks)
 15. Implement the issue. Verify **every** acceptance criterion mentioned in the issue body before moving on. Run typecheck and tests for affected projects
 16. Commit: `[feat|fix|chore](<Component>): #<issue-number> - <Title>`

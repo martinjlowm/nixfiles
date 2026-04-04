@@ -181,21 +181,20 @@ function _worktree {
     PIDS+=($!)
   fi
 
-  # Run just recipes if available (in background, sequentially)
+  # Run just recipes if available
   if command -v just > /dev/null 2>&1 && [ -f "justfile" ] || [ -f "Justfile" ]; then
     HAS_CODEGEN=$(just --list 2>/dev/null | grep -q "codegen" && echo "1" || echo "")
     HAS_WRITE_SCHEMA=$(just --list 2>/dev/null | grep -q "write-schema" && echo "1" || echo "")
 
-    if [ -n "$HAS_CODEGEN" ] || [ -n "$HAS_WRITE_SCHEMA" ]; then
-      echo "Running just codegen and write-schema in background..."
-      (
-        if [ -n "$HAS_CODEGEN" ]; then
-          just codegen || warn "just codegen failed"
-        fi
-        if [ -n "$HAS_WRITE_SCHEMA" ]; then
-          just write-schema || warn "just write-schema failed"
-        fi
-      ) &
+    # Run codegen synchronously — other tasks may depend on its output
+    if [ -n "$HAS_CODEGEN" ]; then
+      echo "Running just codegen..."
+      just codegen || warn "just codegen failed"
+    fi
+
+    if [ -n "$HAS_WRITE_SCHEMA" ]; then
+      echo "Running just write-schema in background..."
+      (just write-schema || warn "just write-schema failed") &
       PIDS+=($!)
     fi
   fi
