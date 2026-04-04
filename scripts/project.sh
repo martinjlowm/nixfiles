@@ -229,6 +229,15 @@ if [ "${1:-}" = "--run" ]; then
       exit 0
     fi
 
+    if echo "$OUTPUT" | \
+        grep -q "<promise>SLEEP</promise>"
+    then
+      echo "💤 Blocked on CI/reviews. Sleeping 15 minutes..."
+      sleep 900
+      echo "Resuming after sleep."
+      continue
+    fi
+
     echo "Iteration $i complete. Continuing..."
     sleep 2
   done
