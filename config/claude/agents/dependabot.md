@@ -38,12 +38,15 @@
          "number": 123,
          "title": "PR title",
          "branch": "dependabot/npm_and_yarn/...",
-         "status": "pending"
+         "status": "pending",
+         "notes": "optional — e.g. 'breaking changes: API renamed X to Y'",
+         "skip_reason": "optional — reason for skipping, e.g. 'CI pending', 'manual security review required'",
+         "has_breaking_changes": false
        }
      ]
    }
    ```
-   - `status` is one of: `pending`, `merged`, `rebased`, `skipped`, `closed`
+   - `status` is one of: `pending`, `merged`, `in_merge_queue`, `rebased`, `skipped`, `closed`, `awaiting_review`
    - When updating: add newly opened PRs, mark merged/closed PRs accordingly, preserve status of PRs already tracked
    - Do NOT remove PRs from the list — update their status so the agent knows they were handled
 
@@ -60,11 +63,12 @@
 
 6. From `worklist.json`, pick the next PR with `status: "pending"` (oldest first). If none remain, go to the Stop Condition
 7. **Check CI status**: `gh pr checks <number> --json name,state,conclusion`
-   - If any check state is `PENDING`, skip this PR — set status to `skipped` with reason "CI pending", move to the Stop Condition (do NOT pick another PR)
+   - If any check state is `PENDING`, skip this PR — set status to `skipped` with `skip_reason: "CI pending"`, move to the Stop Condition (do NOT pick another PR)
    - If checks have failed, investigate (see **Troubleshooting Cancelled Workflows** below)
 8. **Review the diff**: `gh pr diff <number>`
    - Verify the change is a straightforward dependency bump (version change in lockfile / manifest)
-   - If the change looks suspicious or contains non-dependency changes, set status to `skipped` with reason noted
+   - If the change looks suspicious or contains non-dependency changes, set status to `skipped` with `skip_reason` noted
+   - **Breaking changes**: If the worklist entry for this PR includes notes indicating breaking changes, do NOT skip the PR. Instead, apply the necessary code upgrades (API changes, configuration updates, migration steps, etc.) beyond the simple version bump. Checkout the PR branch locally, make the required changes, commit, and push. Mark the PR as `has_breaking_changes: true` in `worklist.json`
 9. **⚠️ CRITICAL — Security audit of upgraded dependency source code:**
    This step is **mandatory** and must NOT be skipped. Evaluate the actual source code of the new dependency version from a security engineer's perspective.
 
@@ -96,11 +100,21 @@
    **Do NOT approve any PR that has not passed this security audit.**
 
 10. **Approve and merge** (only if security audit verdict is `PASS`):
-   ```
-   gh pr review <number> --approve --body "Dependency update looks good. CI passes. Security audit: PASS — source reviewed at <version-tag>, no suspicious changes found."
-   gh pr merge <number> --squash --auto
-   ```
-11. Update `worklist.json`: set the PR's status to `merged` (or `skipped` if audit failed)
+   - **If the PR required breaking change upgrades** (`has_breaking_changes: true`):
+     ```
+     gh pr review <number> --approve --body "Dependency update includes breaking changes — applied necessary code upgrades. CI passes. Security audit: PASS — source reviewed at <version-tag>, no suspicious changes found. ⚠️ Requesting peer review before merge due to breaking change adaptations."
+     ```
+     Do **NOT** add to merge queue or auto-merge. Request review from `martinjlowm` and leave the PR open for peer review. Set status to `awaiting_review` in `worklist.json`.
+     ```
+     gh pr edit <number> --add-reviewer martinjlowm
+     ```
+   - **Otherwise** (straightforward bump):
+     ```
+     gh pr review <number> --approve --body "Dependency update looks good. CI passes. Security audit: PASS — source reviewed at <version-tag>, no suspicious changes found."
+     gh pr merge <number> --squash --auto
+     ```
+     Set status to `in_merge_queue` in `worklist.json`.
+11. Update `worklist.json`: set the PR's status to `in_merge_queue`, `awaiting_review` (if breaking changes), or `skipped` (if audit failed). When skipping, always populate `skip_reason`
 12. **Log the result** in `$REPO_ROOT/.state/dependabot/progress.txt` — include the security audit verdict and any findings
 
 **1 PR = 1 task.** After completing steps 6–12 for one PR, **end the task**.
@@ -125,6 +139,10 @@ When most/all jobs show as `cancelled`, one job has a non-zero exit code — the
 
 Fix only the identified failure; cancelled jobs and gates will pass once resolved.
 
+### crate2nix / Cargo.nix regeneration
+
+When a Rust dependency bump causes `cargoNixSync` pre-commit hook failures or Rust Lint CI failures due to an out-of-date `Cargo.nix`, this is **not** a reason to skip the PR. The `Cargo.nix` file simply needs regenerating, which happens automatically when running the pre-commit hooks. Checkout the PR branch locally, run the pre-commit hooks (or `crate2nix generate` directly), commit the updated `Cargo.nix`, and push. This is a routine maintenance step for any Rust dependency update in a crate2nix project.
+
 **Never blindly re-trigger CI.** If a workflow was cancelled, there is always a reason. Investigate why it was cancelled first using the steps above.
 
 **Exception — timeouts:** If a job timed out (`timed_out` conclusion), comment `@dependabot rebase` to retrigger. Timeouts are transient infrastructure issues, not code failures.
@@ -135,7 +153,7 @@ Append to `$REPO_ROOT/.state/dependabot/progress.txt`:
 ```
 ## [Date] - PR #[number]
 - Title: [PR title]
-- Action: [merged|skipped|rebased|closed]
+- Action: [merged|in_merge_queue|skipped|rebased|closed|awaiting_review]
 - Security audit: [PASS|FAIL|INCONCLUSIVE] — [brief summary of findings]
 - Reason: [why, if skipped or failed]
 ---
@@ -143,7 +161,7 @@ Append to `$REPO_ROOT/.state/dependabot/progress.txt`:
 
 ## Stop Condition
 
-Output `<promise>COMPLETE</promise>` when **every** PR in `worklist.json` has a status other than `pending` (i.e., all are `merged`, `rebased`, `skipped`, or `closed`).
+Output `<promise>COMPLETE</promise>` when **every** PR in `worklist.json` has a status other than `pending` (i.e., all are `merged`, `in_merge_queue`, `rebased`, `skipped`, `closed`, or `awaiting_review`).
 
 If the worklist has zero PRs: <promise>COMPLETE</promise>
 
