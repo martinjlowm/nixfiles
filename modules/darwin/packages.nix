@@ -183,6 +183,7 @@ in {
       scripts.project
       scripts.pr-maintenance
       scripts.github-issues
+      scripts.pr-ua
       scripts.zendesk-ticket
     ]);
 }

@@ -33,6 +33,16 @@ in {
   project = mkWeztermScript "project";
   pr-maintenance = mkWeztermScript "pr-maintenance";
   github-issues = mkWeztermScript "github-issues";
+  pr-ua = pkgs.writeShellApplication {
+    name = "pr-ua";
+    runtimeInputs = [
+      pkgs.gh
+      pkgs.jq
+      pkgs.fzf
+    ];
+    checkPhase = "";
+    text = builtins.readFile ./pr-ua.sh;
+  };
   zendesk-ticket = pkgs.writeShellApplication {
     name = "zendesk-ticket";
     runtimeInputs = [
