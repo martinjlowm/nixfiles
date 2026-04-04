@@ -185,5 +185,7 @@ in {
       scripts.github-issues
       scripts.pr-ua
       scripts.zendesk-ticket
+      scripts.claude-pm
+      scripts.claude-ops
     ]);
 }

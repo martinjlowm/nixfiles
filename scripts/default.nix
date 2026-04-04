@@ -8,6 +8,22 @@
       checkPhase = "";
       text = builtins.readFile ./${name}.sh;
     };
+
+  mkClaudeFlavor = {
+    name,
+    mcpServers,
+  }: let
+    mcpConfig = pkgs.writeText "${name}-mcp.json" (builtins.toJSON {
+      mcpServers = mcpServers;
+    });
+  in
+    pkgs.writeShellApplication {
+      inherit name;
+      checkPhase = "";
+      text = ''
+        exec claude --mcp-config ${mcpConfig} "$@"
+      '';
+    };
 in {
   worktree = pkgs.writeShellApplication {
     name = "worktree";
@@ -51,5 +67,31 @@ in {
     ];
     checkPhase = "";
     text = builtins.readFile ./zendesk-ticket.sh;
+  };
+  claude-pm = mkClaudeFlavor {
+    name = "claude-pm";
+    mcpServers = {
+      notion = {
+        type = "http";
+        url = "https://mcp.notion.com/mcp";
+      };
+      figma = {
+        type = "http";
+        url = "https://mcp.figma.com/mcp";
+      };
+    };
+  };
+  claude-ops = mkClaudeFlavor {
+    name = "claude-ops";
+    mcpServers = {
+      sentry = {
+        type = "http";
+        url = "https://mcp.sentry.dev/sse";
+      };
+      datadog-mcp = {
+        type = "http";
+        url = "https://mcp.datadoghq.eu/api/unstable/mcp-server/mcp";
+      };
+    };
   };
 }
