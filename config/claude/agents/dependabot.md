@@ -57,18 +57,24 @@
    - Address **every** unresolved comment; rebase on `origin/master` if needed; skip if PR closed
    - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
    - **Check CI for all PRs** — if any required check has failed or been cancelled, investigate before proceeding
-   - **Check for merge conflicts on every PR**: `gh pr view <number> --json mergeable` — if `CONFLICTING`, comment `@dependabot rebase` on the PR, update status to `rebased`, and move on; if `UNKNOWN`, skip (GitHub is still computing). All PRs target `master` directly — no stacked PRs
+   - **Check if Dependabot still owns the PR**: look for a Dependabot comment stating the PR has been edited (e.g. "Dependabot will no longer manage this PR because it has been edited"). If found, the agent must **take over** the PR — manage it directly by checking out the branch, rebasing, pushing commits, etc. Do NOT use `@dependabot rebase` or `@dependabot recreate` on taken-over PRs; those commands will be ignored
+   - **Check for merge conflicts on every PR**: `gh pr view <number> --json mergeable` — if `CONFLICTING`:
+     - If Dependabot still owns the PR: comment `@dependabot rebase`, update status to `rebased`, and move on
+     - If the PR has been taken over: checkout the branch locally, rebase on `origin/master`, force-push, and move on
+     - If `UNKNOWN`: skip (GitHub is still computing)
+     All PRs target `master` directly — no stacked PRs
 
 ### Phase 3: Pick and handle ONE PR
 
 6. From `worklist.json`, pick the next PR with `status: "pending"` (oldest first). If none remain, go to the Stop Condition
 7. **Check CI status**: `gh pr checks <number> --json name,state,conclusion`
-   - If any check state is `PENDING`, skip this PR — set status to `skipped` with `skip_reason: "CI pending"`, move to the Stop Condition (do NOT pick another PR)
-   - If checks have failed, investigate (see **Troubleshooting Cancelled Workflows** below)
+   - **Ignore Chromatic checks** — Chromatic checks require manual approval and should not be considered when evaluating CI status
+   - If any non-Chromatic check state is `PENDING`, skip this PR — set status to `skipped` with `skip_reason: "CI pending"`, move to the Stop Condition (do NOT pick another PR)
+   - If non-Chromatic checks have failed, investigate (see **Troubleshooting Cancelled Workflows** below)
 8. **Review the diff**: `gh pr diff <number>`
    - Verify the change is a straightforward dependency bump (version change in lockfile / manifest)
    - If the change looks suspicious or contains non-dependency changes, set status to `skipped` with `skip_reason` noted
-   - **Breaking changes**: If the worklist entry for this PR includes notes indicating breaking changes, do NOT skip the PR. Instead, apply the necessary code upgrades (API changes, configuration updates, migration steps, etc.) beyond the simple version bump. Checkout the PR branch locally, make the required changes, commit, and push. Mark the PR as `has_breaking_changes: true` in `worklist.json`
+   - **Major version bumps and breaking changes**: Do NOT skip PRs simply because they are major version bumps or require migration work. These must be handled automatically. Checkout the PR branch locally, study the dependency's migration guide / changelog, and apply all necessary code upgrades (API changes, configuration updates, migration steps, dependency peer-requirement changes, etc.) beyond the simple version bump. Commit and push the changes. Mark the PR as `has_breaking_changes: true` in `worklist.json`. The only valid reasons to skip a PR are: CI is still pending, or the security audit fails — never skip because the upgrade "requires manual intervention" or "extensive code changes"
 9. **⚠️ CRITICAL — Security audit of upgraded dependency source code:**
    This step is **mandatory** and must NOT be skipped. Evaluate the actual source code of the new dependency version from a security engineer's perspective.
 
@@ -133,9 +139,9 @@ When most/all jobs show as `cancelled`, one job has a non-zero exit code — the
    ```
    gh run view {run_id} --log | grep '{job_name}' | cut -f3- | grep -B10 -i 'error\|failed\|exception'
    ```
-3. If the failure is **transient** (timeout, flaky test, infrastructure): comment `@dependabot rebase` to retrigger
+3. If the failure is **transient** (timeout, flaky test, infrastructure): if Dependabot still owns the PR, comment `@dependabot rebase` to retrigger; if taken over, rebase and force-push manually
 4. If the failure is a **real incompatibility**: set status to `skipped`, note in progress.txt why it can't be auto-merged
-5. **Never** push commits to a Dependabot branch — use `@dependabot rebase` or `@dependabot recreate` instead
+5. **Never** push commits to a Dependabot-owned branch — use `@dependabot rebase` or `@dependabot recreate` instead. However, if Dependabot has relinquished ownership (see "taken over" check in Phase 2), you **must** push directly since Dependabot commands will be ignored
 
 Fix only the identified failure; cancelled jobs and gates will pass once resolved.
 
@@ -161,7 +167,9 @@ Append to `$REPO_ROOT/.state/dependabot/progress.txt`:
 
 ## Stop Condition
 
-Output `<promise>COMPLETE</promise>` when **every** PR in `worklist.json` has a status other than `pending` (i.e., all are `merged`, `in_merge_queue`, `rebased`, `skipped`, `closed`, or `awaiting_review`).
+Output `<promise>COMPLETE</promise>` **only** when **every** PR in `worklist.json` has been fully resolved — i.e., all PRs have status `merged` or `closed`.
+
+PRs with status `in_merge_queue`, `rebased`, `skipped`, `awaiting_review`, or `pending` are **not** resolved — do NOT output `<promise>COMPLETE</promise>` while any PR has one of these statuses.
 
 If the worklist has zero PRs: <promise>COMPLETE</promise>
 

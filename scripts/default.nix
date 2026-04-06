@@ -1,10 +1,17 @@
 {pkgs, ...}: let
   wezterm = pkgs.wezterm;
 
+  claude-follow = pkgs.writeShellApplication {
+    name = "claude-follow";
+    runtimeInputs = [pkgs.jq];
+    checkPhase = "";
+    text = builtins.readFile ./claude-follow.sh;
+  };
+
   mkWeztermScript = name:
     pkgs.writeShellApplication {
       inherit name;
-      runtimeInputs = [wezterm];
+      runtimeInputs = [wezterm claude-follow];
       checkPhase = "";
       text = builtins.readFile ./${name}.sh;
     };
@@ -22,11 +29,14 @@
       inherit name;
       checkPhase = "";
       text = ''
+        SESSION_ID=$(uuidgen)
         echo "🎯 ${name}: ${purpose}"
-        exec claude --mcp-config ${mcpConfig} "$@"
+        echo "Session: $SESSION_ID"
+        exec claude --session-id "$SESSION_ID" --mcp-config ${mcpConfig} "$@"
       '';
     };
 in {
+  inherit claude-follow;
   worktree = pkgs.writeShellApplication {
     name = "worktree";
     runtimeInputs = [
@@ -51,6 +61,12 @@ in {
   project = mkWeztermScript "project";
   pr-maintenance = mkWeztermScript "pr-maintenance";
   github-issues = mkWeztermScript "github-issues";
+  roadmap-sync = pkgs.writeShellApplication {
+    name = "roadmap-sync";
+    runtimeInputs = [wezterm pkgs.gh];
+    checkPhase = "";
+    text = builtins.readFile ./roadmap-sync.sh;
+  };
   pr-ua = pkgs.writeShellApplication {
     name = "pr-ua";
     runtimeInputs = [

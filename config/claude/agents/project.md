@@ -62,7 +62,9 @@
    - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
    - **Check CI for all PRs** — if any required check has failed or been cancelled, investigate and fix
    - **Check for merge conflicts on every PR** (even passing ones): `gh pr view <pr> --json mergeable` — if `CONFLICTING`, resolve the conflicts by rebasing on the base branch
-   - If CI is still `PENDING`, skip and move on
+   - If CI is still `PENDING`, skip and move on. **Ignore Chromatic checks** — these require manual approval and are not part of the automated CI gate
+   - **Propagate changes across all project PRs:** When resolving a PR comment that changes behavior also present in other PRs (e.g., a naming convention, API pattern, or shared logic), update all affected PRs to reflect the same change — both forward and backward. Check all open project PRs (`project-__PROJECT_NUMBER__/`) for the same pattern and apply the fix consistently
+   - **Backpropagate to earlier PRs:** When reviewing a later PR reveals an issue that originated in an earlier/dependent PR (e.g., a pattern established in PR #1 that PR #3's reviewer flags), fix the root cause in the earlier PR first, then rebase the later PRs on top. This prevents the same review comment from appearing on every dependent PR
    - Update the issue's status in `prd.json` to `revised` if changes were made
 
 ### Phase 3: Pick and implement ONE issue
@@ -83,7 +85,19 @@
 16. Commit: `[feat|fix|chore](<Component>): #<issue-number> - <Title>`
     - Body must include: `Closes <issue-url>` (this auto-links to the project)
     - Component: specific project or `*` for many
-17. Push (NEVER force push — merge upstream first). Create draft PR referencing the issue. Re-evaluate PR title and description to reflect what was actually implemented
+17. Push (NEVER force push — merge upstream first). Create draft PR referencing the issue. Re-evaluate PR title and description to reflect what was actually implemented. Use the following PR body format:
+    ```
+    ## Summary
+    <1-3 bullet points describing what was implemented>
+
+    Closes <issue-url>
+
+    ## Test plan
+    - [ ] <concrete verification step, e.g. "Run `nix build .#package` — succeeds">
+    - [ ] <another verification step>
+    - [ ] CI passes (typecheck, tests, lint)
+    ```
+    **Keep the test plan current:** When revising a PR (Phase 2), update the test plan checkboxes to reflect the latest state — check off items that pass, add new items for changes made during revision, and note any blockers
 18. **Record timing — pushed for review.** Update `./.state/__STATE_NAME__/timing/<issue-number>.json` with `pushed_for_review_at` set to the current UTC time
 19. Update `prd.json`: set the issue's status to `pr-created`, fill in `pr_number` and `pr_url`
 20. Log the result in `./.state/__STATE_NAME__/progress.txt`
@@ -184,37 +198,38 @@ If ≥5: push branch but don't create PR. Track in `./.state/__STATE_NAME__/defe
 ```
 Create deferred PRs when existing ones merge/close.
 
-**Stacked draft PR:** In addition to deferring, maintain a single **draft PR** (`project-__PROJECT_NUMBER__/stack`) that combines all deferred branches into one. This gives reviewers visibility into the full scope of upcoming work.
+**Stacked draft PR:** In addition to deferring, maintain a single **draft PR** (`project-__PROJECT_NUMBER__/stack`) that combines **all** project branches — both open PRs and deferred branches — into one. This gives reviewers visibility into the full scope of work in progress.
 
-1. If the stack branch doesn't exist yet, create it off `origin/master`:
-   ```
-   git checkout -b project-__PROJECT_NUMBER__/stack origin/master
-   ```
-2. Merge each deferred branch into the stack branch (in order of issue priority):
+1. If the stack branch doesn't exist yet, create a worktree for it: `worktree project-__PROJECT_NUMBER__/stack` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool. Then `cd` into the created worktree directory.
+2. Merge **all** project branches into the stack branch (in order of issue priority) — this includes branches with open PRs as well as deferred branches:
    ```
    git merge --no-ff project-__PROJECT_NUMBER__/<issue-number>-<slug>
    ```
 3. Push the stack branch and open (or update) a **draft** PR:
    ```
-   gh pr create --draft --title "Stack: project-__PROJECT_NUMBER__ deferred PRs" \
+   gh pr create --draft --title "Stack: project-__PROJECT_NUMBER__ all branches" \
      --body "$(cat <<'EOF'
    ## Stacked changes
 
-   This draft PR combines the following deferred branches for visibility:
+   This draft PR combines all project branches for visibility:
 
-   - [ ] `project-__PROJECT_NUMBER__/<branch-1>` — #<issue> <title>
-   - [ ] `project-__PROJECT_NUMBER__/<branch-2>` — #<issue> <title>
+   ### Open PRs
+   - [ ] `project-__PROJECT_NUMBER__/<branch-1>` — #<issue> <title> (PR #<pr>)
+   - [ ] `project-__PROJECT_NUMBER__/<branch-2>` — #<issue> <title> (PR #<pr>)
 
-   **Do not merge this PR directly.** Individual PRs will be created from each branch when slots open up.
+   ### Deferred (awaiting PR slot)
+   - [ ] `project-__PROJECT_NUMBER__/<branch-3>` — #<issue> <title>
+
+   **Do not merge this PR directly.** Individual PRs will be created from each deferred branch when slots open up.
    EOF
    )"
    ```
-   If the draft PR already exists, update its branch (`git push`) and edit the body to reflect the current set of deferred branches: `gh pr edit <stack-pr> --body ...`
+   If the draft PR already exists, update its branch (`git push`) and edit the body to reflect the current set of all branches: `gh pr edit <stack-pr> --body ...`
 4. Track the stack PR in `./.state/__STATE_NAME__/deferred-prs.json`:
    ```json
    {"stack_pr": {"number": 99, "branch": "project-__PROJECT_NUMBER__/stack"}, "deferred": [...]}
    ```
-5. When a deferred branch gets its own PR (slot opened up), rebase the stack branch to drop that branch's commits and update the draft PR body. Close the stack PR when no deferred branches remain.
+5. Rebuild the stack branch from scratch (off `origin/master`) in its worktree whenever branches are added, removed, or merged. If the worktree doesn't exist, create it with `worktree project-__PROJECT_NUMBER__/stack`. Close the stack PR when no project branches remain.
 
 ## PR Review Tracking
 
@@ -254,17 +269,4 @@ Output `<promise>COMPLETE</promise>` when **either**:
 
 **Do NOT emit `COMPLETE` if any PRs are still open, awaiting review, or in the merge queue.** The project is not done until all PRs have landed.
 
-### Sleep Condition
-
-Output `<promise>SLEEP</promise>` when **all** of the following are true:
-
-1. No issues with `status: "pending"` are eligible to pick up (all remaining are assigned to others, or all are already `pr-created`/`revised`/`skipped`)
-2. Forward progress is blocked by one or more of:
-   - CI is still running on open PRs
-   - PRs are awaiting review (no new review comments to address)
-   - PRs are in the merge queue
-3. There is nothing actionable to do right now
-
-`<promise>SLEEP</promise>` pauses the outer loop for 15 minutes before the next iteration. Use this instead of polling — it lets the agent back off while waiting for external events (CI completion, reviewer feedback, merge queue processing).
-
-Otherwise, after handling one issue, simply end the task **without** outputting `<promise>COMPLETE</promise>` or `<promise>SLEEP</promise>`. The outer loop will start the next iteration.
+Otherwise, after handling one issue, simply end the task **without** outputting `<promise>COMPLETE</promise>`. The outer loop will start the next iteration immediately.

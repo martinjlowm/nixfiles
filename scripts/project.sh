@@ -2,22 +2,11 @@
 #   project https://github.com/orgs/Org/projects/1          - spawn WezTerm with loop+tail panes
 #   project https://github.com/orgs/Org/projects/1 spec.md  - same but with a spec file for context
 #   project https://github.com/orgs/Org/projects/1 20       - same but with 20 max iterations
-#   project --tail <url>                                      - tail the log for a running loop
-#   project --session <url>                                     - follow Claude session JSONL across iterations
+#   project --follow <url> [--raw]                            - follow Claude session JSONL
 #   project --run <url> [spec-file] [max_iterations]          - run the loop directly (used internally)
 set -e
 
 REPO="$(git rev-parse --show-toplevel)"
-
-# Get Claude project directory from repo path
-get_claude_project_dir() {
-  local repo_path="$1"
-  local encoded_path="${repo_path//\//-}"
-  encoded_path="${encoded_path//./-}"
-  echo "$HOME/.claude/projects/$encoded_path"
-}
-
-CLAUDE_PROJECT_DIR="$(get_claude_project_dir "$REPO")"
 
 # Parse project URL into owner and number
 parse_project_url() {
@@ -36,98 +25,14 @@ parse_project_url() {
 }
 
 # Follow Claude session JSONL across iterations
-if [ "${1:-}" = "--session" ]; then
+if [ "${1:-}" = "--follow" ]; then
   URL="${2:-}"
   if [ -z "$URL" ]; then
-    echo "Usage: project --session <url>"
+    echo "Usage: project --follow <url> [--raw]"
     exit 1
   fi
   parse_project_url "$URL"
-  STATE_NAME="project-${PROJECT_OWNER}-${PROJECT_NUMBER}"
-  STATE_DIR="$REPO/.state/$STATE_NAME"
-  CURRENT_SESSION_FILE="$STATE_DIR/current_session"
-
-  echo "Watching for Claude sessions in $STATE_DIR..."
-
-  # Wait for the state directory to be created by --run
-  while [ ! -d "$STATE_DIR" ]; do sleep 1; done
-
-  ACTIVE_SESSION=""
-  TAIL_PID=""
-
-  cleanup() {
-    [ -n "$TAIL_PID" ] && kill "$TAIL_PID" 2>/dev/null || true
-    exit 0
-  }
-  trap cleanup INT TERM
-
-  while true; do
-    if [ -f "$CURRENT_SESSION_FILE" ]; then
-      NEW_SESSION=$(cat "$CURRENT_SESSION_FILE")
-      if [ "$NEW_SESSION" != "$ACTIVE_SESSION" ] && [ -f "$NEW_SESSION" ]; then
-        [ -n "$TAIL_PID" ] && kill "$TAIL_PID" 2>/dev/null || true
-        ACTIVE_SESSION="$NEW_SESSION"
-        echo ""
-        echo "═══ Session: $(basename "$ACTIVE_SESSION") ═══"
-        echo ""
-        tail -f "$ACTIVE_SESSION" | jq --unbuffered -r '
-          select(.message) |
-          (if .message.content | type == "string" then
-            .message.content
-          else
-            (.message.content // [] | map(.text // "") | join(""))
-          end) as $text |
-          select($text | length > 0) |
-          "[\(.timestamp)] (\(.message.role)): \($text)"
-        ' &
-        TAIL_PID=$!
-      fi
-    fi
-    sleep 2
-  done
-fi
-
-# Tail the raw Claude session JSONL across iterations
-if [ "${1:-}" = "--tail" ]; then
-  URL="${2:-}"
-  if [ -z "$URL" ]; then
-    echo "Usage: project --tail <url>"
-    exit 1
-  fi
-  parse_project_url "$URL"
-  STATE_NAME="project-${PROJECT_OWNER}-${PROJECT_NUMBER}"
-  STATE_DIR="$REPO/.state/$STATE_NAME"
-  CURRENT_SESSION_FILE="$STATE_DIR/current_session"
-
-  echo "Watching for Claude sessions in $STATE_DIR..."
-
-  # Wait for the state directory to be created by --run
-  while [ ! -d "$STATE_DIR" ]; do sleep 1; done
-
-  ACTIVE_SESSION=""
-  TAIL_PID=""
-
-  cleanup() {
-    [ -n "$TAIL_PID" ] && kill "$TAIL_PID" 2>/dev/null || true
-    exit 0
-  }
-  trap cleanup INT TERM
-
-  while true; do
-    if [ -f "$CURRENT_SESSION_FILE" ]; then
-      NEW_SESSION=$(cat "$CURRENT_SESSION_FILE")
-      if [ "$NEW_SESSION" != "$ACTIVE_SESSION" ] && [ -f "$NEW_SESSION" ]; then
-        [ -n "$TAIL_PID" ] && kill "$TAIL_PID" 2>/dev/null || true
-        ACTIVE_SESSION="$NEW_SESSION"
-        echo ""
-        echo "═══ Session: $(basename "$ACTIVE_SESSION") ═══"
-        echo ""
-        tail -f "$ACTIVE_SESSION" &
-        TAIL_PID=$!
-      fi
-    fi
-    sleep 2
-  done
+  exec claude-follow "$REPO/.state/project-${PROJECT_OWNER}-${PROJECT_NUMBER}" "${3:-}"
 fi
 
 # Run the loop directly (used internally by WezTerm spawn)
@@ -156,6 +61,8 @@ if [ "${1:-}" = "--run" ]; then
   PROGRESS_FILE="$STATE_DIR/progress.txt"
   LOG_FILE="$STATE_DIR/loop.log"
 
+  CLAUDE_PROJECT_DIR="$HOME/.claude/projects/${REPO//[\/.]/\-}"
+
   mkdir -p "$STATE_DIR"
 
   grep -sq ".state/$STATE_NAME" "$REPO/.gitignore" || echo ".state/$STATE_NAME/" >> "$REPO/.gitignore"
@@ -183,41 +90,25 @@ if [ "${1:-}" = "--run" ]; then
     -e "s|__SPEC_FILE__|$SPEC_FILE|g" \
     "$HOME/.claude/agents/project.md")
 
-  TIMESTAMP_MARKER="$STATE_DIR/.timestamp_marker"
   SESSION_LOG="$STATE_DIR/session.log"
 
   for i in $(seq 1 $MAX_ITERATIONS); do
     echo "═══ Iteration $i ═══"
 
-    touch "$TIMESTAMP_MARKER"
-    sleep 1
+    SESSION_ID=$(uuidgen)
+    SESSION_FILE="$CLAUDE_PROJECT_DIR/$SESSION_ID.jsonl"
+    echo "$SESSION_FILE" > "$STATE_DIR/current_session"
+    echo "Session: $SESSION_ID" >> "$LOG_FILE"
 
     (
-      SESSION_FILE=""
-      for _ in $(seq 1 30); do
-        if [ -d "$CLAUDE_PROJECT_DIR" ]; then
-          SESSION_FILE=$(find "$CLAUDE_PROJECT_DIR" -name "*.jsonl" -newer "$TIMESTAMP_MARKER" -type f 2>/dev/null | head -1)
-          if [ -n "$SESSION_FILE" ]; then
-            echo "$SESSION_FILE" > "$STATE_DIR/current_session"
-            echo "Session file: $(basename "$SESSION_FILE")" >> "$LOG_FILE"
-            tail -f "$SESSION_FILE" >> "$SESSION_LOG" 2>/dev/null &
-            TAIL_PID=$!
-            echo $TAIL_PID > "$STATE_DIR/.tail_pid"
-            break
-          fi
-        fi
-        sleep 1
-      done
+      while [ ! -f "$SESSION_FILE" ]; do sleep 0.5; done
+      tail -f "$SESSION_FILE" >> "$SESSION_LOG" 2>/dev/null
     ) &
-    WATCHER_PID=$!
+    TAIL_PID=$!
 
-    OUTPUT=$(echo "$AGENT_PROMPT" | claude 2>&1 | tee -a "$LOG_FILE" /dev/stderr) || true
+    OUTPUT=$(echo "$AGENT_PROMPT" | claude --session-id "$SESSION_ID" 2>&1 | tee -a "$LOG_FILE" /dev/stderr) || true
 
-    kill $WATCHER_PID 2>/dev/null || true
-    if [ -f "$STATE_DIR/.tail_pid" ]; then
-      kill $(cat "$STATE_DIR/.tail_pid") 2>/dev/null || true
-      rm -f "$STATE_DIR/.tail_pid"
-    fi
+    kill $TAIL_PID 2>/dev/null || true
 
     if echo "$OUTPUT" | \
         grep -q "<promise>COMPLETE</promise>"
@@ -227,15 +118,6 @@ if [ "${1:-}" = "--run" ]; then
       echo "Press Enter to close this tab..."
       read -r
       exit 0
-    fi
-
-    if echo "$OUTPUT" | \
-        grep -q "<promise>SLEEP</promise>"
-    then
-      echo "💤 Blocked on CI/reviews. Sleeping 15 minutes..."
-      sleep 900
-      echo "Resuming after sleep."
-      continue
     fi
 
     echo "Iteration $i complete. Continuing..."
@@ -266,7 +148,7 @@ if [ -z "$URL" ]; then
   echo "  project https://github.com/orgs/MyOrg/projects/1"
   echo "  project https://github.com/users/me/projects/2 spec.md"
   echo "  project https://github.com/orgs/MyOrg/projects/1 spec.md 20"
-  echo "  project --tail https://github.com/orgs/MyOrg/projects/1"
+  echo "  project --follow https://github.com/orgs/MyOrg/projects/1"
   exit 1
 fi
 
@@ -300,7 +182,7 @@ echo "Project: $PROJECT_OWNER/$PROJECT_NUMBER"
 LOOP_PANE_ID=$(wezterm cli spawn --new-window --cwd "$REPO" -- "$0" --run "$URL" $EXTRA_ARGS)
 sleep 1
 
-SESSION_PANE_ID=$(wezterm cli split-pane --pane-id "$LOOP_PANE_ID" --bottom --percent 50 --cwd "$REPO" -- "$0" --session "$URL")
+SESSION_PANE_ID=$(wezterm cli split-pane --pane-id "$LOOP_PANE_ID" --bottom --percent 50 --cwd "$REPO" -- "$0" --follow "$URL")
 
 echo ""
 echo "Loop started in pane: $LOOP_PANE_ID"
