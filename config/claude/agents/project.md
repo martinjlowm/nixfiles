@@ -55,14 +55,15 @@
 ### Phase 2: Review existing PRs
 
 8. **Review PR feedback for all issues** (even ones previously completed):
-   - For each issue that already has a PR: `gh pr list --search "head:project-__PROJECT_NUMBER__/" --state open --json number,title,headRefName,body,statusCheckRollup,mergeable`
+   - For each issue that already has a PR: `gh pr list --search "head:project-__PROJECT_NUMBER__/" --state open --json number,title,headRefName,baseRefName,body,statusCheckRollup,mergeable`
    - **Verify issue linkage:** ensure the PR body contains `Closes <issue-url>`. If missing, edit the PR body to add it (`gh pr edit <pr> --body ...`). This is required for the issue to auto-close and link to the project board
    - Fetch comments via `gh pr view <pr> --comments` and `gh api repos/{owner}/{repo}/pulls/{number}/comments`
    - Address **every** unresolved comment including nits; rebase on base-branch (or origin/master if merged); skip if PR closed
    - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
-   - **Check CI for all PRs** — if any required check has failed or been cancelled, investigate and fix
+   - **Check CI for all PRs** — if any required check has failed or been cancelled, investigate and fix. **This includes stacked/chained PRs** — a failing check on a child PR may be caused by the parent; always check the full chain
    - **Check for merge conflicts on every PR** (even passing ones): `gh pr view <pr> --json mergeable` — if `CONFLICTING`, resolve the conflicts by rebasing on the base branch
    - If CI is still `PENDING`, skip and move on. **Ignore Chromatic checks** — these require manual approval and are not part of the automated CI gate
+   - **Review comments on stacked PRs:** When PRs are chained (child PR targets parent PR branch), review comments apply to the **entire chain**. A comment on a child PR may point out an issue introduced by the parent. Address it in the PR where the code originates, then rebase the chain
    - **Propagate changes across all project PRs:** When resolving a PR comment that changes behavior also present in other PRs (e.g., a naming convention, API pattern, or shared logic), update all affected PRs to reflect the same change — both forward and backward. Check all open project PRs (`project-__PROJECT_NUMBER__/`) for the same pattern and apply the fix consistently
    - **Backpropagate to earlier PRs:** When reviewing a later PR reveals an issue that originated in an earlier/dependent PR (e.g., a pattern established in PR #1 that PR #3's reviewer flags), fix the root cause in the earlier PR first, then rebase the later PRs on top. This prevents the same review comment from appearing on every dependent PR
    - Update the issue's status in `prd.json` to `revised` if changes were made
@@ -103,6 +104,8 @@
 20. Log the result in `./.state/__STATE_NAME__/progress.txt`
 
 **1 PR = 1 Issue = 1 iteration.** Each issue gets exactly one PR. After completing steps 9–20 for one issue, **end the task** so the next iteration can begin.
+
+**Chained (stacked) PRs:** When an issue extends or depends on functionality introduced by another in-progress PR (not yet merged), **target the child PR's base branch at the parent PR's branch** instead of `master`. This creates a PR chain where the child shows only its own diff. When the parent merges, GitHub automatically retargets the child to `master`. Use `gh pr create --base project-__PROJECT_NUMBER__/<parent-branch>` to set this up. Track the dependency in `prd.json` by adding `"depends_on_pr": <parent-pr-number>` to the issue entry. When rebasing chained PRs, always rebase from the root of the chain outward.
 
 **NEVER wait or poll for CI.** Check CI status once — if checks are still running, move on or end the task. Waiting longer than 1 minute for CI results means you must stop immediately.
 

@@ -278,7 +278,7 @@ For each roadmap item that has a `GitHub Project` URL:
     - Which pages will be updated
     - Which date fields will change (old value → new value)
 
-    Output `<promise>APPROVAL_REQUIRED</promise>` and end the task. The user must explicitly approve before Phase 5 runs.
+    Ask the user to confirm before proceeding to Phase 5.
 
 ### Phase 5: Apply updates
 
@@ -331,11 +331,6 @@ Append to `~/projects/pm/.state/roadmap-sync/progress.txt`:
 ---
 ```
 
-## Stop Condition
+## Interactive Session
 
-Output `<promise>COMPLETE</promise>` when:
-- All roadmap items have been checked
-- All approved updates have been applied and verified
-- The report has been presented to the user
-
-Output `<promise>APPROVAL_REQUIRED</promise>` after Phase 4 to pause for user approval before applying updates.
+This agent runs as an interactive session. After completing each phase, present the results and wait for user input before proceeding. The user may ask follow-up questions, request changes to the analysis, or selectively approve updates. Remain in the session and respond to the user's requests.
