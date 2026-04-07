@@ -243,15 +243,17 @@ Create deferred PRs when existing ones merge/close.
 
    This draft PR shows the combined diff of all project branches:
 
-   ### PR chain (in order)
+   ### Branch chain (in order)
    - [ ] `project-__PROJECT_NUMBER__/<branch-1>` — #<issue> <title> (PR #<pr>)
-   - [ ] `project-__PROJECT_NUMBER__/<branch-2>` — #<issue> <title> (PR #<pr>)
+   - [ ] `project-__PROJECT_NUMBER__/<branch-2>` — #<issue> <title> (PR #<pr>, deferred)
+   - [ ] `project-__PROJECT_NUMBER__/<branch-3>` — #<issue> <title> (no PR yet)
    ...
 
    **Do not merge this PR directly.** Individual PRs in the chain will merge in order.
    EOF
    )"
    ```
+   **The stacked PR body MUST list ALL project branches in the chain** — not just branches with open PRs. Include branches with deferred PRs, branches where PRs haven't been created yet, and branches whose PRs have already merged. Annotate each entry with the PR status: `(PR #<n>)`, `(PR #<n>, merged)`, `(deferred)`, or `(no PR yet)`. Obtain the full list of branches via `git branch -r --list 'origin/project-__PROJECT_NUMBER__/*'` and cross-reference with `prd.json` for issue metadata.
    If the draft PR already exists, update its base to the latest tip branch and edit the body: `gh pr edit <stack-pr> --body ...`
 3. Track the stack PR in `./.state/__STATE_NAME__/deferred-prs.json`:
    ```json
