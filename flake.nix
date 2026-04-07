@@ -75,7 +75,7 @@
     # Script packages
     packages = let
       systems = ["aarch64-darwin" "x86_64-linux" "x86_64-darwin" "aarch64-linux"];
-      scriptNames = ["dependabot" "github-issues" "loop" "pr-maintenance" "project" "rmtree" "worktree"];
+      scriptNames = ["dependabot" "github-issues" "github-project" "loop" "pr-maintenance" "project" "rmtree" "tech-spec" "worktree"];
     in
       builtins.listToAttrs (map (system: {
         name = system;
