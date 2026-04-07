@@ -29,10 +29,15 @@
       inherit name;
       checkPhase = "";
       text = ''
-        SESSION_ID=$(uuidgen)
+        # Skip --session-id when resuming or continuing an existing session
+        SESSION_ARGS=()
+        if [[ " $* " != *" --resume "* ]] && [[ " $* " != *" --continue "* ]]; then
+          SESSION_ID=$(uuidgen)
+          SESSION_ARGS+=(--session-id "$SESSION_ID")
+          echo "Session: $SESSION_ID"
+        fi
         echo "🎯 ${name}: ${purpose}"
-        echo "Session: $SESSION_ID"
-        exec claude --session-id "$SESSION_ID" --mcp-config ${mcpConfig} "$@"
+        exec claude "''${SESSION_ARGS[@]}" --mcp-config ${mcpConfig} "$@"
       '';
     };
 in {
@@ -114,4 +119,37 @@ in {
       };
     };
   };
+  tech-spec = let
+    mcpConfig = pkgs.writeText "tech-spec-mcp.json" (builtins.toJSON {
+      mcpServers = {
+        notion = {
+          type = "http";
+          url = "https://mcp.notion.com/mcp";
+        };
+      };
+    });
+    templatePath = ../config/claude/templates/tech-spec.md;
+  in
+    pkgs.writeShellApplication {
+      name = "tech-spec";
+      runtimeInputs = [pkgs.coreutils pkgs.git pkgs.gawk pkgs.gnugrep pkgs.gnused];
+      checkPhase = "";
+      text = ''
+        export TECH_SPEC_TEMPLATE="${templatePath}"
+        export TECH_SPEC_MCP_CONFIG="${mcpConfig}"
+        ${builtins.readFile ./tech-spec.sh}
+      '';
+    };
+  github-project = let
+    estimationPath = ../config/claude/templates/ESTIMATION.md;
+  in
+    pkgs.writeShellApplication {
+      name = "github-project";
+      runtimeInputs = [pkgs.coreutils pkgs.git pkgs.gh pkgs.gawk pkgs.gnugrep pkgs.gnused];
+      checkPhase = "";
+      text = ''
+        export ESTIMATION_TEMPLATE="${estimationPath}"
+        ${builtins.readFile ./github-project.sh}
+      '';
+    };
 }

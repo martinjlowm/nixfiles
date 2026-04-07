@@ -44,13 +44,18 @@ while true; do
       else
         tail -f "$ACTIVE_SESSION" | jq --unbuffered -r '
           select(.message) |
+          .message.role as $role |
           (if .message.content | type == "string" then
             .message.content
           else
             (.message.content // [] | map(.text // "") | join(""))
           end) as $text |
           select($text | length > 0) |
-          "[\(.timestamp)] (\(.message.role)): \($text)"
+          if $role == "user" then
+            "\u001b[2m▸ user input\u001b[0m"
+          else
+            "\u001b[36m[\(.timestamp)]\u001b[0m \($text)"
+          end
         ' &
       fi
       TAIL_PID=$!
