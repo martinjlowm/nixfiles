@@ -5,17 +5,6 @@
 #   github-issues --run <url> [max_iterations]                       - run the loop directly (used internally)
 set -e
 
-# Extract --with-sleep <min> if present
-SLEEP_MIN=""
-ARGS=()
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --with-sleep) SLEEP_MIN="$2"; shift 2 ;;
-    *) ARGS+=("$1"); shift ;;
-  esac
-done
-set -- "${ARGS[@]}"
-
 REPO="$(git rev-parse --show-toplevel)"
 
 # URL-decode: + → space, %XX → byte
@@ -119,13 +108,13 @@ if [ "${1:-}" = "--run" ]; then
   AGENT_PROMPT="${AGENT_PROMPT//__SEARCH_QUERY__/$SEARCH_QUERY}"
   AGENT_PROMPT="${AGENT_PROMPT//__STATE_NAME__/$STATE_NAME}"
 
-  if [ -n "$SLEEP_MIN" ]; then
-    AGENT_PROMPT="$AGENT_PROMPT
+  AGENT_PROMPT="$AGENT_PROMPT
 
 $(cat "$HOME/.claude/agents/project-sleep.md")"
-  fi
 
   SESSION_LOG="$STATE_DIR/session.log"
+
+  SLEEP_COUNT=0
 
   for i in $(seq 1 $MAX_ITERATIONS); do
     echo "═══ Iteration $i ═══"
@@ -155,15 +144,12 @@ $(cat "$HOME/.claude/agents/project-sleep.md")"
       exit 0
     fi
 
-    if [ -n "$SLEEP_MIN" ] && echo "$OUTPUT" | \
-        grep -q "<promise>SLEEP</promise>"
-    then
-      echo "💤 Blocked on CI/reviews. Sleeping $SLEEP_MIN minutes..."
-      sleep $((SLEEP_MIN * 60))
-      echo "Resuming after sleep."
+    if echo "$OUTPUT" | grep -q "<promise>SLEEP</promise>"; then
+      SLEEP_COUNT=$(claude-sleep "$SLEEP_COUNT")
       continue
     fi
 
+    SLEEP_COUNT=0
     echo "Iteration $i complete. Continuing..."
     sleep 2
   done
@@ -207,12 +193,7 @@ echo "Spawning GitHub Issues loop in new WezTerm window..."
 echo "Repo: $REPO_OWNER/$REPO_NAME"
 echo "Search: $SEARCH_QUERY"
 
-SLEEP_ARGS=()
-if [ -n "$SLEEP_MIN" ]; then
-  SLEEP_ARGS=(--with-sleep "$SLEEP_MIN")
-fi
-
-LOOP_PANE_ID=$(wezterm cli spawn --new-window --cwd "$REPO" -- "$0" "${SLEEP_ARGS[@]}" --run "$URL" "$MAX_ITERATIONS")
+LOOP_PANE_ID=$(wezterm cli spawn --new-window --cwd "$REPO" -- "$0" --run "$URL" "$MAX_ITERATIONS")
 sleep 1
 
 SESSION_PANE_ID=$(wezterm cli split-pane --pane-id "$LOOP_PANE_ID" --bottom --percent 50 --cwd "$REPO" -- "$0" --follow "$URL")

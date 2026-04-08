@@ -5,17 +5,6 @@
 #   loop --run ...     - run the loop directly (used internally)
 set -e
 
-# Extract --with-sleep <min> if present
-SLEEP_MIN=""
-ARGS=()
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --with-sleep) SLEEP_MIN="$2"; shift 2 ;;
-    *) ARGS+=("$1"); shift ;;
-  esac
-done
-set -- "${ARGS[@]}"
-
 REPO="$(git rev-parse --show-toplevel)"
 
 # Follow Claude session JSONL across iterations
@@ -64,13 +53,13 @@ if [ "${1:-}" = "--run" ]; then
   # Read and substitute __SPEC__ in loop.md
   AGENT_PROMPT=$(sed "s/__SPEC__/$SPEC_NAME/g" "$HOME/.claude/agents/loop.md")
 
-  if [ -n "$SLEEP_MIN" ]; then
-    AGENT_PROMPT="$AGENT_PROMPT
+  AGENT_PROMPT="$AGENT_PROMPT
 
 $(cat "$HOME/.claude/agents/project-sleep.md")"
-  fi
 
   SESSION_LOG="$STATE_DIR/session.log"
+
+  SLEEP_COUNT=0
 
   for i in $(seq 1 $MAX_ITERATIONS); do
     echo "═══ Iteration $i ═══"
@@ -101,15 +90,12 @@ $(cat "$HOME/.claude/agents/project-sleep.md")"
       exit 0
     fi
 
-    if [ -n "$SLEEP_MIN" ] && echo "$OUTPUT" | \
-        grep -q "<promise>SLEEP</promise>"
-    then
-      echo "💤 Blocked on CI/reviews. Sleeping $SLEEP_MIN minutes..."
-      sleep $((SLEEP_MIN * 60))
-      echo "Resuming after sleep."
+    if echo "$OUTPUT" | grep -q "<promise>SLEEP</promise>"; then
+      SLEEP_COUNT=$(claude-sleep "$SLEEP_COUNT")
       continue
     fi
 
+    SLEEP_COUNT=0
     echo "Iteration $i complete. Continuing..."
     sleep 2
   done
@@ -160,12 +146,7 @@ mkdir -p "$STATE_DIR"
 touch "$LOG_FILE"
 
 # Spawn the loop in a new window (top pane)
-SLEEP_ARGS=()
-if [ -n "$SLEEP_MIN" ]; then
-  SLEEP_ARGS=(--with-sleep "$SLEEP_MIN")
-fi
-
-LOOP_PANE_ID=$(wezterm cli spawn --new-window --cwd "$REPO" -- "$0" "${SLEEP_ARGS[@]}" --run "$SPEC_NAME" "$MAX_ITERATIONS")
+LOOP_PANE_ID=$(wezterm cli spawn --new-window --cwd "$REPO" -- "$0" --run "$SPEC_NAME" "$MAX_ITERATIONS")
 sleep 1
 
 # Split for the session follow (bottom pane)

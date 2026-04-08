@@ -8,10 +8,17 @@
     text = builtins.readFile ./claude-follow.sh;
   };
 
+  claude-sleep = pkgs.writeShellApplication {
+    name = "claude-sleep";
+    runtimeInputs = [pkgs.coreutils];
+    checkPhase = "";
+    text = builtins.readFile ./claude-sleep.sh;
+  };
+
   mkWeztermScript = name:
     pkgs.writeShellApplication {
       inherit name;
-      runtimeInputs = [wezterm claude-follow];
+      runtimeInputs = [wezterm claude-follow claude-sleep];
       checkPhase = "";
       text = builtins.readFile ./${name}.sh;
     };
