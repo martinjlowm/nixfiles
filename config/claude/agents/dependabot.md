@@ -107,8 +107,9 @@
 
 10. **Approve and merge** (only if security audit verdict is `PASS`):
    - **If the PR required breaking change upgrades** (`has_breaking_changes: true`):
+     Do **NOT** approve the PR. Leave a **comment** (not a review approval) describing what was done, so the PR still requires a human approval:
      ```
-     gh pr review <number> --approve --body "Dependency update includes breaking changes — applied necessary code upgrades. CI passes. Security audit: PASS — source reviewed at <version-tag>, no suspicious changes found. ⚠️ Requesting peer review before merge due to breaking change adaptations."
+     gh pr comment <number> --body "Dependency update includes breaking changes — applied necessary code upgrades. CI passes. Security audit: PASS — source reviewed at <version-tag>, no suspicious changes found. ⚠️ Requesting peer review before merge due to breaking change adaptations."
      ```
      Do **NOT** add to merge queue or auto-merge. Request review from `martinjlowm` and leave the PR open for peer review. Set status to `awaiting_review` in `worklist.json`.
      ```
