@@ -4,14 +4,31 @@
 #   count - consecutive SLEEP count (0-based, incremented internally)
 #
 # Prints the new count to stdout. Logs to stderr.
-# Backoff: 2 * 2^count minutes, capped at 60 minutes.
+# Backoff: Fibonacci sequence in minutes (1,1,2,3,5,8,13,21,34,55,...), capped at 60 minutes.
 
 COUNT=$(($1 + 1))
-BACKOFF=$((2 * (1 << (COUNT - 1))))
+
+# Compute Fibonacci(COUNT) starting at 2,2: 2,2,4,6,10,16,26,42,...
+A=2; B=2
+for i in $(seq 2 $COUNT); do
+  TMP=$((A + B)); A=$B; B=$TMP
+done
+BACKOFF=$A
 if [ $BACKOFF -gt 60 ]; then BACKOFF=60; fi
 
-echo "💤 Blocked on CI/reviews. Sleeping $BACKOFF minutes (attempt $COUNT)..." >&2
-sleep $((BACKOFF * 60))
-echo "Resuming after sleep." >&2
+TOTAL=$((BACKOFF * 60))
+FRAMES=("🌑" "🌒" "🌓" "🌔" "🌕" "🌖" "🌗" "🌘")
+REMAINING=$TOTAL
+
+while [ $REMAINING -gt 0 ]; do
+  FRAME_IDX=$(( (TOTAL - REMAINING) % ${#FRAMES[@]} ))
+  MINS=$((REMAINING / 60))
+  SECS=$((REMAINING % 60))
+  printf "\r${FRAMES[$FRAME_IDX]} Sleeping %02d:%02d  (attempt $COUNT, backoff ${BACKOFF}m)" "$MINS" "$SECS" >&2
+  sleep 1
+  REMAINING=$((REMAINING - 1))
+done
+
+printf "\r✅ Resuming after ${BACKOFF}m sleep.%*s\n" 20 "" >&2
 
 echo "$COUNT"
