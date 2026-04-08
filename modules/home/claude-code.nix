@@ -62,6 +62,10 @@ in {
         "document-skills@anthropic-agent-skills" = true;
       };
       skipDangerousModePermissionPrompt = true;
+      attribution = {
+        commit = "";
+        pr = "";
+      };
       extraKnownMarketplaces = {
         impeccable = {
           source = {
