@@ -49,12 +49,14 @@
    - `status` is one of: `pending`, `merged`, `in_merge_queue`, `rebased`, `skipped`, `closed`, `awaiting_review`
    - When updating: add newly opened PRs, mark merged/closed PRs accordingly, preserve status of PRs already tracked
    - Do NOT remove PRs from the list — update their status so the agent knows they were handled
+   - **Notes and PR comments take precedence over skip_reason**: If a PR's `notes` field contains actionable next steps (e.g. "yarnix Flake input needs to be updated to …", "Taken over", "try X"), the PR must NOT have status `skipped` — set it to `pending` so the agent acts on those next steps. Similarly, unresolved PR review comments indicating follow-up work override any `skip_reason`. The priority order is: **unresolved PR review comments > worklist `notes` > `skip_reason`**. A `skip_reason` is only authoritative when there are no contradicting notes or unresolved review comments
 
 ### Phase 2: Review existing PRs
 
 5. **Review PR feedback for all PRs** (even previously handled ones):
    - Fetch comments via `gh pr view <number> --comments` and `gh api repos/{owner}/{repo}/pulls/{number}/comments`
    - Address **every** unresolved comment; rebase on `origin/master` if needed; skip if PR closed
+   - **Re-evaluate skipped PRs**: For any PR with status `skipped`, check if its `notes` field or unresolved PR review comments contain actionable next steps. If they do, reset the PR status to `pending` — the notes/comments describe what to do next and take precedence over the `skip_reason`. Only leave a PR as `skipped` if neither notes nor review comments indicate a path forward
    - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
    - **Check CI for all PRs** — if any required check has failed or been cancelled, investigate before proceeding
    - **Check if Dependabot still owns the PR**: look for a Dependabot comment stating the PR has been edited (e.g. "Dependabot will no longer manage this PR because it has been edited"). If found, the agent must **take over** the PR — manage it directly by checking out the branch, rebasing, pushing commits, etc. Do NOT use `@dependabot rebase` or `@dependabot recreate` on taken-over PRs; those commands will be ignored

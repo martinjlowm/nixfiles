@@ -188,5 +188,11 @@ in {
       scripts.roadmap-sync
       scripts.claude-pm
       scripts.claude-ops
+      scripts.git-most-changed
+      scripts.git-contributor-rankings
+      scripts.git-recent-contributors
+      scripts.git-bug-hotspots
+      scripts.git-commit-velocity
+      scripts.git-firefighting
     ]);
 }

@@ -147,6 +147,42 @@ in {
         ${builtins.readFile ./tech-spec.sh}
       '';
     };
+  git-most-changed = pkgs.writeShellApplication {
+    name = "git-most-changed";
+    runtimeInputs = [pkgs.git pkgs.coreutils];
+    checkPhase = "";
+    text = builtins.readFile ./git-most-changed.sh;
+  };
+  git-contributor-rankings = pkgs.writeShellApplication {
+    name = "git-contributor-rankings";
+    runtimeInputs = [pkgs.git];
+    checkPhase = "";
+    text = builtins.readFile ./git-contributor-rankings.sh;
+  };
+  git-recent-contributors = pkgs.writeShellApplication {
+    name = "git-recent-contributors";
+    runtimeInputs = [pkgs.git];
+    checkPhase = "";
+    text = builtins.readFile ./git-recent-contributors.sh;
+  };
+  git-bug-hotspots = pkgs.writeShellApplication {
+    name = "git-bug-hotspots";
+    runtimeInputs = [pkgs.git pkgs.coreutils];
+    checkPhase = "";
+    text = builtins.readFile ./git-bug-hotspots.sh;
+  };
+  git-commit-velocity = pkgs.writeShellApplication {
+    name = "git-commit-velocity";
+    runtimeInputs = [pkgs.git pkgs.coreutils];
+    checkPhase = "";
+    text = builtins.readFile ./git-commit-velocity.sh;
+  };
+  git-firefighting = pkgs.writeShellApplication {
+    name = "git-firefighting";
+    runtimeInputs = [pkgs.git pkgs.gnugrep];
+    checkPhase = "";
+    text = builtins.readFile ./git-firefighting.sh;
+  };
   github-project = let
     estimationPath = ../config/claude/templates/ESTIMATION.md;
   in
