@@ -38,28 +38,28 @@
     name = "vscode-json-language-server";
     bin = "${pkgs.vscode-langservers-extracted}/lib/node_modules/vscode-langservers-extracted/bin/vscode-json-language-server";
   };
-  agent-browser = pkgs.buildNpmPackage rec {
+  agent-browser = pkgs.rustPlatform.buildRustPackage rec {
     pname = "agent-browser";
-    version = "0.5.0";
+    version = "0.25.3";
 
-    src = pkgs.fetchurl {
-      url = "https://registry.npmjs.org/agent-browser/-/agent-browser-${version}.tgz";
-      hash = "sha256-IdeLrmuExcdV4V3h3IGeB8Q8jliLHqrran5ewP+k56A=";
+    src = pkgs.fetchFromGitHub {
+      owner = "vercel-labs";
+      repo = "agent-browser";
+      tag = "v${version}";
+      hash = "sha256-9wunuGSsxKqy9h3MMahW3hzZ+5iJrz/SotPRRGDu+kg=";
     };
 
-    postPatch = ''
-      cp ${../../lockfiles/agent-browser.json} package-lock.json
-    '';
+    buildAndTestSubdir = "cli";
+    cargoRoot = "cli";
+    cargoHash = "sha256-vCxv2vKSWj5kIWhzWlbWNfEHrxnSg1i0nUBq6hWoQlM=";
 
-    npmDepsHash = "sha256-pJgcKu27WP79vEEzEtJD243jT0ItJ6ii/TKym6TLtp0=";
+    doCheck = false;
 
-    dontNpmBuild = true;
-
-    # The bin entry is a bash script, not a node script - replace the node wrapper
-    postFixup = ''
-      rm $out/bin/agent-browser
-      ln -s $out/lib/node_modules/agent-browser/bin/agent-browser $out/bin/agent-browser
-    '';
+    nativeBuildInputs = [
+      pkgs.pkg-config
+    ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+      pkgs.apple-sdk_15
+    ];
   };
   safehouse = let
     unwrapped = pkgs.stdenvNoCC.mkDerivation rec {
