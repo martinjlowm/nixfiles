@@ -17,6 +17,12 @@
   # Enable sketchybar on this host
   services.sketchybar.enable = true;
 
+  # SigNoz observability platform
+  services.signoz = {
+    enable = true;
+    port = 9000;
+  };
+
   # Configure home-manager for this user
   home-manager.users.${username} = import ../../../users/martinjlowm;
 

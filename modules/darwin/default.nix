@@ -6,5 +6,6 @@
     ./yabai.nix
     ./jankyborders.nix
     ./linux-builder.nix
+    ./signoz.nix
   ];
 }

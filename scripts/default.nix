@@ -183,6 +183,12 @@ in {
     checkPhase = "";
     text = builtins.readFile ./git-firefighting.sh;
   };
+  playwright-at = pkgs.writeShellApplication {
+    name = "playwright-at";
+    runtimeInputs = [pkgs.curl pkgs.jq pkgs.nodejs];
+    checkPhase = "";
+    text = builtins.readFile ./playwright-at.sh;
+  };
   github-project = let
     estimationPath = ../config/claude/templates/ESTIMATION.md;
   in

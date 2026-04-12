@@ -194,5 +194,6 @@ in {
       scripts.git-bug-hotspots
       scripts.git-commit-velocity
       scripts.git-firefighting
+      scripts.playwright-at
     ]);
 }
