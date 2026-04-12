@@ -58,20 +58,21 @@
    - For each issue that already has a PR **plus the stacked PR**: `gh pr list --search "head:project-__PROJECT_NUMBER__/" --state open --json number,title,headRefName,baseRefName,body,statusCheckRollup,mergeable`
    - **Verify issue linkage:** ensure the PR body contains `Closes <issue-url>`. If missing, edit the PR body to add it (`gh pr edit <pr> --body ...`). This is required for the issue to auto-close and link to the project board
    - Fetch comments via `gh pr view <pr> --comments` and `gh api repos/{owner}/{repo}/pulls/{number}/comments`
-   - Address **every** unresolved comment including nits; rebase on base-branch (or origin/master if merged); skip if PR closed
+   - Address **every** unresolved comment including nits; merge base-branch (or origin/master if merged); skip if PR closed
    - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
    - **Check CI for all PRs** — if any required check has failed or been cancelled, investigate and fix. **This includes stacked/chained PRs** — a failing check on a child PR may be caused by the parent; always check the full chain
-   - **Check for merge conflicts on every PR** (even passing ones): `gh pr view <pr> --json mergeable` — if `CONFLICTING`, resolve the conflicts by rebasing on the base branch
+   - **Check for merge conflicts on every PR** (even passing ones): `gh pr view <pr> --json mergeable` — if `CONFLICTING`, resolve the conflicts by merging the base branch
    - If CI is still `PENDING`, skip and move on. **Ignore Chromatic checks** — these require manual approval and are not part of the automated CI gate
-   - **Review comments on stacked PRs:** When PRs are chained (child PR targets parent PR branch), review comments apply to the **entire chain**. A comment on a child PR may point out an issue introduced by the parent. Address it in the PR where the code originates, then rebase the chain
+   - **Review comments on stacked PRs:** When PRs are chained (child PR targets parent PR branch), review comments apply to the **entire chain**. A comment on a child PR may point out an issue introduced by the parent. Address it in the PR where the code originates, then merge through the chain
    - **Propagate changes across all project PRs:** When resolving a PR comment that changes behavior also present in other PRs (e.g., a naming convention, API pattern, or shared logic), update all affected PRs to reflect the same change — both forward and backward. Check all open project PRs (`project-__PROJECT_NUMBER__/`) for the same pattern and apply the fix consistently
-   - **Backpropagate to earlier PRs:** When reviewing a later PR reveals an issue that originated in an earlier/dependent PR (e.g., a pattern established in PR #1 that PR #3's reviewer flags), fix the root cause in the earlier PR first, then rebase the later PRs on top. This prevents the same review comment from appearing on every dependent PR
-   - **Verify stack integrity (MANDATORY):** For every open project PR, verify the stacking order is correct:
+   - **Backpropagate to earlier PRs:** When reviewing a later PR reveals an issue that originated in an earlier/dependent PR (e.g., a pattern established in PR #1 that PR #3's reviewer flags), fix the root cause in the earlier PR first, then merge into the later PRs. This prevents the same review comment from appearing on every dependent PR
+   - **Verify stack integrity (MANDATORY):** For every open project PR, verify the stacking order is correct and the stack is up-to-date with `master`:
      1. List all open PRs: `gh pr list --search "head:project-__PROJECT_NUMBER__/" --state open --json number,headRefName,baseRefName`
      2. Each PR's `baseRefName` must be the branch of the **previous PR in the chain** (ordered by issue priority from the PRD), except the first PR which must target `master`
-     3. If any PR targets `master` when it should target a parent branch (i.e., it was created independently instead of stacked), **fix it immediately**: `gh pr edit <pr> --base project-__PROJECT_NUMBER__/<parent-branch>` and rebase the branch onto the parent
-     4. If any PR targets the wrong parent (out of order), retarget and rebase to restore the correct chain
-     5. **Do not proceed to Phase 3 until all PRs are correctly stacked.** Unstacked PRs are the root cause of impractical stack rebuilds — fixing the stacking order is higher priority than implementing new issues
+     3. If any PR targets `master` when it should target a parent branch (i.e., it was created independently instead of stacked), **fix it immediately**: `gh pr edit <pr> --base project-__PROJECT_NUMBER__/<parent-branch>` and merge the parent branch into the child
+     4. If any PR targets the wrong parent (out of order), retarget and merge to restore the correct chain
+     5. **Merge `master` into the stack when significantly stale:** Fetch `origin/master` and check if the root branch (the first PR in the chain) is behind. Only merge if the root branch is **more than one week behind** `origin/master` (i.e., the oldest commit on `origin/master` not in the root branch is older than 7 days: `git log --format='%ci' --reverse <root-branch>..origin/master | head -1` — if that date is more than 7 days ago, merge). If within one week, skip this step. When merging: merge `origin/master` into the root branch, then merge each parent into its child in order. This avoids unnecessary churn while still preventing merge conflicts from accumulating
+     6. **Do not proceed to Phase 3 until all PRs are correctly stacked (and have `master` merged in if more than a week behind).** Unstacked or significantly stale PRs are the root cause of impractical stack rebuilds and merge queue failures — fixing the stacking order is higher priority than implementing new issues
    - Update the issue's status in `prd.json` to `revised` if changes were made
 
 ### Phase 3: Pick and implement ONE issue
@@ -86,7 +87,7 @@
     gh issue edit <number> --repo <owner>/<repo> --add-assignee @me
     ```
 12. **Record timing — issue picked up.** Write/update `./.state/__STATE_NAME__/timing/<issue-number>.json` (see **Timing Tracking** below) with `picked_up_at` set to the current UTC time
-13. Set up worktree by running: `worktree project-__PROJECT_NUMBER__/<issue-number>-<slug>` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool. Then `cd` into the created worktree directory. **Stack the branch:** If other project branches exist, rebase onto the tip of the most recent one: `git rebase project-__PROJECT_NUMBER__/<previous-branch>`. This ensures the new branch is additive on top of all prior work
+13. Set up worktree by running: `worktree project-__PROJECT_NUMBER__/<issue-number>-<slug>` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool. Then `cd` into the created worktree directory. **Stack the branch:** If other project branches exist, merge the tip of the most recent one: `git merge project-__PROJECT_NUMBER__/<previous-branch>`. This ensures the new branch is additive on top of all prior work
 14. Enter Nix dev shell before any work (generates pre-commit hooks)
 15. Implement the issue. Verify **every** acceptance criterion mentioned in the issue body before moving on. Run typecheck and tests for affected projects
 16. Commit: `[feat|fix|chore](<Component>): #<issue-number> - <Title>`
@@ -109,7 +110,7 @@
 19. **Verify the new PR is correctly stacked:** After creating the PR, confirm:
     - The PR's base branch is the previous project branch (not `master`, unless this is the first PR in the chain)
     - The branch actually contains the parent's commits (`git log --oneline project-__PROJECT_NUMBER__/<parent-branch>..HEAD` should show only this PR's commits)
-    - If either check fails, fix before proceeding: `gh pr edit <pr> --base <correct-parent>` and rebase
+    - If either check fails, fix before proceeding: `gh pr edit <pr> --base <correct-parent>` and merge the parent
 20. Update `prd.json`: set the issue's status to `pr-created`, fill in `pr_number` and `pr_url`
 21. Log the result in `./.state/__STATE_NAME__/progress.txt`
 
@@ -126,10 +127,11 @@ This means the "stack" is simply the latest branch in the chain — no separate 
 
 **Stacked PR maintenance is mandatory:**
 - Since every branch builds on the previous, the stack is naturally additive — each PR's diff is only its own changes
-- When rebasing, **always rebase from the root of the chain outward** — parent first, then each child in order. Never attempt to rebuild the entire stack from scratch by merging independent branches — that approach is impractical at scale
-- A fix in a parent PR **must** be followed by rebasing all children so they pick up the change
+- **The stack should not fall too far behind `master`.** Before any other stack maintenance, fetch `origin/master` and check if the root branch is more than one week behind. If so, merge `origin/master` into the root branch, then cascade merges through each child in order (merge parent into child). A significantly stale stack causes merge conflicts, CI failures in the merge queue, and wasted reviewer time — but merging on every minor upstream change creates unnecessary churn
+- When updating the stack, **always start from the root of the chain outward** — merge into the root first, then merge each parent into its child in order. Never attempt to rebuild the entire stack from scratch — that approach is impractical at scale
+- A fix in a parent PR **must** be followed by merging the parent into all children so they pick up the change
 - Comments and CI failures on **any PR in the chain** must be addressed — do not skip a child PR because "the parent will fix it later"
-- When a reviewer comments on a child PR about code that originates in the parent, fix it in the parent and rebase the chain. The child PR's diff should stay clean
+- When a reviewer comments on a child PR about code that originates in the parent, fix it in the parent and merge through the chain. The child PR's diff should stay clean
 
 **NEVER wait or poll for CI.** Check CI status once — if checks are still running, move on or end the task. Waiting longer than 1 minute for CI results means you must stop immediately.
 
@@ -144,7 +146,7 @@ During Phase 2 (PR review), also check for PRs that have entered the merge queue
 23. **Merge queue detected:** If `mergeQueueEntry` is non-null and `merged_queue_entered_at` is not yet recorded, update `./.state/__STATE_NAME__/timing/<issue-number>.json` with `merge_queue_entered_at` set to the current UTC time
 24. **Merge queue CI failure:** If the PR was **removed from the merge queue** due to a failed CI check (i.e., `mergeQueueEntry` is null, `state` is `OPEN`, and the PR was previously recorded as entering the merge queue):
     - Check the merge queue run: `gh pr checks <pr_number>` — identify which check failed
-    - **These are integration-test failures** — they occur when the PR is rebased on top of the latest `master` plus other queued PRs. Local CI may have passed but the combined state fails. Treat these as high-priority because the PR was already approved and ready to land
+    - **These are integration-test failures** — they occur when the PR is merged on top of the latest `master` plus other queued PRs. Local CI may have passed but the combined state fails. Treat these as high-priority because the PR was already approved and ready to land
     - Investigate the failure using the **Troubleshooting Cancelled Workflows** steps. The failure is often caused by a conflict or incompatibility with another PR that merged while this one was queued
     - Fix the issue in the feature branch, push, and the PR will need to re-enter the merge queue
     - Update `prd.json`: set the issue's status back to `revised`
@@ -263,11 +265,11 @@ Create deferred PRs when existing ones merge/close.
 5. **During Phase 2, the stacked PR is a first-class review target:**
    - Fetch and address all comments on the stacked PR (`gh pr view <stack-pr> --comments` and `gh api repos/{owner}/{repo}/pulls/{stack-pr}/comments`)
    - Fix any failing CI checks on the stacked PR — failures here often indicate integration issues between branches
-   - **Backpropagate fixes:** When a stacked PR comment or CI failure reveals an issue, trace it to the originating feature branch, fix it there, then rebase all downstream branches in order. Never fix issues only in the tip — the fix must land in the source branch so downstream branches pick it up on rebase
+   - **Backpropagate fixes:** When a stacked PR comment or CI failure reveals an issue, trace it to the originating feature branch, fix it there, then merge into all downstream branches in order. Never fix issues only in the tip — the fix must land in the source branch so downstream branches pick it up on merge
 
 ## Stack Validation
 
-Because PRs are stacked additively, the tip branch already contains all changes. Validate the tip branch after adding a new branch to the chain or after rebasing. If any check fails, fix the originating branch and rebase downstream.
+Because PRs are stacked additively, the tip branch already contains all changes. Validate the tip branch after adding a new branch to the chain or after merging. If any check fails, fix the originating branch and merge into downstream.
 
 ### 1. Migrations are applicable
 
@@ -283,14 +285,14 @@ Enter the Nix dev shell and run the standard build/typecheck commands on the tip
 
 - Run the project's typecheck (e.g., `just typecheck`, `cargo check`, `tsc --noEmit`, `nix build`)
 - Run the project's linter if one exists (e.g., `just lint`, `cargo clippy`)
-- If either fails, identify which branch in the chain introduced the issue, fix it there, then rebase all downstream branches
+- If either fails, identify which branch in the chain introduced the issue, fix it there, then merge into all downstream branches
 
 ### 3. Tests pass
 
 Run the project's test suite on the tip branch (e.g., `just test`, `cargo test`, `yarn test`). If tests fail:
 
 - Identify whether the failure is a genuine integration issue or a pre-existing problem
-- Fix issues in the originating branch, then rebase downstream
+- Fix issues in the originating branch, then merge into downstream
 - Pre-existing failures that also exist on `master` can be ignored
 
 **Do not push a tip branch that fails validation.** The stack PR exists to give reviewers confidence that all in-flight work integrates cleanly.

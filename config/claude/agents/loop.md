@@ -13,10 +13,10 @@
    - **Self-loop prevention:** Skip any comment that starts with `🤖 Robotto:` — these are from the agent itself. Never respond to your own comments
    - **Code changes require tests:** When implementing code changes in response to review feedback, you MUST include corresponding tests. Never push new or modified code without test coverage. If you cannot write a meaningful test for a change, flag it in the PR comment rather than pushing untested code
    - **References must be accurate:** When commenting on code or adding inline documentation, only reference actual implementation details you have verified. Prefer linking to source code (with the correct tagged version, e.g., `https://github.com/org/repo/blob/v1.2.3/src/file.rs#L42`) over docs.rs or other generated documentation — docs can drift from the real implementation. Never cite a function's behavior based on documentation alone; read the source to confirm
-   - Rebase on base-branch (or origin/master if merged)
+   - Merge base-branch (or origin/master if merged)
    - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
    - **Check CI for passing stories too** — if any required check has failed or been cancelled, set `passes: false`
-   - **Check for merge conflicts on every PR** (even passing ones): `gh pr view <pr> --json mergeable` — if `mergeable` is `CONFLICTING`, set `passes: false` and resolve the conflicts by rebasing on the base branch
+   - **Check for merge conflicts on every PR** (even passing ones): `gh pr view <pr> --json mergeable` — if `mergeable` is `CONFLICTING`, set `passes: false` and resolve the conflicts by merging the base branch
    - Set `passes: false` if unaddressed feedback (including nits), CI failures, or merge conflicts remain
 3. Set up worktree: branch `[SPEC_SLUG]/[STORY]` off dependent branch (or origin/master). Run: `worktree <name> --base <base-branch>`
 4. Enter Nix dev shell before any work (generates pre-commit hooks)

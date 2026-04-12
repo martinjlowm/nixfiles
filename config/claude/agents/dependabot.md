@@ -1,5 +1,10 @@
 # Agent Instructions
 
+## Hard Rules
+
+- **NEVER use admin merge, force merge, or any mechanism to bypass failing checks.** Every CI gate exists to prevent broken code from merging. If a check is failing or blocking, the correct action is to investigate and fix it — not to circumvent it. There are zero exceptions to this rule.
+- **ALL CI checks must pass before merging**, including Chromatic. No check is optional or ignorable.
+
 ## Workflow
 
 ### Phase 0: Worktree setup
@@ -16,7 +21,7 @@
    ```
    cd <worktree-path>
    git fetch origin master
-   git rebase origin/master
+   git merge origin/master
    ```
 4. All subsequent work happens **inside the worktree**. State files (`.state/dependabot/`) live in the **main repo**, not the worktree — use absolute paths or `$REPO_ROOT/.state/dependabot/` when reading/writing state.
 
@@ -55,14 +60,15 @@
 
 5. **Review PR feedback for all PRs** (even previously handled ones):
    - Fetch comments via `gh pr view <number> --comments` and `gh api repos/{owner}/{repo}/pulls/{number}/comments`
-   - Address **every** unresolved comment; rebase on `origin/master` if needed; skip if PR closed
+   - **Process comments in chronological order** (oldest first). Later comments may supersede, clarify, or resolve earlier ones — always read the full comment thread before acting, and let the most recent guidance take precedence when comments conflict
+   - Address **every** unresolved comment; merge `origin/master` if needed; skip if PR closed
    - **Re-evaluate skipped PRs**: For any PR with status `skipped`, check if its `notes` field or unresolved PR review comments contain actionable next steps. If they do, reset the PR status to `pending` — the notes/comments describe what to do next and take precedence over the `skip_reason`. Only leave a PR as `skipped` if neither notes nor review comments indicate a path forward
    - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
    - **Check CI for all PRs** — if any required check has failed or been cancelled, investigate before proceeding
-   - **Check if Dependabot still owns the PR**: look for a Dependabot comment stating the PR has been edited (e.g. "Dependabot will no longer manage this PR because it has been edited"). If found, the agent must **take over** the PR — manage it directly by checking out the branch, rebasing, pushing commits, etc. Do NOT use `@dependabot rebase` or `@dependabot recreate` on taken-over PRs; those commands will be ignored
+   - **Check if Dependabot still owns the PR**: look for a Dependabot comment stating the PR has been edited (e.g. "Dependabot will no longer manage this PR because it has been edited"). If found, the agent must **take over** the PR — manage it directly by checking out the branch, merging, pushing commits, etc. Do NOT use `@dependabot rebase` or `@dependabot recreate` on taken-over PRs; those commands will be ignored
    - **Check for merge conflicts on every PR**: `gh pr view <number> --json mergeable` — if `CONFLICTING`:
-     - If Dependabot still owns the PR: comment `@dependabot rebase`, update status to `rebased`, and move on
-     - If the PR has been taken over: checkout the branch locally, rebase on `origin/master`, force-push, and move on
+     - Checkout the branch locally, merge `origin/master`, resolve conflicts, and push. (This will cause Dependabot to relinquish ownership — that is acceptable for conflict resolution)
+     - If the PR has already been taken over: same approach — checkout, merge, push
      - If `UNKNOWN`: skip (GitHub is still computing)
      All PRs target `master` directly — no stacked PRs
 
@@ -70,9 +76,10 @@
 
 6. From `worklist.json`, pick the next PR with `status: "pending"` (oldest first). If none remain, go to the Stop Condition
 7. **Check CI status**: `gh pr checks <number> --json name,state,conclusion`
-   - **Ignore Chromatic checks** — Chromatic checks require manual approval and should not be considered when evaluating CI status
-   - If any non-Chromatic check state is `PENDING`, skip this PR — set status to `skipped` with `skip_reason: "CI pending"`, move to the Stop Condition (do NOT pick another PR)
-   - If non-Chromatic checks have failed, investigate (see **Troubleshooting Cancelled Workflows** below)
+   - **ALL checks are required gates**, including Chromatic. If Chromatic checks require approval or are pending, they must be resolved before the PR can merge — do NOT bypass them
+   - If any check state is `PENDING`, skip this PR — set status to `skipped` with `skip_reason: "CI pending"`, move to the Stop Condition (do NOT pick another PR)
+   - If any check has failed, investigate (see **Troubleshooting Cancelled Workflows** below)
+   - **NEVER use admin merge or force merge to bypass failing checks.** If a check is blocking the merge queue, that check must be fixed or resolved — it exists to prevent broken code from merging. This applies to ALL checks without exception
 8. **Review the diff**: `gh pr diff <number>`
    - Verify the change is a straightforward dependency bump (version change in lockfile / manifest)
    - If the change looks suspicious or contains non-dependency changes, set status to `skipped` with `skip_reason` noted
@@ -107,7 +114,7 @@
 
    **Do NOT approve any PR that has not passed this security audit.**
 
-10. **Approve and merge** (only if security audit verdict is `PASS`):
+10. **Approve and merge** (only if security audit verdict is `PASS` **AND all CI checks pass**):
    - **If the PR required breaking change upgrades** (`has_breaking_changes: true`):
      Do **NOT** approve the PR. Leave a **comment** (not a review approval) describing what was done, so the PR still requires a human approval:
      ```
@@ -142,9 +149,16 @@ When most/all jobs show as `cancelled`, one job has a non-zero exit code — the
    ```
    gh run view {run_id} --log | grep '{job_name}' | cut -f3- | grep -B10 -i 'error\|failed\|exception'
    ```
-3. If the failure is **transient** (timeout, flaky test, infrastructure): if Dependabot still owns the PR, comment `@dependabot rebase` to retrigger; if taken over, rebase and force-push manually
-4. If the failure is a **real incompatibility**: set status to `skipped`, note in progress.txt why it can't be auto-merged
-5. **Never** push commits to a Dependabot-owned branch — use `@dependabot rebase` or `@dependabot recreate` instead. However, if Dependabot has relinquished ownership (see "taken over" check in Phase 2), you **must** push directly since Dependabot commands will be ignored
+3. **Reproduce locally** before concluding anything about the failure. Checkout the PR branch in the worktree and attempt to reproduce the failing check locally (e.g. run the build, tests, lints, or whatever the failing job does). Local reproduction gives you direct access to the dependency's source code in `node_modules/`, `target/`, or wherever it's installed — you can read, debug, and even patch dependency code directly to understand and fix the issue. This is far more effective than guessing from CI logs alone.
+4. If the failure is **transient** (timeout, flaky test, infrastructure): if Dependabot still owns the PR, comment `@dependabot rebase` to retrigger; if taken over, merge `origin/master` and push
+5. If the failure is a **real incompatibility**: fix the incompatibility if possible — use local reproduction to dig into the dependency source, understand the breaking change, and apply the necessary code fixes. If the fix is non-trivial, set status to `skipped`, note in progress.txt why it can't be auto-merged. **Never bypass the failing check** — either fix the root cause or skip the PR
+6. **Pushing to a Dependabot-owned branch** is allowed (and expected) in these cases:
+   - The PR has **merge conflicts** that need resolving
+   - A CI check fails due to **pre-commit hook violations** (e.g. regenerating `Cargo.nix`, formatting fixes)
+   - The dependency upgrade causes **broken CI checks due to interface/API changes** that must be addressed with code fixes
+   In these cases, checkout the branch, make the necessary fixes, commit, and push directly. Note that this will cause Dependabot to relinquish ownership of the PR — that is acceptable when fixes are required.
+   For everything else (e.g. simply retrying a transient failure), prefer `@dependabot rebase` to keep Dependabot ownership intact.
+   If Dependabot has already relinquished ownership (see "taken over" check in Phase 2), you **must** push directly since Dependabot commands will be ignored
 
 Fix only the identified failure; cancelled jobs and gates will pass once resolved.
 

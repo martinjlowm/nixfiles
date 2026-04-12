@@ -63,7 +63,7 @@ This agent focuses exclusively on getting existing PRs merged. It does NOT creat
 9. Check out the PR's branch: `git fetch origin <branch> && git checkout <branch>`
 10. Enter Nix dev shell before any work (generates pre-commit hooks)
 11. Address ALL issues on this PR:
-    - **Merge conflicts:** rebase on the PR's base branch and resolve conflicts
+    - **Merge conflicts:** merge the PR's base branch and resolve conflicts
     - **Failing CI:** investigate root cause (see **Troubleshooting Cancelled Workflows**), fix the code, commit
     - **PR comments:** address **every** unresolved comment — including nits, style suggestions, and minor feedback. Implement or explain disagreement. Nothing gets ignored
       - **Exception — non-actionable comments:** Skip one-statement comments that are purely observational and don't request any change (e.g., "Interesting feature!", "Nice approach", "Cool"). These require no response or action — replying to them is noisy and unhelpful

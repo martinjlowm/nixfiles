@@ -17,10 +17,10 @@
 5. **Review PR feedback for all issues** (even ones previously completed):
    - For each issue that already has a PR: `gh pr list --repo __REPO_OWNER__/__REPO_NAME__ --search "head:issues/" --state open --json number,title,headRefName,statusCheckRollup,mergeable`
    - Fetch comments via `gh pr view <pr> --repo __REPO_OWNER__/__REPO_NAME__ --comments` and `gh api repos/__REPO_OWNER__/__REPO_NAME__/pulls/{number}/comments`
-   - Address **every** unresolved comment; rebase on `origin/master` if needed; skip if PR closed
+   - Address **every** unresolved comment; merge `origin/master` if needed; skip if PR closed
    - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
    - **Check CI for all PRs** — if any required check has failed or been cancelled, investigate and fix
-   - **Check for merge conflicts on every PR** (even passing ones): `gh pr view <pr> --repo __REPO_OWNER__/__REPO_NAME__ --json mergeable` — if `CONFLICTING`, resolve the conflicts by rebasing on `origin/master`
+   - **Check for merge conflicts on every PR** (even passing ones): `gh pr view <pr> --repo __REPO_OWNER__/__REPO_NAME__ --json mergeable` — if `CONFLICTING`, resolve the conflicts by merging `origin/master`
    - If CI is still `PENDING`, skip and move on
 6. Pick the next eligible issue (oldest first). Read full details:
    ```
