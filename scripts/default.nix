@@ -1,5 +1,24 @@
-{pkgs, ...}: let
+{pkgs, signozPort ? 8080, ...}: let
   wezterm = pkgs.wezterm;
+
+  chrome-devtools-mcp = pkgs.stdenvNoCC.mkDerivation rec {
+    pname = "chrome-devtools-mcp";
+    version = "0.21.0";
+    src = pkgs.fetchurl {
+      url = "https://registry.npmjs.org/chrome-devtools-mcp/-/chrome-devtools-mcp-${version}.tgz";
+      hash = "sha512-d+iqrRmcwpRFV3Q4DRCF2LCoq+WCRU3GhISKQ9v8g+1C2Uh8upj3urkjxNO4QIjhBMIYei/VQ1OQLFceby80Og==";
+    };
+    nativeBuildInputs = [pkgs.makeWrapper];
+    unpackPhase = ''
+      mkdir -p $out/lib/chrome-devtools-mcp
+      tar xzf $src --strip-components=1 -C $out/lib/chrome-devtools-mcp
+    '';
+    installPhase = ''
+      mkdir -p $out/bin
+      makeWrapper ${pkgs.nodejs}/bin/node $out/bin/chrome-devtools-mcp \
+        --add-flags "$out/lib/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js"
+    '';
+  };
 
   claude-follow = pkgs.writeShellApplication {
     name = "claude-follow";
@@ -27,15 +46,18 @@
     name,
     purpose,
     mcpServers,
+    runtimeInputs ? [],
+    preExec ? "",
   }: let
     mcpConfig = pkgs.writeText "${name}-mcp.json" (builtins.toJSON {
       mcpServers = mcpServers;
     });
   in
     pkgs.writeShellApplication {
-      inherit name;
+      inherit name runtimeInputs;
       checkPhase = "";
       text = ''
+        ${preExec}
         # Skip --session-id when resuming or continuing an existing session
         SESSION_ARGS=()
         if [[ " $* " != *" --resume "* ]] && [[ " $* " != *" --continue "* ]]; then
@@ -47,6 +69,26 @@
         exec claude "''${SESSION_ARGS[@]}" --mcp-config ${mcpConfig} "$@"
       '';
     };
+
+  signoz-mcp-server = pkgs.buildGoModule rec {
+    pname = "signoz-mcp-server";
+    version = "0.1.2";
+
+    src = pkgs.fetchFromGitHub {
+      owner = "SigNoz";
+      repo = "signoz-mcp-server";
+      tag = "v${version}";
+      hash = "sha256-Epr8tub6BdbNnyPIbR3r37GXikREwz+8SFyUGcBdVtw=";
+    };
+
+    vendorHash = "sha256-MKm5he3bwwJUTCJ/L986lRGN0mYaWI5rOaeQyg/QeU8=";
+
+    subPackages = ["cmd/server"];
+
+    postInstall = ''
+      mv $out/bin/server $out/bin/signoz-mcp-server
+    '';
+  };
 in {
   inherit claude-follow;
   worktree = pkgs.writeShellApplication {
@@ -123,6 +165,41 @@ in {
       datadog-mcp = {
         type = "http";
         url = "https://mcp.datadoghq.eu/api/unstable/mcp-server/mcp";
+      };
+    };
+  };
+  claude-dbg = mkClaudeFlavor {
+    name = "claude-dbg";
+    purpose = "Debugging — SignOZ observability integration for traces, logs, and metrics analysis";
+    runtimeInputs = [pkgs.jq pkgs._1password-cli pkgs.nodejs];
+    preExec = ''
+      OP_ACCOUNT=$(op account list --format=json | jq -r '.[] | select(.email == "martinjlowm@gmail.com") | .user_uuid')
+      if [[ -z "$OP_ACCOUNT" ]]; then
+        echo "ERROR: Could not find 1Password account for martinjlowm@gmail.com" >&2
+        exit 1
+      fi
+
+      export SIGNOZ_API_KEY
+      SIGNOZ_API_KEY=$(op item get "SigNoz API Token" --account "$OP_ACCOUNT" --fields credential --reveal) || {
+        echo "ERROR: Failed to retrieve SigNoz API token from 1Password" >&2
+        exit 1
+      }
+    '';
+    mcpServers = {
+      signoz = {
+        command = "${signoz-mcp-server}/bin/signoz-mcp-server";
+        args = [];
+        env = {
+          SIGNOZ_URL = "http://localhost:${toString signozPort}";
+          SIGNOZ_API_KEY = "\${SIGNOZ_API_KEY}";
+          LOG_LEVEL = "info";
+        };
+      };
+      chrome-devtools = {
+        command = "${chrome-devtools-mcp}/bin/chrome-devtools-mcp";
+        args = [
+          "--browser-url=http://127.0.0.1:9222"
+        ];
       };
     };
   };

@@ -1,5 +1,6 @@
 # Common Darwin packages
 {
+  config,
   pkgs,
   nextPkgs,
   nextPkgsDevenv,
@@ -38,29 +39,36 @@
     name = "vscode-json-language-server";
     bin = "${pkgs.vscode-langservers-extracted}/lib/node_modules/vscode-langservers-extracted/bin/vscode-json-language-server";
   };
-  agent-browser = pkgs.rustPlatform.buildRustPackage rec {
-    pname = "agent-browser";
-    version = "0.25.3";
+  agent-browser = let
+    unwrapped = pkgs.rustPlatform.buildRustPackage rec {
+      pname = "agent-browser";
+      version = "0.25.3";
 
-    src = pkgs.fetchFromGitHub {
-      owner = "vercel-labs";
-      repo = "agent-browser";
-      tag = "v${version}";
-      hash = "sha256-9wunuGSsxKqy9h3MMahW3hzZ+5iJrz/SotPRRGDu+kg=";
+      src = pkgs.fetchFromGitHub {
+        owner = "vercel-labs";
+        repo = "agent-browser";
+        tag = "v${version}";
+        hash = "sha256-9wunuGSsxKqy9h3MMahW3hzZ+5iJrz/SotPRRGDu+kg=";
+      };
+
+      buildAndTestSubdir = "cli";
+      cargoRoot = "cli";
+      cargoHash = "sha256-vCxv2vKSWj5kIWhzWlbWNfEHrxnSg1i0nUBq6hWoQlM=";
+
+      doCheck = false;
+
+      nativeBuildInputs =
+        [
+          pkgs.pkg-config
+        ]
+        ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+          pkgs.apple-sdk_15
+        ];
     };
-
-    buildAndTestSubdir = "cli";
-    cargoRoot = "cli";
-    cargoHash = "sha256-vCxv2vKSWj5kIWhzWlbWNfEHrxnSg1i0nUBq6hWoQlM=";
-
-    doCheck = false;
-
-    nativeBuildInputs = [
-      pkgs.pkg-config
-    ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
-      pkgs.apple-sdk_15
-    ];
-  };
+  in
+    pkgs.writeShellScriptBin "agent-browser" ''
+      exec ${unwrapped}/bin/agent-browser --args "--no-sandbox,--ignore-certificate-errors" "$@"
+    '';
   safehouse = let
     unwrapped = pkgs.stdenvNoCC.mkDerivation rec {
       pname = "agent-safehouse";
@@ -174,8 +182,12 @@ in {
       texlab
 
       # localproxy
+
+      zstd
     ]
-    ++ (let scripts = pkgs.callPackage ../../scripts {}; in [
+    ++ (let
+      scripts = pkgs.callPackage ../../scripts {signozPort = config.services.signoz.port;};
+    in [
       scripts.worktree
       scripts.rmtree
       scripts.loop
@@ -188,6 +200,7 @@ in {
       scripts.roadmap-sync
       scripts.claude-pm
       scripts.claude-ops
+      scripts.claude-dbg
       scripts.git-most-changed
       scripts.git-contributor-rankings
       scripts.git-recent-contributors

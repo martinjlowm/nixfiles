@@ -24,8 +24,12 @@ while [ $REMAINING -gt 0 ]; do
   FRAME_IDX=$(( (TOTAL - REMAINING) % ${#FRAMES[@]} ))
   MINS=$((REMAINING / 60))
   SECS=$((REMAINING % 60))
-  printf "\r${FRAMES[$FRAME_IDX]} Sleeping %02d:%02d  (attempt $COUNT, backoff ${BACKOFF}m)" "$MINS" "$SECS" >&2
-  sleep 1
+  printf "\r${FRAMES[$FRAME_IDX]} Sleeping %02d:%02d  (attempt $COUNT, backoff ${BACKOFF}m) [Enter to skip]" "$MINS" "$SECS" >&2
+  if read -r -t 1 2>/dev/null; then
+    printf "\r⏩ Sleep skipped by user.%*s\n" 40 "" >&2
+    echo "0"
+    exit 0
+  fi
   REMAINING=$((REMAINING - 1))
 done
 

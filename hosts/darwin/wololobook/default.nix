@@ -17,6 +17,9 @@
   # Enable sketchybar on this host
   services.sketchybar.enable = true;
 
+  # Podman machine
+  services.podman.enable = true;
+
   # SigNoz observability platform
   services.signoz = {
     enable = true;

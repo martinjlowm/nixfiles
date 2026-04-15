@@ -168,7 +168,7 @@ let
         environment = [
           "SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN=tcp://clickhouse:9000"
           "SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_CLUSTER=cluster"
-          "SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION=true"
+          "SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION=false"
           "SIGNOZ_OTEL_COLLECTOR_TIMEOUT=10m"
         ];
         entrypoint = ["/bin/sh"];
@@ -200,7 +200,7 @@ let
           "LOW_CARDINAL_EXCEPTION_GROUPING=false"
           "SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN=tcp://clickhouse:9000"
           "SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_CLUSTER=cluster"
-          "SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION=true"
+          "SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION=false"
           "SIGNOZ_OTEL_COLLECTOR_TIMEOUT=10m"
         ];
         ports = [
@@ -223,13 +223,14 @@ let
   startScript = pkgs.writeShellScript "signoz-start" ''
     export PATH="${pkgs.podman}/bin:${pkgs.podman-compose}/bin:$PATH"
 
-    # Ensure podman machine is running with /nix/store mount
-    if ! podman machine inspect podman-machine-default &>/dev/null; then
-      podman machine init --volume /nix/store:/nix/store:ro
-      podman machine start
-    elif [ "$(podman machine inspect podman-machine-default | ${pkgs.jq}/bin/jq -r '.[0].State')" != "running" ]; then
-      podman machine start
-    fi
+    # Wait for podman machine to be running (managed by podman-init service)
+    for i in $(seq 1 30); do
+      if podman machine inspect podman-machine-default 2>/dev/null | ${pkgs.jq}/bin/jq -e '.[0].State == "running"' >/dev/null 2>&1; then
+        break
+      fi
+      echo "Waiting for podman machine to be ready... ($i/30)"
+      sleep 2
+    done
 
     cleanup() {
       ${pkgs.podman}/bin/podman compose -f ${composeFile} -p signoz down

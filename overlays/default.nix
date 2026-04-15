@@ -55,6 +55,7 @@
         fi
 
         extra_ro_dirs=""
+        extra_rw_dirs=""
         claude_args=()
         while [[ $# -gt 0 ]]; do
           case "$1" in
@@ -64,6 +65,14 @@
               ;;
             --add-dirs-ro)
               extra_ro_dirs="''${extra_ro_dirs:+$extra_ro_dirs:}$2"
+              shift 2
+              ;;
+            --add-dirs=*)
+              extra_rw_dirs="''${extra_rw_dirs:+$extra_rw_dirs:}''${1#--add-dirs=}"
+              shift
+              ;;
+            --add-dirs)
+              extra_rw_dirs="''${extra_rw_dirs:+$extra_rw_dirs:}$2"
               shift 2
               ;;
             *)
@@ -78,11 +87,17 @@
           ro_dirs="$ro_dirs:$extra_ro_dirs"
         fi
 
+        rw_dirs="$add_dirs:$HOME/.cache/nix:$HOME/.local/share"
+        if [[ -n "$extra_rw_dirs" ]]; then
+          rw_dirs="$rw_dirs:$extra_rw_dirs"
+        fi
+
         exec ${safehouse}/bin/safehouse \
           --add-dirs-ro="$ro_dirs" \
           --append-profile=${nixRunProfile} \
-          --add-dirs="$add_dirs:$HOME/.cache/nix:$HOME/.local/share" \
-          --env-pass=PATH,ZENDESK_SUBDOMAIN,ZENDESK_EMAIL,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,AWS_REGION,AWS_DEFAULT_REGION,NIX_CFLAGS_COMPILE,NIX_CFLAGS_COMPILE_FOR_BUILD,NIX_LDFLAGS,NIX_LDFLAGS_FOR_BUILD,CARGO_TARGET_DIR,RUST_SRC_PATH,NODE_OPTIONS,PLAYWRIGHT_BROWSERS_PATH,PUPPETEER_EXECUTABLE_PATH,NIX_CC_WRAPPER_TARGET_HOST_${suffix},NIX_CC_WRAPPER_TARGET_BUILD_${suffix} \
+          --enable agent-browser \
+          --add-dirs="$rw_dirs" \
+          --env-pass=PATH,ZENDESK_SUBDOMAIN,ZENDESK_EMAIL,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,AWS_REGION,AWS_DEFAULT_REGION,NIX_CFLAGS_COMPILE,NIX_CFLAGS_COMPILE_FOR_BUILD,NIX_LDFLAGS,NIX_LDFLAGS_FOR_BUILD,CARGO_TARGET_DIR,RUST_SRC_PATH,NODE_OPTIONS,PLAYWRIGHT_BROWSERS_PATH,PUPPETEER_EXECUTABLE_PATH,NIX_CC_WRAPPER_TARGET_HOST_${suffix},NIX_CC_WRAPPER_TARGET_BUILD_${suffix},SIGNOZ_API_KEY \
           -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}"
       '';
     in
