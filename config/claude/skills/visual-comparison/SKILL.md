@@ -29,6 +29,7 @@ Create two directories at the repository root for storing screenshots:
 .visual-comparison/
   x/       # baseline screenshots
   y/       # comparison screenshots
+  diff/    # ImageMagick diff images
 ```
 
 Name screenshot files by route: `home.png`, `dashboard.png`, `settings_profile.png` (replace `/` with `_`, strip leading slash). For stateful pages (e.g., after clicking a button), append a descriptor: `dashboard_after-filter-apply.png`.
@@ -124,17 +125,65 @@ Functional equality means interactions produce equivalent outcomes in both envir
 4. **Test interactive elements**: for forms, dropdowns, toggles, and other non-mutation interactive elements — perform the same interaction sequence on both and verify the resulting state is equivalent (same snapshot structure, same navigation outcome). Screenshot after each significant interaction.
 5. **Skipped elements**: list any onClick handlers that were skipped because they trigger GraphQL mutations or could not be confirmed as safe navigation.
 
-#### d. Visual equality checks
+#### d. Ensure matching screenshot resolutions
 
-Visual equality means layout spacing is identical between X and Y:
+Before diffing, both screenshots for a given route **must** have the same pixel dimensions. If they differ (e.g., due to different full-page scroll heights), resize the shorter image's canvas to match the taller one by padding with white at the bottom:
 
-1. **Compare margin and padding** on key layout elements. Use the browser console or snapshot data to verify computed styles match. Focus on:
-   - Page-level containers
-   - Navigation elements
-   - Content sections
-   - Cards, panels, modals
-2. **Full-page screenshots** capture the visual state for human review. These go into the `.visual-comparison/x/` and `.visual-comparison/y/` directories.
-3. Report any visible differences in spacing, alignment, or layout.
+```bash
+# Get dimensions
+x_size=$(magick identify -format "%wx%h" .visual-comparison/x/<route>.png)
+y_size=$(magick identify -format "%wx%h" .visual-comparison/y/<route>.png)
+
+# If heights differ, extend the shorter one
+magick .visual-comparison/x/<route>.png -background white -gravity NorthWest -extent <target_width>x<target_height> .visual-comparison/x/<route>.png
+magick .visual-comparison/y/<route>.png -background white -gravity NorthWest -extent <target_width>x<target_height> .visual-comparison/y/<route>.png
+```
+
+Use the maximum width and maximum height from the two images as the target dimensions.
+
+#### e. Mask watermarks and dev server indicators
+
+Development servers (e.g., Next.js) often render floating indicators, watermarks, or build-status badges that are not part of the application UI. These must be excluded from the diff to avoid false positives.
+
+**Common indicators to mask:**
+- Next.js dev indicator (bottom-right corner floating element)
+- Vercel/Turbopack build badges
+- Hot-reload status overlays
+- Any framework watermark or "development mode" banner
+
+**Masking procedure:**
+1. Identify the bounding box of the indicator by inspecting the screenshot or the DOM (e.g., `[data-nextjs-toast]`, `nextjs-portal`, or similar selectors).
+2. Draw a filled white rectangle over that region on **both** X and Y screenshots before diffing:
+
+```bash
+magick .visual-comparison/x/<route>.png -fill white -draw "rectangle <x1>,<y1> <x2>,<y2>" .visual-comparison/x/<route>.png
+magick .visual-comparison/y/<route>.png -fill white -draw "rectangle <x1>,<y1> <x2>,<y2>" .visual-comparison/y/<route>.png
+```
+
+If you cannot determine the exact bounding box, mask a conservative region in the corner where the indicator appears (e.g., bottom-right 300x80px).
+
+#### f. Visual equality checks — ImageMagick diff
+
+Visual equality means the rendered output is pixel-identical (minus masked regions) between X and Y:
+
+1. **Generate a diff image** for each route using ImageMagick:
+
+```bash
+magick compare -metric AE -fuzz 5% \
+  .visual-comparison/x/<route>.png \
+  .visual-comparison/y/<route>.png \
+  .visual-comparison/diff/<route>.png 2>&1
+```
+
+This outputs the number of differing pixels to stderr and writes a visual diff image highlighting differences in red. A `-fuzz 5%` tolerance accounts for sub-pixel rendering differences across environments.
+
+2. **Interpret the result:**
+   - `0` differing pixels → visual parity confirmed for this route.
+   - Non-zero → inspect the diff image (`.visual-comparison/diff/<route>.png`) to determine if the differences are meaningful layout/content changes or just rendering noise.
+
+3. **Full-page screenshots** are kept in `.visual-comparison/x/` and `.visual-comparison/y/` for human review. Diff images go into `.visual-comparison/diff/`.
+
+4. Report any meaningful visible differences in spacing, alignment, or layout, referencing the diff image.
 
 ### 3. Development server error detection and resolution
 
@@ -197,8 +246,8 @@ After all routes are tested, produce a summary:
 - ...or "None found"
 
 ### Visual differences
-- [ ] /settings/profile: Content container has 16px padding in X vs 24px in Y
-- ...or "None found"
+- [ ] /settings/profile: 1,247 differing pixels — content container padding mismatch (see `.visual-comparison/diff/settings_profile.png`)
+- ...or "None found (0 differing pixels on all routes)"
 
 ### Development server errors fixed
 - Y: `Module not found: Can't resolve './Foo'` on /dashboard — fixed in branch `fix/visual-comparison-missing-foo-import` (commit abc1234)
@@ -209,7 +258,7 @@ After all routes are tested, produce a summary:
 - ...or "None"
 
 ### Screenshots
-All screenshots saved to `.visual-comparison/x/` and `.visual-comparison/y/`
+All screenshots saved to `.visual-comparison/x/` and `.visual-comparison/y/`, diff images in `.visual-comparison/diff/`
 ```
 
 ## Notes for PR reviewers

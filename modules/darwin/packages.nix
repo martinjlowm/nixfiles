@@ -151,6 +151,9 @@ in {
       git-lfs
       nextPkgsDevenv.devenv
 
+      # Image processing
+      imagemagick
+
       # Media
       yt-dlp
       (ffmpeg.override {withWebp = true;})
