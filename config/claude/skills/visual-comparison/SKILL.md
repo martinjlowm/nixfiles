@@ -15,7 +15,7 @@ When the user asks to compare two web applications (e.g., "compare localhost:300
 
 1. **X** — the baseline environment (URL or instructions to start it)
 2. **Y** — the comparison environment (URL or instructions to start it)
-3. **Pages/routes to navigate** — the user must specify which routes to test or provide a sitemap/route list
+3. **Pages/routes to navigate** — the user may specify routes, but by default the skill discovers critical routes by tracing Mixpanel track events in the source code (see "Priority: Mixpanel-tracked components" below)
 4. **API key** (if required) — passed as a `token=<api-key>` query parameter on all requests
 5. **Screen size** (optional) — viewport dimensions for screenshots (e.g., `1920x1080`, `1440x900`, `1280x720`). If the user does not specify a screen size, **ask them before starting the comparison**. Do not assume a default — different applications are designed for different viewports and the choice affects the accuracy of the comparison.
 
@@ -89,14 +89,63 @@ agent-browser --session y wait --load networkidle
 
 If no API key was provided, omit the `token` query parameter.
 
-#### b. Screenshot — initial page load
+#### b. Wait for loading indicators to finish
+
+After navigation and `networkidle`, the page may still show loading indicators (spinners, skeleton screens, progress bars, shimmer effects, etc.). Before taking any screenshot, wait for these to disappear:
+
+1. **Take a snapshot** to inspect the current page state:
+   ```bash
+   agent-browser --session x snapshot --json
+   ```
+2. **Look for loading indicators** in the snapshot — common patterns include:
+   - Elements with roles like `progressbar`, `status`, or `alert` containing "loading" text
+   - Skeleton/placeholder elements (CSS classes like `skeleton`, `shimmer`, `placeholder`, `loading`)
+   - Spinner elements (`spinner`, `loader`, `loading-indicator`)
+   - Aria attributes: `aria-busy="true"`, `aria-label="Loading"`
+3. **If loading indicators are present**, wait briefly and re-check:
+   ```bash
+   agent-browser --session x wait --timeout 2000
+   agent-browser --session x snapshot --json
+   ```
+   Repeat until loading indicators are gone or a reasonable timeout is reached (max ~15 seconds). If indicators persist beyond the timeout, proceed with the screenshot and note it in the report.
+4. **Do this for both sessions** (X and Y) independently — they may load at different speeds.
+
+#### c. Screenshot — initial page load
 
 ```bash
 agent-browser --session x screenshot --full .visual-comparison/x/<route_name>.png
 agent-browser --session y screenshot --full .visual-comparison/y/<route_name>.png
 ```
 
-#### c. Route discovery and navigation
+#### d. Priority: Mixpanel-tracked components (critical paths)
+
+Components that fire Mixpanel track events are **"hot" activity components** — they represent user interactions that affect all end users and are considered the most critical paths to screenshot and compare. These take priority over general route discovery.
+
+**How to discover Mixpanel-tracked components:**
+
+1. Search the application source code for Mixpanel tracking calls. Common patterns:
+   - `mixpanel.track(` / `Mixpanel.track(`
+   - `track(` calls from a shared analytics/tracking module
+   - `useTracking()` / `useAnalytics()` hooks that wrap Mixpanel
+   - String literals that look like event names passed to a tracking function (e.g., `"Button Clicked"`, `"Page Viewed"`, `"Feature Used"`)
+2. For each tracked component, identify:
+   - **Which route renders it** — trace the component's import chain back to a page/route.
+   - **What user interaction triggers the event** — a button click, form submission, toggle, tab switch, etc.
+   - **The event name** — record this for the report.
+3. Build a **Mixpanel coverage list**: a mapping of `event name → route → component → interaction needed`.
+
+**Screenshot strategy for tracked components:**
+
+- Navigate to the route that renders the tracked component.
+- Screenshot the page in its default state.
+- If the tracked event is triggered by an interaction (e.g., clicking a button, opening a modal, expanding a section), perform that interaction and take a **second screenshot** showing the resulting state. Name it with a descriptor: `<route>_after-<interaction>.png`.
+- Do this on both X and Y sessions so the diff captures any visual changes to these critical paths.
+
+**CRITICAL: Do NOT actually trigger Mixpanel events.** The goal is to screenshot the components and their surrounding UI, not to fire analytics. If the tracked interaction would cause a side effect (GraphQL mutation, form submission, API call beyond navigation), screenshot only the pre-interaction state and note in the report that the interaction was skipped.
+
+#### e. General route discovery and navigation
+
+After all Mixpanel-tracked components have been covered, discover and test remaining routes:
 
 Routes are reached through two mechanisms:
 
@@ -111,7 +160,7 @@ Routes are reached through two mechanisms:
 2. Cross-reference with the browser snapshot to identify clickable elements that navigate between routes.
 3. For onClick-based navigation, trace the handler in source to confirm it is a route change, not a mutation.
 
-#### d. Functional equality checks
+#### e. Functional equality checks
 
 Functional equality means interactions produce equivalent outcomes in both environments:
 
@@ -125,7 +174,7 @@ Functional equality means interactions produce equivalent outcomes in both envir
 4. **Test interactive elements**: for forms, dropdowns, toggles, and other non-mutation interactive elements — perform the same interaction sequence on both and verify the resulting state is equivalent (same snapshot structure, same navigation outcome). Screenshot after each significant interaction.
 5. **Skipped elements**: list any onClick handlers that were skipped because they trigger GraphQL mutations or could not be confirmed as safe navigation.
 
-#### d. Ensure matching screenshot resolutions
+#### f. Ensure matching screenshot resolutions
 
 Before diffing, both screenshots for a given route **must** have the same pixel dimensions. If they differ (e.g., due to different full-page scroll heights), resize the shorter image's canvas to match the taller one by padding with white at the bottom:
 
@@ -141,7 +190,7 @@ magick .visual-comparison/y/<route>.png -background white -gravity NorthWest -ex
 
 Use the maximum width and maximum height from the two images as the target dimensions.
 
-#### e. Mask watermarks and dev server indicators
+#### g. Mask watermarks and dev server indicators
 
 Development servers (e.g., Next.js) often render floating indicators, watermarks, or build-status badges that are not part of the application UI. These must be excluded from the diff to avoid false positives.
 
@@ -162,7 +211,7 @@ magick .visual-comparison/y/<route>.png -fill white -draw "rectangle <x1>,<y1> <
 
 If you cannot determine the exact bounding box, mask a conservative region in the corner where the indicator appears (e.g., bottom-right 300x80px).
 
-#### f. Visual equality checks — ImageMagick diff
+#### h. Visual equality checks — ImageMagick diff
 
 Visual equality means the rendered output is pixel-identical (minus masked regions) between X and Y:
 
@@ -235,9 +284,16 @@ After all routes are tested, produce a summary:
 ```markdown
 ## Visual Comparison Report
 
-### Routes tested
+### Mixpanel-tracked components (critical paths)
+| Event Name | Route | Component | Interaction | Screenshot | Diff Pixels |
+|---|---|---|---|---|---|
+| "Dashboard Viewed" | /dashboard | DashboardPage | page load | dashboard.png | 0 |
+| "Filter Applied" | /dashboard | FilterPanel | click "Apply" | dashboard_after-filter-apply.png | 342 |
+| "Export Clicked" | /dashboard | ExportButton | skipped (mutation) | dashboard.png (pre-interaction only) | — |
+- ...or "No Mixpanel track events found in source"
+
+### Additional routes tested
 - /home
-- /dashboard
 - /settings/profile
 ...
 

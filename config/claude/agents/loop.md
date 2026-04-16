@@ -21,7 +21,7 @@
 3. Set up worktree: branch `[SPEC_SLUG]/[STORY]` off dependent branch (or origin/master). Run: `worktree <name> --base <base-branch>`
 4. Enter Nix dev shell before any work (generates pre-commit hooks)
 5. Pick highest priority story with `passes: false` and **no running CI** (`gh pr checks <pr> --json name,state` — skip if any state is `PENDING`; if all blocked, **end the task immediately**). **Exception:** if any checks have already failed or been cancelled while others are still pending, do NOT skip — investigate and fix the failures immediately
-6. Implement/revise that **one** story. Verify **every item** in `acceptanceCriteria` is met before moving on. Run typecheck and tests for affected projects
+6. Implement/revise that **one** story. Verify **every item** in `acceptanceCriteria` is met before moving on. Run typecheck and tests for affected projects. **If the story touches UI code, run a visual comparison** (see **Visual Comparison for UI Changes** below)
 7. Update AGENTS.md with learnings
 8. Commit: `[feat|fix|chore]([Component]): [ID] - [Title]` referencing base-branch PR. Component: specific project or `*` for many
 9. Push (NEVER force push — merge upstream first). Create draft PR respecting **PR Limit**. The PR description must include **motivation** (why this change is needed — the problem it solves or the value it adds) before describing what was implemented. Re-evaluate PR title and description to reflect the latest state — incorporate learnings from progress.txt and AGENTS.md so the PR accurately describes what was actually implemented, not the original plan
@@ -62,6 +62,102 @@ Fix only the identified failure; cancelled jobs and gates will pass once resolve
 
 **Exception — timeouts:** If a job timed out (`timed_out` conclusion), retry the run with `gh run rerun {run_id} --failed`. Timeouts are transient infrastructure issues, not code failures.
 
+## PR Stacking
+
+**Stacked (chained) PRs are the default.** Every new story branch MUST be based on the **tip of the most recent spec branch** (the last PR in the stack), NOT on `master`. This makes each PR additive — it contains only its own diff on top of the previous work. When the base PR merges, GitHub automatically retargets the child to `master`.
+
+- Use `git checkout -b __SPEC_SLUG__/<new-branch> __SPEC_SLUG__/<previous-branch>` when creating the branch
+- Use `gh pr create --base __SPEC_SLUG__/<previous-branch>` when creating the PR
+- **The only exception** is when a story is completely unrelated to any existing spec branch (different module, no shared files). In that rare case, branching from `master` is acceptable — but default to stacking
+
+This means the "stack" is simply the latest branch in the chain — no separate merge step is needed. With N stacked PRs, branch N already contains all changes from branches 1 through N-1.
+
+**Stacked PR maintenance is mandatory:**
+- Since every branch builds on the previous, the stack is naturally additive — each PR's diff is only its own changes
+- **The stack should not fall too far behind `master`.** Before any other stack maintenance, fetch `origin/master` and check if the root branch is more than one week behind. If so, merge `origin/master` into the root branch, then cascade merges through each child in order (merge parent into child). A significantly stale stack causes merge conflicts, CI failures in the merge queue, and wasted reviewer time — but merging on every minor upstream change creates unnecessary churn
+- When updating the stack, **always start from the root of the chain outward** — merge into the root first, then merge each parent into its child in order. Never attempt to rebuild the entire stack from scratch — that approach is impractical at scale
+- A fix in a parent PR **must** be followed by merging the parent into all children so they pick up the change
+- Comments and CI failures on **any PR in the chain** must be addressed — do not skip a child PR because "the parent will fix it later"
+- When a reviewer comments on a child PR about code that originates in the parent, fix it in the parent and merge through the chain. The child PR's diff should stay clean
+
+## Stacked Draft PR (MANDATORY)
+
+Because PRs are stacked (each branch builds on the previous), the **tip of the stack** (the latest branch) already contains all spec changes. Maintain a single **draft PR** from the tip branch targeting `master` to give reviewers visibility into the full scope of work. **The stacked PR MUST be reviewed, updated, and kept healthy** — it is not a fire-and-forget artifact.
+
+1. The stack PR is simply a draft PR from the **latest spec branch** (the tip of the chain) targeting `master`. No separate stack branch or merge step is needed
+2. Push the tip branch and open (or update) a **draft** PR:
+   ```
+   gh pr create --draft --base master --title "Stack: __SPEC_SLUG__ all branches" \
+     --body "$(cat <<'EOF'
+   ## Stacked changes
+
+   This draft PR shows the combined diff of all spec branches.
+   **Do not merge this PR directly.** Individual PRs in the chain will merge in order.
+
+   ### Branch chain (in order)
+   - [ ] `__SPEC_SLUG__/<branch-1>` — <story> <title> (PR #<pr>)
+   - [ ] `__SPEC_SLUG__/<branch-2>` — <story> <title> (PR #<pr>, deferred)
+   - [ ] `__SPEC_SLUG__/<branch-3>` — <story> <title> (no PR yet)
+   ...
+
+   ### Process
+
+   Each branch goes through the following workflow before merging:
+
+   **1. PRD & progress review:** Read `prd.json` and `progress.txt` to understand current state and pick the next story.
+
+   **2. PR feedback review:** For every open PR (including this stacked PR): address all reviewer comments (including nits), fix failing CI, resolve merge conflicts, verify stack integrity, and backpropagate fixes from child PRs to their originating parent. Set `passes: false` if unaddressed feedback, CI failures, or merge conflicts remain.
+
+   **3. Implementation:** Pick the highest-priority story with `passes: false` and no running CI. Branch off the tip of the stack, implement against all acceptance criteria, run typecheck + tests, commit, push, and open a draft PR targeting the previous branch.
+
+   **4. Completion check:** `passes: true` requires: all review comments addressed (including nits), all CI passed, no merge conflicts, changes pushed, and PR title/description accurate.
+
+   **Stack validation (on every new branch or merge):** (1) Migrations apply cleanly in sequence, (2) tip branch builds and passes typecheck/lint, (3) tests pass on tip. Failures are traced to the originating branch, fixed there, and merged into all downstream branches.
+   EOF
+   )"
+   ```
+   **The stacked PR body MUST list ALL spec branches in the chain** — not just branches with open PRs. Include branches with deferred PRs, branches where PRs haven't been created yet, and branches whose PRs have already merged. Annotate each entry with the PR status: `(PR #<n>)`, `(PR #<n>, merged)`, `(deferred)`, or `(no PR yet)`. Obtain the full list of branches via `git branch -r --list 'origin/__SPEC_SLUG__/*'` and cross-reference with `prd.json` for story metadata.
+   If the draft PR already exists, update its base to the latest tip branch and edit the body: `gh pr edit <stack-pr> --body ...`
+3. Track the stack PR in `./.state/__SPEC__/deferred-prs.json`:
+   ```json
+   {"stack_pr": {"number": 99, "branch": "__SPEC_SLUG__/<tip-branch>"}, "deferred": [...]}
+   ```
+4. When a PR at the base of the chain merges, the next PR in the chain is automatically retargeted to `master`. Update the stack PR to point to the new tip if needed. Close the stack PR when no spec branches remain
+5. **The stacked PR is a first-class review target:**
+   - Fetch and address all comments on the stacked PR (`gh pr view <stack-pr> --comments` and `gh api repos/{owner}/{repo}/pulls/{stack-pr}/comments`)
+   - Fix any failing CI checks on the stacked PR — failures here often indicate integration issues between branches
+   - **Backpropagate fixes:** When a stacked PR comment or CI failure reveals an issue, trace it to the originating feature branch, fix it there, then merge into all downstream branches in order. Never fix issues only in the tip — the fix must land in the source branch so downstream branches pick it up on merge
+
+## Stack Validation
+
+Because PRs are stacked additively, the tip branch already contains all changes. Validate the tip branch after adding a new branch to the chain or after merging. If any check fails, fix the originating branch and merge into downstream.
+
+### 1. Migrations are applicable
+
+Database migrations across the chain must apply cleanly in sequence without conflicts.
+
+- **No duplicate migration timestamps/filenames:** Since each branch builds on the prior, migrations should naturally be ordered. Verify no collisions exist
+- **Migrations apply in order:** If the project has a migration runner (e.g., `just migrate`, `diesel migration run`, `sqlx migrate run`, `yarn migrate`), run it against a clean database. If no runner is available, verify that SQL files are syntactically valid and that later migrations don't reference objects that haven't been created yet
+- **No conflicting schema changes:** Check that no two branches in the chain modify the same table/column in incompatible ways
+
+### 2. Tip branch builds
+
+Enter the Nix dev shell and run the standard build/typecheck commands on the tip branch:
+
+- Run the project's typecheck (e.g., `just typecheck`, `cargo check`, `tsc --noEmit`, `nix build`)
+- Run the project's linter if one exists (e.g., `just lint`, `cargo clippy`)
+- If either fails, identify which branch in the chain introduced the issue, fix it there, then merge into all downstream branches
+
+### 3. Tests pass
+
+Run the project's test suite on the tip branch (e.g., `just test`, `cargo test`, `yarn test`). If tests fail:
+
+- Identify whether the failure is a genuine integration issue or a pre-existing problem
+- Fix issues in the originating branch, then merge into downstream
+- Pre-existing failures that also exist on `master` can be ignored
+
+**Do not push a tip branch that fails validation.** The stack PR exists to give reviewers confidence that all in-flight work integrates cleanly.
+
 ## PR Limit
 
 Max **5 open PRs per spec**. Check: `gh pr list --state open --author @me --search "head:__SPEC_SLUG__/" | wc -l`
@@ -83,6 +179,44 @@ Re-fetch after push — new comments may arrive.
 ### Story Completion Criteria
 
 `passes: true` requires: all review comments addressed — including nits (`pending_comments` empty) + all CI passed + no merge conflicts + changes pushed + PR title/description accurate.
+
+## Visual Comparison for UI Changes
+
+When a story modifies UI code (components, styles, layouts, pages — any file that affects what users see in the browser), run the `visual-comparison` skill to ensure no Mixpanel-tracked components or other critical UI paths have regressed.
+
+### When to trigger
+
+A visual comparison is required when the story's changes touch:
+- React/Vue/Svelte/Angular components (`.tsx`, `.jsx`, `.vue`, `.svelte`)
+- Stylesheets or CSS-in-JS (`.css`, `.scss`, `.less`, `styled-components`, `tailwind` class changes)
+- Layout or routing files (`pages/`, `app/`, router configs)
+- Shared UI utilities (design system tokens, theme files, spacing/typography constants)
+
+If in doubt, run it — false positives are cheap, missed regressions are not.
+
+### How to run
+
+1. Start the **baseline (X)** from the parent/base branch and the **comparison (Y)** from the current story branch
+2. Use the `visual-comparison` skill, which will discover Mixpanel-tracked components and screenshot critical paths
+3. The skill produces screenshots and ImageMagick diff images in `.visual-comparison/`
+
+### Where to store results
+
+After the comparison completes, **move** (not copy) the `.visual-comparison/` directory into the state directory for the current story:
+
+```
+.state/__SPEC__/visual-comparison/<story-id>/
+  x/
+  y/
+  diff/
+```
+
+**Do NOT commit these files.** They are for inspection only — reviewers and the agent can check them to verify UI parity. They stay in the state directory and are never pushed to the remote.
+
+### Interpreting results
+
+- **0 differing pixels on all routes** → UI parity confirmed, proceed normally
+- **Non-zero diffs** → Inspect the diff images. If the differences are intentional (the story's goal was to change the UI), note this in the PR description. If unexpected, investigate and fix before pushing
 
 ## Performance Validation
 

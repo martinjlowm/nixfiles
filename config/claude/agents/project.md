@@ -89,7 +89,7 @@
 12. **Record timing — issue picked up.** Write/update `./.state/__STATE_NAME__/timing/<issue-number>.json` (see **Timing Tracking** below) with `picked_up_at` set to the current UTC time
 13. Set up worktree by running: `worktree project-__PROJECT_NUMBER__/<issue-number>-<slug>` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool. Then `cd` into the created worktree directory. **Stack the branch:** If other project branches exist, merge the tip of the most recent one: `git merge project-__PROJECT_NUMBER__/<previous-branch>`. This ensures the new branch is additive on top of all prior work
 14. Enter Nix dev shell before any work (generates pre-commit hooks)
-15. Implement the issue. Verify **every** acceptance criterion mentioned in the issue body before moving on. Run typecheck and tests for affected projects
+15. Implement the issue. Verify **every** acceptance criterion mentioned in the issue body before moving on. Run typecheck and tests for affected projects. **If the issue touches UI code, run a visual comparison** (see **Visual Comparison for UI Changes** below)
 16. Commit: `[feat|fix|chore](<Component>): #<issue-number> - <Title>`
     - Body must include: `Closes <issue-url>` (this auto-links to the project)
     - Component: specific project or `*` for many
@@ -205,6 +205,44 @@ mutation {
 - `startDate` and `targetDate` use the date portion only (`YYYY-MM-DD`) from the timing record
 - Populate the body with all timestamps from the timing file
 
+## Visual Comparison for UI Changes
+
+When an issue modifies UI code (components, styles, layouts, pages — any file that affects what users see in the browser), run the `visual-comparison` skill to ensure no Mixpanel-tracked components or other critical UI paths have regressed.
+
+### When to trigger
+
+A visual comparison is required when the issue's changes touch:
+- React/Vue/Svelte/Angular components (`.tsx`, `.jsx`, `.vue`, `.svelte`)
+- Stylesheets or CSS-in-JS (`.css`, `.scss`, `.less`, `styled-components`, `tailwind` class changes)
+- Layout or routing files (`pages/`, `app/`, router configs)
+- Shared UI utilities (design system tokens, theme files, spacing/typography constants)
+
+If in doubt, run it — false positives are cheap, missed regressions are not.
+
+### How to run
+
+1. Start the **baseline (X)** from the parent/base branch and the **comparison (Y)** from the current issue branch
+2. Use the `visual-comparison` skill, which will discover Mixpanel-tracked components and screenshot critical paths
+3. The skill produces screenshots and ImageMagick diff images in `.visual-comparison/`
+
+### Where to store results
+
+After the comparison completes, **move** (not copy) the `.visual-comparison/` directory into the state directory for the current issue:
+
+```
+.state/__STATE_NAME__/visual-comparison/<issue-number>/
+  x/
+  y/
+  diff/
+```
+
+**Do NOT commit these files.** They are for inspection only — reviewers and the agent can check them to verify UI parity. They stay in the state directory and are never pushed to the remote.
+
+### Interpreting results
+
+- **0 differing pixels on all routes** → UI parity confirmed, proceed normally
+- **Non-zero diffs** → Inspect the diff images. If the differences are intentional (the issue's goal was to change the UI), note this in the PR description. If unexpected, investigate and fix before pushing
+
 ## Troubleshooting Cancelled Workflows
 
 When most/all jobs show as `cancelled`, one job has a non-zero exit code — the rest are a cascade. "Complete" checks are gate jobs (`needs:` aggregators) — never the root cause.
@@ -243,7 +281,8 @@ Create deferred PRs when existing ones merge/close.
      --body "$(cat <<'EOF'
    ## Stacked changes
 
-   This draft PR shows the combined diff of all project branches:
+   This draft PR shows the combined diff of all project branches.
+   **Do not merge this PR directly.** Individual PRs in the chain will merge in order.
 
    ### Branch chain (in order)
    - [ ] `project-__PROJECT_NUMBER__/<branch-1>` — #<issue> <title> (PR #<pr>)
@@ -251,7 +290,19 @@ Create deferred PRs when existing ones merge/close.
    - [ ] `project-__PROJECT_NUMBER__/<branch-3>` — #<issue> <title> (no PR yet)
    ...
 
-   **Do not merge this PR directly.** Individual PRs in the chain will merge in order.
+   ### Process
+
+   Each branch goes through the following phases before merging:
+
+   **Phase 1 — PRD refresh:** Read the project board, sync all incomplete sprint issues into `prd.json`, and identify the next issue to implement.
+
+   **Phase 2 — PR review:** For every open PR (including this stacked PR): address all reviewer comments (including nits), fix failing CI, resolve merge conflicts, verify stack integrity (correct base branches, `master` merged if >1 week stale), and backpropagate fixes from child PRs to their originating parent.
+
+   **Phase 3 — Implementation:** Pick the highest-priority pending issue, branch off the tip of the stack, implement against all acceptance criteria, run typecheck + tests, commit, push, and open a draft PR targeting the previous branch. Verify stacking is correct before moving on.
+
+   **Phase 4 — Merge queue & closure:** Monitor PRs entering the merge queue. If a merge-queue CI check fails (integration issue with other queued PRs), investigate and fix. When a PR merges, remove the issue from the PRD and update the stack.
+
+   **Stack validation (on every new branch or merge):** (1) Migrations apply cleanly in sequence, (2) tip branch builds and passes typecheck/lint, (3) tests pass on tip. Failures are traced to the originating branch, fixed there, and merged into all downstream branches.
    EOF
    )"
    ```
