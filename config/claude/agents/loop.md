@@ -84,6 +84,8 @@ This means the "stack" is simply the latest branch in the chain — no separate 
 
 Because PRs are stacked (each branch builds on the previous), the **tip of the stack** (the latest branch) already contains all spec changes. Maintain a single **draft PR** from the tip branch targeting `master` to give reviewers visibility into the full scope of work. **The stacked PR MUST be reviewed, updated, and kept healthy** — it is not a fire-and-forget artifact.
 
+**The stacked PR represents ALL work across ALL branches — not just branches that have individual PRs.** Even when the number of open PRs is well under the PR limit, the stacked PR must include the full chain. Branches with deferred PRs, branches where PRs haven't been created yet, and branches whose PRs have already merged are all part of the stack and must be reflected in the stacked PR body. The stacked PR is the single source of truth for the complete scope of in-flight work.
+
 1. The stack PR is simply a draft PR from the **latest spec branch** (the tip of the chain) targeting `master`. No separate stack branch or merge step is needed
 2. Push the tip branch and open (or update) a **draft** PR:
    ```
@@ -122,8 +124,8 @@ Because PRs are stacked (each branch builds on the previous), the **tip of the s
    ```json
    {"stack_pr": {"number": 99, "branch": "__SPEC_SLUG__/<tip-branch>"}, "deferred": [...]}
    ```
-4. When a PR at the base of the chain merges, the next PR in the chain is automatically retargeted to `master`. Update the stack PR to point to the new tip if needed. Close the stack PR when no spec branches remain
-5. **The stacked PR is a first-class review target:**
+4. When a PR at the base of the chain merges, the next PR in the chain is automatically retargeted to `master`. The stacked PR is **not blocked by merged PRs** — it always points to the current tip branch and covers all remaining stories. Update the stack PR's base to the new tip if the tip branch changed. Close the stack PR only when no spec branches remain
+5. **During Phase 2, the stacked PR is a first-class review target:**
    - Fetch and address all comments on the stacked PR (`gh pr view <stack-pr> --comments` and `gh api repos/{owner}/{repo}/pulls/{stack-pr}/comments`)
    - Fix any failing CI checks on the stacked PR — failures here often indicate integration issues between branches
    - **Backpropagate fixes:** When a stacked PR comment or CI failure reveals an issue, trace it to the originating feature branch, fix it there, then merge into all downstream branches in order. Never fix issues only in the tip — the fix must land in the source branch so downstream branches pick it up on merge
@@ -160,13 +162,15 @@ Run the project's test suite on the tip branch (e.g., `just test`, `cargo test`,
 
 ## PR Limit
 
-Max **5 open PRs per spec**. Check: `gh pr list --state open --author @me --search "head:__SPEC_SLUG__/" | wc -l`
+Max **5 open PRs per spec** (excluding the stacked draft PR — it does not count toward the limit). Check: `gh pr list --state open --author @me --search "head:__SPEC_SLUG__/" --json number,isDraft,title | jq '[.[] | select(.isDraft == false or (.title | startswith("Stack:") | not))] | length'`
 
 If ≥5: push branch but don't create PR. Track in `./.state/__SPEC__/deferred-prs.json`:
 ```json
 {"deferred": [{"branch": "spec/story-6", "pushed_at": "<ISO>", "reason": "PR limit reached"}]}
 ```
 Create deferred PRs when existing ones merge/close.
+
+The stacked draft PR is **never blocked** by the PR limit — it always exists and always reflects the tip of the chain covering all stories.
 
 ## PR Review Tracking
 

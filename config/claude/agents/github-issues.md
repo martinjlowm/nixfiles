@@ -30,7 +30,7 @@
    ```
    gh issue edit <number> --repo __REPO_OWNER__/__REPO_NAME__ --add-assignee @me
    ```
-8. Set up worktree: branch `issues/<issue-number>-<slug>` off `origin/master`. Run: `worktree <name> --base origin/master`
+8. Set up worktree: branch `issues/<issue-number>-<slug>`. Run: `worktree <name>`
 9. Enter Nix dev shell before any work (generates pre-commit hooks)
 10. Implement the issue. Verify **every** acceptance criterion mentioned in the issue body before moving on. Run typecheck and tests for affected projects
 11. Commit: `[feat|fix|chore](<Component>): #<issue-number> - <Title>`

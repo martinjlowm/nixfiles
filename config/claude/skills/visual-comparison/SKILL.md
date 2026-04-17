@@ -160,7 +160,7 @@ Routes are reached through two mechanisms:
 2. Cross-reference with the browser snapshot to identify clickable elements that navigate between routes.
 3. For onClick-based navigation, trace the handler in source to confirm it is a route change, not a mutation.
 
-#### e. Functional equality checks
+#### f. Functional equality checks
 
 Functional equality means interactions produce equivalent outcomes in both environments:
 
@@ -174,7 +174,7 @@ Functional equality means interactions produce equivalent outcomes in both envir
 4. **Test interactive elements**: for forms, dropdowns, toggles, and other non-mutation interactive elements — perform the same interaction sequence on both and verify the resulting state is equivalent (same snapshot structure, same navigation outcome). Screenshot after each significant interaction.
 5. **Skipped elements**: list any onClick handlers that were skipped because they trigger GraphQL mutations or could not be confirmed as safe navigation.
 
-#### f. Ensure matching screenshot resolutions
+#### g. Ensure matching screenshot resolutions
 
 Before diffing, both screenshots for a given route **must** have the same pixel dimensions. If they differ (e.g., due to different full-page scroll heights), resize the shorter image's canvas to match the taller one by padding with white at the bottom:
 
@@ -190,7 +190,7 @@ magick .visual-comparison/y/<route>.png -background white -gravity NorthWest -ex
 
 Use the maximum width and maximum height from the two images as the target dimensions.
 
-#### g. Mask watermarks and dev server indicators
+#### h. Mask watermarks and dev server indicators
 
 Development servers (e.g., Next.js) often render floating indicators, watermarks, or build-status badges that are not part of the application UI. These must be excluded from the diff to avoid false positives.
 
@@ -211,7 +211,7 @@ magick .visual-comparison/y/<route>.png -fill white -draw "rectangle <x1>,<y1> <
 
 If you cannot determine the exact bounding box, mask a conservative region in the corner where the indicator appears (e.g., bottom-right 300x80px).
 
-#### h. Visual equality checks — ImageMagick diff
+#### i. Visual equality checks — ImageMagick diff
 
 Visual equality means the rendered output is pixel-identical (minus masked regions) between X and Y:
 

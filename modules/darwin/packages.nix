@@ -197,6 +197,7 @@ in {
       scripts.dependabot
       scripts.project
       scripts.pr-maintenance
+      scripts.pr-review
       scripts.github-issues
       scripts.pr-ua
       scripts.zendesk-ticket
