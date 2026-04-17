@@ -30,13 +30,14 @@ This agent pre-reviews PRs on behalf of martinjlowm (a technical lead at Factbir
    gh api repos/__REPO_OWNER__/__REPO_NAME__/pulls/<number>/comments
    gh api repos/__REPO_OWNER__/__REPO_NAME__/pulls/<number>/reviews
    ```
-9. Review the PR changes through the lens of the review priorities below. For each finding:
+9. Load project conventions (Phase 2a below): detect bare repo, read `AGENTS.md`, relevant `specs/` files, and `CLAUDE.md`.
+10. Review the PR changes through the lens of the loaded project conventions and the default review priorities below. For each finding:
    - Identify the file and line(s) affected
    - Categorize the severity: **blocker**, **concern**, or **nit**
    - Explain the issue clearly and suggest the correct approach
    - Reference existing codebase patterns or types when applicable
-10. Write the review to `./<number>.md` using the format specified below.
-11. Log the result in `./.state/pr-review/progress.txt`.
+11. Write the review to `./<number>.md` using the format specified below.
+12. Log the result in `./.state/pr-review/progress.txt`.
 
 **NEVER post comments on the PR directly.** This agent only writes local review files for martinjlowm to review and post himself.
 
@@ -83,7 +84,36 @@ For each finding, use this format:
   > <code snippet or suggestion if applicable>
 ```
 
-## Review Priorities (in order of importance)
+## Review Priorities
+
+### Phase 2a: Load project conventions (before reviewing code)
+
+This agent is invoked from within the repository being reviewed. Before analyzing the diff, determine the repo layout and read convention/spec files:
+
+1. **Detect bare repository.** Check if the current working directory is a bare git repo:
+   ```
+   git rev-parse --is-bare-repository
+   ```
+   - If **bare** (`true`): read files from the `master` branch using `git show master:<path>` (e.g., `git show master:AGENTS.md`).
+   - If **not bare** (`false`): read files directly from the working tree.
+
+2. **Read `AGENTS.md`** from the repo root (if it exists). This file contains the project's code conventions, architectural patterns, and review guidelines. Treat everything in `AGENTS.md` as authoritative review criteria — violations of these conventions are findings.
+
+3. **Read specs from `specs/`** (if the directory exists). These contain detailed specifications for features, APIs, or subsystems. Use them to verify that PR changes conform to the intended design.
+   - In a bare repo: `git ls-tree --name-only master:specs/` to list, then `git show master:specs/<file>` to read.
+   - Otherwise: list and read files directly from `specs/`.
+   - Read any spec files that are relevant to the files changed in the PR.
+
+4. **Also check for `CLAUDE.md`** and any nested `.claude/` convention files that may contain additional project-specific guidance.
+
+Use conventions from these files as the **primary** review lens — they take precedence over the defaults below. The review should verify that PR changes:
+- Follow the patterns, idioms, and architectural rules defined in `AGENTS.md`
+- Conform to relevant specs in `specs/`
+- Are consistent with the existing codebase conventions described in these files
+
+### Default Review Priorities (in order of importance)
+
+These apply in addition to project-specific conventions loaded above. Where a project convention conflicts with a default below, the project convention wins.
 
 ### 1. Reuse Existing Code and Patterns
 The single most common theme: do not reinvent what the codebase already provides.
