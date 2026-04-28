@@ -12,6 +12,9 @@
 
     home-manager.url = "github:nix-community/home-manager/release-25.11";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
+
+    onepassword-secrets.url = "github:brizzbuzz/opnix";
+    onepassword-secrets.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = inputs @ {
@@ -22,6 +25,7 @@
     nextNixpkgsDevenv,
     nextNixpkgsClaude,
     nextNixpkgs,
+    onepassword-secrets,
   }: let
     # Import overlays
     overlays = import ./overlays;
@@ -75,7 +79,7 @@
     # Script packages
     packages = let
       systems = ["aarch64-darwin" "x86_64-linux" "x86_64-darwin" "aarch64-linux"];
-      scriptNames = ["dependabot" "git-bug-hotspots" "git-commit-velocity" "git-contributor-rankings" "git-firefighting" "git-most-changed" "git-recent-contributors" "github-issues" "github-project" "loop" "playwright-at" "pr-maintenance" "pr-review" "project" "rmtree" "tech-spec" "worktree"];
+      scriptNames = ["dependabot" "fix" "git-bug-hotspots" "git-commit-velocity" "git-contributor-rankings" "git-firefighting" "git-most-changed" "git-recent-contributors" "github-issues" "github-project" "loop" "playwright-at" "pr-maintenance" "pr-review" "project" "rmtree" "tech-spec" "worktree"];
     in
       builtins.listToAttrs (map (system: {
         name = system;

@@ -1,6 +1,6 @@
 # Agent Instructions
 
-This agent pre-reviews PRs on behalf of martinjlowm (a technical lead at Factbird). It reads open PRs matching the search query from `__REPO_OWNER__/__REPO_NAME__`, picks one unreviewed PR per iteration, reviews it thoroughly, and writes the review thesis to a `<PR>.md` file.
+This agent pre-reviews PRs on behalf of martinjlowm (a technical lead at Factbird). It reads open PRs matching the search query from `__REPO_OWNER__/__REPO_NAME__`, picks one unreviewed PR per iteration, reviews it thoroughly, and submits a **pending** GitHub review for martinjlowm to finalize.
 
 **1 PR = 1 iteration.** After reviewing one PR, end the task so the next iteration can begin.
 
@@ -13,13 +13,17 @@ This agent pre-reviews PRs on behalf of martinjlowm (a technical lead at Factbir
    ```
    gh pr list --repo __REPO_OWNER__/__REPO_NAME__ --search "__SEARCH_QUERY__" --json number,title,headRefName,body,author,files,statusCheckRollup,url
    ```
-3. For each PR, check if a review file `<number>.md` already exists in the current working directory. If it does, that PR has already been reviewed — skip it.
-4. Build a list of unreviewed PRs.
+3. For each PR, check if it already has a **pending review** from martinjlowm:
+   ```
+   gh api repos/__REPO_OWNER__/__REPO_NAME__/pulls/<number>/reviews
+   ```
+   If any review has `state: "PENDING"` and `user.login: "martinjlowm"`, that PR already has a pending review — **skip it**.
+4. Build a list of PRs without pending reviews.
 
 ### Phase 2: Pick and review ONE PR
 
-5. If no unreviewed PRs remain, go to the Stop Condition.
-6. Pick the first unreviewed PR from the list.
+5. If no reviewable PRs remain, go to the Stop Condition.
+6. Pick the first reviewable PR from the list.
 7. Fetch the full PR diff and details:
    ```
    gh pr diff <number> --repo __REPO_OWNER__/__REPO_NAME__
@@ -36,53 +40,55 @@ This agent pre-reviews PRs on behalf of martinjlowm (a technical lead at Factbir
    - Categorize the severity: **blocker**, **concern**, or **nit**
    - Explain the issue clearly and suggest the correct approach
    - Reference existing codebase patterns or types when applicable
-11. Write the review to `./<number>.md` using the format specified below.
-12. Log the result in `./.state/pr-review/progress.txt`.
+11. Submit the review as a **pending** GitHub review (see Phase 3 below).
+12. Log the result in `./.state/__STATE_NAME__/progress.txt`.
 
-**NEVER post comments on the PR directly.** This agent only writes local review files for martinjlowm to review and post himself.
+## Phase 3: Submit Pending GitHub Review
 
-## Review Output Format
+After completing the review analysis, submit the review to GitHub as a **pending** review. This allows martinjlowm to inspect the comments before they become visible to the PR author.
 
-Write to `./<number>.md`:
+### Step 1: Create a pending review
+
+```
+gh api repos/__REPO_OWNER__/__REPO_NAME__/pulls/<number>/reviews \
+  --method POST \
+  --field event=PENDING \
+  --field body="<review body>"
+```
+
+The review body should follow this format:
 
 ```markdown
-# PR #<number>: <title>
-
-**Author:** <author>
-**Branch:** <branch>
-**URL:** <url>
-**Reviewed:** <ISO date>
-
 ## Summary
 
 <1-3 sentence summary of what the PR does>
 
-## Findings
-
-### Blockers
-
-<List of blocking issues that must be fixed before merge, or "None" if clean>
-
-### Concerns
-
-<List of significant issues that should be addressed, or "None">
-
-### Nits
-
-<List of minor style/naming suggestions, or "None">
-
-## Verdict
-
-<APPROVE | REQUEST_CHANGES | COMMENT>
+## Verdict: <APPROVE | REQUEST_CHANGES | COMMENT>
 
 <1-2 sentence overall assessment>
 ```
 
-For each finding, use this format:
+### Step 2: Add inline review comments to the pending review
+
+For each finding, add an inline comment on the relevant file and line using the review ID from Step 1:
+
 ```
-- **<file>:<line(s)>** — <description>
-  > <code snippet or suggestion if applicable>
+gh api repos/__REPO_OWNER__/__REPO_NAME__/pulls/<number>/reviews/<review_id>/comments \
+  --method POST \
+  --field path="<file>" \
+  --field line=<line> \
+  --field side=RIGHT \
+  --field body="<comment body>"
 ```
+
+Each comment body should include:
+- Severity prefix: `**blocker:**`, `**concern:**`, or `**nit:**`
+- Clear explanation of the issue
+- Suggested fix or correct approach (use markdown code blocks with `suggestion` syntax when applicable)
+
+### Step 3: Leave the review pending
+
+**Do NOT submit the review.** The review must remain in `PENDING` state so martinjlowm can inspect, edit, and submit it himself. Do not call the submit endpoint.
 
 ## Review Priorities
 
@@ -224,6 +230,6 @@ Append to `./.state/__STATE_NAME__/progress.txt`:
 
 ## Stop Condition
 
-Output `<promise>COMPLETE</promise>` when there are zero unreviewed PRs remaining (all PRs from the search either have a corresponding `<number>.md` file or the search returned no results).
+Output `<promise>COMPLETE</promise>` when there are zero reviewable PRs remaining (all PRs from the search either already have a pending review from martinjlowm or the search returned no results).
 
 Otherwise, after reviewing one PR, simply end the task **without** outputting `<promise>COMPLETE</promise>`. The outer loop will start the next iteration.

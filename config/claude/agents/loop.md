@@ -18,13 +18,13 @@
    - **Check CI for passing stories too** — if any required check has failed or been cancelled, set `passes: false`
    - **Check for merge conflicts on every PR** (even passing ones): `gh pr view <pr> --json mergeable` — if `mergeable` is `CONFLICTING`, set `passes: false` and resolve the conflicts by merging the base branch
    - Set `passes: false` if unaddressed feedback (including nits), CI failures, or merge conflicts remain
-3. Set up worktree: branch `[SPEC_SLUG]/[STORY]` off dependent branch (or origin/master). Run: `worktree <name> --base <base-branch>`
+3. Set up worktree: branch `[SPEC_SLUG]/[STORY]` off dependent branch (or origin/master). Run: `worktree -b <base-branch> <name>` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool
 4. Enter Nix dev shell before any work (generates pre-commit hooks)
 5. Pick highest priority story with `passes: false` and **no running CI** (`gh pr checks <pr> --json name,state` — skip if any state is `PENDING`; if all blocked, **end the task immediately**). **Exception:** if any checks have already failed or been cancelled while others are still pending, do NOT skip — investigate and fix the failures immediately
 6. Implement/revise that **one** story. Verify **every item** in `acceptanceCriteria` is met before moving on. Run typecheck and tests for affected projects. **If the story touches UI code, run a visual comparison** (see **Visual Comparison for UI Changes** below)
 7. Update AGENTS.md with learnings
 8. Commit: `[feat|fix|chore]([Component]): [ID] - [Title]` referencing base-branch PR. Component: specific project or `*` for many
-9. Push (NEVER force push — merge upstream first). Create draft PR respecting **PR Limit**. The PR description must include **motivation** (why this change is needed — the problem it solves or the value it adds) before describing what was implemented. Re-evaluate PR title and description to reflect the latest state — incorporate learnings from progress.txt and AGENTS.md so the PR accurately describes what was actually implemented, not the original plan
+9. Push (NEVER force push — merge upstream first). Create PR **always as draft** (`gh pr create --draft`) respecting **PR Limit**. **Never change a PR's draft/ready status** — keep PRs in whatever state they are (if draft, leave as draft; if ready, leave as ready). The PR description must include **motivation** (why this change is needed — the problem it solves or the value it adds) before describing what was implemented. Re-evaluate PR title and description to reflect the latest state — incorporate learnings from progress.txt and AGENTS.md so the PR accurately describes what was actually implemented, not the original plan
 10. **Do not mark `passes: true`** unless ALL of the following are confirmed:
     - CI has passed (not running, not failed, not cancelled)
     - PR has no merge conflicts (`gh pr view <pr> --json mergeable` shows `MERGEABLE`, not `CONFLICTING`)
@@ -89,7 +89,7 @@ Because PRs are stacked (each branch builds on the previous), the **tip of the s
 1. The stack PR is simply a draft PR from the **latest spec branch** (the tip of the chain) targeting `master`. No separate stack branch or merge step is needed
 2. Push the tip branch and open (or update) a **draft** PR:
    ```
-   gh pr create --draft --base master --title "Stack: __SPEC_SLUG__ all branches" \
+   gh pr create --draft --base master --title "chore(*): Stack - __SPEC_SLUG__" \
      --body "$(cat <<'EOF'
    ## Stacked changes
 
@@ -162,9 +162,9 @@ Run the project's test suite on the tip branch (e.g., `just test`, `cargo test`,
 
 ## PR Limit
 
-Max **5 open PRs per spec** (excluding the stacked draft PR — it does not count toward the limit). Check: `gh pr list --state open --author @me --search "head:__SPEC_SLUG__/" --json number,isDraft,title | jq '[.[] | select(.isDraft == false or (.title | startswith("Stack:") | not))] | length'`
+Max **2 open PRs per spec** (excluding the stacked draft PR — it does not count toward the limit). Check: `gh pr list --state open --author @me --search "head:__SPEC_SLUG__/" --json number,isDraft,title | jq '[.[] | select(.isDraft == false or (.title | contains("Stack -") | not))] | length'`
 
-If ≥5: push branch but don't create PR. Track in `./.state/__SPEC__/deferred-prs.json`:
+If ≥2: push branch but don't create PR. Track in `./.state/__SPEC__/deferred-prs.json`:
 ```json
 {"deferred": [{"branch": "spec/story-6", "pushed_at": "<ISO>", "reason": "PR limit reached"}]}
 ```

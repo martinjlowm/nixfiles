@@ -93,7 +93,7 @@
 16. Commit: `[feat|fix|chore](<Component>): #<issue-number> - <Title>`
     - Body must include: `Closes <issue-url>` (this auto-links to the project)
     - Component: specific project or `*` for many
-17. Push (NEVER force push — merge upstream first). Create draft PR referencing the issue. Re-evaluate PR title and description to reflect what was actually implemented. Use the following PR body format:
+17. Push (NEVER force push — merge upstream first). Create PR **always as draft** (`gh pr create --draft`) respecting **PR Limit**. **Never change a PR's draft/ready status** — keep PRs in whatever state they are (if draft, leave as draft; if ready, leave as ready). Re-evaluate PR title and description to reflect what was actually implemented. Use the following PR body format:
     ```
     ## Summary
     <1-3 bullet points describing what was implemented>
@@ -264,9 +264,9 @@ Fix only the identified failure; cancelled jobs and gates will pass once resolve
 
 ## PR Limit
 
-Max **5 open PRs per project**. Check: `gh pr list --state open --author @me --search "head:project-__PROJECT_NUMBER__/" | wc -l`
+Max **2 open PRs per project** (excluding the stacked draft PR — it does not count toward the limit). Check: `gh pr list --state open --author @me --search "head:project-__PROJECT_NUMBER__/" | wc -l`
 
-If ≥5: push branch but don't create PR. Track in `./.state/__STATE_NAME__/deferred-prs.json`:
+If ≥2: push branch but don't create PR. Track in `./.state/__STATE_NAME__/deferred-prs.json`:
 ```json
 {"deferred": [{"branch": "project-__PROJECT_NUMBER__/42-fix-login", "pushed_at": "<ISO>", "reason": "PR limit reached"}]}
 ```
@@ -277,7 +277,7 @@ Create deferred PRs when existing ones merge/close.
 1. The stack PR is simply a draft PR from the **latest project branch** (the tip of the chain) targeting `master`. No separate stack branch or merge step is needed
 2. Push the tip branch and open (or update) a **draft** PR:
    ```
-   gh pr create --draft --base master --title "Stack: project-__PROJECT_NUMBER__ all branches" \
+   gh pr create --draft --base master --title "chore(*): Stack - project-__PROJECT_NUMBER__" \
      --body "$(cat <<'EOF'
    ## Stacked changes
 

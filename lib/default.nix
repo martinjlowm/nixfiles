@@ -20,7 +20,7 @@
     import nixpkgs {
       inherit system;
       config = nixpkgsConfig;
-      overlays = [overlays.default] ++ extraOverlays;
+      overlays = [inputs.onepassword-secrets.overlays.default overlays.default] ++ extraOverlays;
     };
 
   # Create a Darwin (macOS) system configuration

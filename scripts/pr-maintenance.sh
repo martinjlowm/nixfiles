@@ -46,8 +46,6 @@ if [ "${1:-}" = "--run" ]; then
 
 $(cat "$HOME/.claude/agents/project-sleep.md")"
 
-  SESSION_LOG="$STATE_DIR/session.log"
-
   SLEEP_COUNT=0
 
   for i in $(seq 1 $MAX_ITERATIONS); do
@@ -58,15 +56,7 @@ $(cat "$HOME/.claude/agents/project-sleep.md")"
     echo "$SESSION_FILE" > "$STATE_DIR/current_session"
     echo "Session: $SESSION_ID" >> "$LOG_FILE"
 
-    (
-      while [ ! -f "$SESSION_FILE" ]; do sleep 0.5; done
-      tail -f "$SESSION_FILE" >> "$SESSION_LOG" 2>/dev/null
-    ) &
-    TAIL_PID=$!
-
     OUTPUT=$(echo "$AGENT_PROMPT" | claude --session-id "$SESSION_ID" 2>&1 | tee -a "$LOG_FILE" /dev/stderr) || true
-
-    kill $TAIL_PID 2>/dev/null || true
 
     if echo "$OUTPUT" | \
         grep -q "<promise>COMPLETE</promise>"

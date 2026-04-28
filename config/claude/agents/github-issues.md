@@ -30,13 +30,13 @@
    ```
    gh issue edit <number> --repo __REPO_OWNER__/__REPO_NAME__ --add-assignee @me
    ```
-8. Set up worktree: branch `issues/<issue-number>-<slug>`. Run: `worktree <name>`
+8. Set up worktree: branch `issues/<issue-number>-<slug>`. Run: `worktree <name>` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool
 9. Enter Nix dev shell before any work (generates pre-commit hooks)
 10. Implement the issue. Verify **every** acceptance criterion mentioned in the issue body before moving on. Run typecheck and tests for affected projects
 11. Commit: `[feat|fix|chore](<Component>): #<issue-number> - <Title>`
     - Body must include: `Closes __REPO_OWNER__/__REPO_NAME__#<issue-number>`
     - Component: specific project or `*` for many
-12. Push (NEVER force push — merge upstream first). Create draft PR referencing the issue. Re-evaluate PR title and description to reflect what was actually implemented
+12. Push (NEVER force push — merge upstream first). Create PR **always as draft** (`gh pr create --draft`) respecting **PR Limit**. **Never change a PR's draft/ready status** — keep PRs in whatever state they are (if draft, leave as draft; if ready, leave as ready). Re-evaluate PR title and description to reflect what was actually implemented
 13. Log the result in `./.state/__STATE_NAME__/progress.txt`
 
 **1 PR = 1 Issue = 1 Task.** Each issue gets exactly one PR. After completing steps 1–13 for one issue, **end the task**.
@@ -64,9 +64,9 @@ Fix only the identified failure; cancelled jobs and gates will pass once resolve
 
 ## PR Limit
 
-Max **5 open PRs per search**. Check: `gh pr list --repo __REPO_OWNER__/__REPO_NAME__ --state open --author @me --search "head:issues/" | wc -l`
+Max **2 open PRs per search**. Check: `gh pr list --repo __REPO_OWNER__/__REPO_NAME__ --state open --author @me --search "head:issues/" | wc -l`
 
-If ≥5: push branch but don't create PR. Track in `./.state/__STATE_NAME__/deferred-prs.json`:
+If ≥2: push branch but don't create PR. Track in `./.state/__STATE_NAME__/deferred-prs.json`:
 ```json
 {"deferred": [{"branch": "issues/42-fix-login", "pushed_at": "<ISO>", "reason": "PR limit reached"}]}
 ```

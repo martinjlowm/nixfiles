@@ -94,8 +94,6 @@ if [ "${1:-}" = "--run" ]; then
 
 $(cat "$HOME/.claude/agents/project-sleep.md")"
 
-  SESSION_LOG="$STATE_DIR/session.log"
-
   SLEEP_COUNT=0
 
   for i in $(seq 1 $MAX_ITERATIONS); do
@@ -106,24 +104,47 @@ $(cat "$HOME/.claude/agents/project-sleep.md")"
     echo "$SESSION_FILE" > "$STATE_DIR/current_session"
     echo "Session: $SESSION_ID" >> "$LOG_FILE"
 
-    (
-      while [ ! -f "$SESSION_FILE" ]; do sleep 0.5; done
-      tail -f "$SESSION_FILE" >> "$SESSION_LOG" 2>/dev/null
-    ) &
-    TAIL_PID=$!
+    OUTPUT_FILE=$(mktemp)
+    (echo "$AGENT_PROMPT" | claude --session-id "$SESSION_ID" 2>&1 | tee -a "$LOG_FILE" "$OUTPUT_FILE" >/dev/stderr) &
+    CLAUDE_PID=$!
 
-    OUTPUT=$(echo "$AGENT_PROMPT" | claude --session-id "$SESSION_ID" 2>&1 | tee -a "$LOG_FILE" /dev/stderr) || true
+    # Monitor for Escape key — press Escape to skip to next iteration
+    ESCAPED=false
+    while kill -0 $CLAUDE_PID 2>/dev/null; do
+      if read -t 0.5 -s -n1 key 2>/dev/null && [ "$key" = $'\e' ]; then
+        echo ""
+        echo "⏭ Escape pressed — skipping to next iteration..."
+        kill $CLAUDE_PID 2>/dev/null || true
+        wait $CLAUDE_PID 2>/dev/null || true
+        ESCAPED=true
+        break
+      fi
+    done
 
-    kill $TAIL_PID 2>/dev/null || true
+    if [ "$ESCAPED" = false ]; then
+      wait $CLAUDE_PID 2>/dev/null || true
+    fi
+
+    OUTPUT=$(cat "$OUTPUT_FILE")
+    rm -f "$OUTPUT_FILE"
+
+    if [ "$ESCAPED" = true ]; then
+      sleep 1
+      continue
+    fi
 
     if echo "$OUTPUT" | \
         grep -q "<promise>COMPLETE</promise>"
     then
       echo "✅ All project issues processed!"
       echo ""
-      echo "Press Enter to close this tab..."
+      echo "Press Enter to restart loop..."
       read -r
-      exit 0
+      if [ "$SPEC_FILE" != "NONE" ]; then
+        exec "$0" --run "$URL" "$SPEC_FILE" "$MAX_ITERATIONS"
+      else
+        exec "$0" --run "$URL" "$MAX_ITERATIONS"
+      fi
     fi
 
     if echo "$OUTPUT" | grep -q "<promise>SLEEP</promise>"; then
@@ -140,9 +161,13 @@ $(cat "$HOME/.claude/agents/project-sleep.md")"
   echo "Loop reached max iterations ($MAX_ITERATIONS)."
   echo "Check $PROGRESS_FILE for status."
   echo ""
-  echo "Press Enter to close this tab..."
+  echo "Press Enter to restart loop..."
   read -r
-  exit 1
+  if [ "$SPEC_FILE" != "NONE" ]; then
+    exec "$0" --run "$URL" "$SPEC_FILE" "$MAX_ITERATIONS"
+  else
+    exec "$0" --run "$URL" "$MAX_ITERATIONS"
+  fi
 fi
 
 # Default: parse args and spawn in a new WezTerm window

@@ -116,6 +116,7 @@ in {
       # Shell & CLI tools
       starship
       gh
+      opnix
       ripgrep
       nix-tree
       nix-index
@@ -197,6 +198,7 @@ in {
       scripts.dependabot
       scripts.project
       scripts.pr-maintenance
+      scripts.fix
       scripts.pr-review
       scripts.github-issues
       scripts.pr-ua

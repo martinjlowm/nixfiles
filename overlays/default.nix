@@ -48,7 +48,26 @@
       triple = final.stdenv.hostPlatform.config; # e.g. "aarch64-apple-darwin"
       suffix = builtins.replaceStrings ["-"] ["_"] triple; # "aarch64_apple_darwin"
 
+      opnix = final.opnix;
+      opnixEnvConfig = final.writeText "claude-opnix-env.json" (builtins.toJSON {
+        vars = [
+          {
+            name = "GH_TOKEN";
+            reference = "op://Developer/Claude Code GitHub/Section_hkqdyxymn2ko5dudp7hdld6cre/token";
+          }
+        ];
+      });
+
+      # Deny gh config access so it can't discover keyring credentials
+      denyGhConfig = final.writeText "deny-gh-config.sb" ''
+        (deny file-read* file-write* (home-subpath "/.config/gh"))
+      '';
+      ghEmptyConfig = final.runCommand "gh-empty-config" {} "mkdir -p $out";
+
       wrapper = final.writeShellScript "claude" ''
+        eval "$(${opnix}/bin/opnix env -config ${opnixEnvConfig} -token-file "''${OPNIX_ENV_TOKEN_FILE:-$HOME/.config/opnix/token}")"
+        export GH_CONFIG_DIR="${ghEmptyConfig}"
+
         add_dirs="$PWD"
         if [[ -n "$CARGO_TARGET_DIR" ]]; then
           add_dirs="$add_dirs:$CARGO_TARGET_DIR"
@@ -87,7 +106,7 @@
           ro_dirs="$ro_dirs:$extra_ro_dirs"
         fi
 
-        rw_dirs="$add_dirs:$HOME/.cache/nix:$HOME/.local/share"
+        rw_dirs="$add_dirs:$HOME/.cache:$HOME/.local/share"
         if [[ -n "$extra_rw_dirs" ]]; then
           rw_dirs="$rw_dirs:$extra_rw_dirs"
         fi
@@ -95,9 +114,10 @@
         exec ${safehouse}/bin/safehouse \
           --add-dirs-ro="$ro_dirs" \
           --append-profile=${nixRunProfile} \
+          --append-profile=${denyGhConfig} \
           --enable agent-browser \
           --add-dirs="$rw_dirs" \
-          --env-pass=PATH,ZENDESK_SUBDOMAIN,ZENDESK_EMAIL,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,AWS_REGION,AWS_DEFAULT_REGION,NIX_CFLAGS_COMPILE,NIX_CFLAGS_COMPILE_FOR_BUILD,NIX_LDFLAGS,NIX_LDFLAGS_FOR_BUILD,CARGO_TARGET_DIR,RUST_SRC_PATH,NODE_OPTIONS,PLAYWRIGHT_BROWSERS_PATH,PUPPETEER_EXECUTABLE_PATH,NIX_CC_WRAPPER_TARGET_HOST_${suffix},NIX_CC_WRAPPER_TARGET_BUILD_${suffix},SIGNOZ_API_KEY \
+          --env-pass=PATH,GH_TOKEN,GH_CONFIG_DIR,ZENDESK_SUBDOMAIN,ZENDESK_EMAIL,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,AWS_REGION,AWS_DEFAULT_REGION,NIX_CFLAGS_COMPILE,NIX_CFLAGS_COMPILE_FOR_BUILD,NIX_LDFLAGS,NIX_LDFLAGS_FOR_BUILD,CARGO_TARGET_DIR,RUST_SRC_PATH,NODE_OPTIONS,PLAYWRIGHT_BROWSERS_PATH,PUPPETEER_EXECUTABLE_PATH,NIX_CC_WRAPPER_TARGET_HOST_${suffix},NIX_CC_WRAPPER_TARGET_BUILD_${suffix},SIGNOZ_API_KEY \
           -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}"
       '';
     in

@@ -268,11 +268,11 @@
           action = act.ReloadConfiguration,
         },
 
-        -- Search/switch tabs
+        -- Fuzzy tab switching
         {
           key = 'w',
           mods = 'LEADER',
-          action = act.ShowTabNavigator,
+          action = act.ShowLauncherArgs { flags = 'FUZZY|TABS' },
         },
 
         -- Rename tab

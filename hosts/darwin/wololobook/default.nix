@@ -38,4 +38,5 @@
     enable = true;
     package = nextPkgs._1password-gui;
   };
+
 }

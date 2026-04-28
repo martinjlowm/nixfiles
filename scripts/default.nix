@@ -114,6 +114,7 @@ in {
   dependabot = mkWeztermScript "dependabot";
   project = mkWeztermScript "project";
   pr-maintenance = mkWeztermScript "pr-maintenance";
+  fix = mkWeztermScript "fix";
   pr-review = mkWeztermScript "pr-review";
   github-issues = mkWeztermScript "github-issues";
   roadmap-sync = pkgs.writeShellApplication {
