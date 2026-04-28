@@ -64,9 +64,22 @@
       '';
       ghEmptyConfig = final.runCommand "gh-empty-config" {} "mkdir -p $out";
 
+      # gh wrapper that strips --admin arguments
+      ghWrapped = final.writeShellScriptBin "gh" ''
+        args=()
+        for arg in "$@"; do
+          case "$arg" in
+            --admin) ;;
+            *) args+=("$arg") ;;
+          esac
+        done
+        exec ${final.gh}/bin/gh "''${args[@]}"
+      '';
+
       wrapper = final.writeShellScript "claude" ''
         eval "$(${opnix}/bin/opnix env -config ${opnixEnvConfig} -token-file "''${OPNIX_ENV_TOKEN_FILE:-$HOME/.config/opnix/token}")"
         export GH_CONFIG_DIR="${ghEmptyConfig}"
+        export PATH="${ghWrapped}/bin:$PATH"
 
         add_dirs="$PWD"
         if [[ -n "$CARGO_TARGET_DIR" ]]; then
