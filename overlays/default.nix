@@ -22,6 +22,8 @@
         '';
     });
     claude-code = let
+      isDarwin = final.stdenv.isDarwin;
+
       safehouse = let
         src = final.fetchurl {
           url = "https://raw.githubusercontent.com/eugene1g/agent-safehouse/3b6261ae75a0ee3c8b93edf08e1cd64fa13e09fc/dist/safehouse.sh";
@@ -38,15 +40,17 @@
           '';
         };
       unwrapped = prev.claude-code;
+
+      triple = final.stdenv.hostPlatform.config;
+      suffix = builtins.replaceStrings ["-"] ["_"] triple;
+
+      # --- macOS-specific ---
       nixRunProfile = final.writeText "nix-run-symlink.sb" ''
         ;; Allow reading /run symlink so /run/current-system/sw/bin resolves.
         ;; safehouse's --add-dirs-ro resolves symlinks via realpath, so /run
         ;; is never emitted as a literal in the sandbox profile.
         (allow file-read* (literal "/run"))
       '';
-
-      triple = final.stdenv.hostPlatform.config; # e.g. "aarch64-apple-darwin"
-      suffix = builtins.replaceStrings ["-"] ["_"] triple; # "aarch64_apple_darwin"
 
       opnix = final.opnix;
       opnixEnvConfig = final.writeText "claude-opnix-env.json" (builtins.toJSON {
@@ -58,13 +62,13 @@
         ];
       });
 
-      # Deny gh config access so it can't discover keyring credentials
       denyGhConfig = final.writeText "deny-gh-config.sb" ''
         (deny file-read* file-write* (home-subpath "/.config/gh"))
       '';
+
+      # --- Shared ---
       ghEmptyConfig = final.runCommand "gh-empty-config" {} "mkdir -p $out";
 
-      # gh wrapper that strips --admin arguments
       ghWrapped = final.writeShellScriptBin "gh" ''
         args=()
         for arg in "$@"; do
@@ -76,13 +80,38 @@
         exec ${final.gh}/bin/gh "''${args[@]}"
       '';
 
+      envVars = [
+        "PATH" "HOME" "USER" "TERM"
+        "GH_TOKEN" "GH_CONFIG_DIR"
+        "ZENDESK_SUBDOMAIN" "ZENDESK_EMAIL"
+        "AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY" "AWS_SESSION_TOKEN"
+        "AWS_REGION" "AWS_DEFAULT_REGION"
+        "NIX_CFLAGS_COMPILE" "NIX_CFLAGS_COMPILE_FOR_BUILD"
+        "NIX_LDFLAGS" "NIX_LDFLAGS_FOR_BUILD"
+        "CARGO_TARGET_DIR" "RUST_SRC_PATH"
+        "NODE_OPTIONS" "PLAYWRIGHT_BROWSERS_PATH" "PUPPETEER_EXECUTABLE_PATH"
+        "NIX_CC_WRAPPER_TARGET_HOST_${suffix}" "NIX_CC_WRAPPER_TARGET_BUILD_${suffix}"
+        "SIGNOZ_API_KEY"
+      ];
+
+      envPassMacOS = builtins.concatStringsSep "," envVars;
+
+      # bwrap: --setenv VAR "$VAR" for each set variable
+      envPassLinux = builtins.concatStringsSep "\n" (map (v: ''
+        if [[ -n "''${${v}:-}" ]]; then
+          sandbox_args+=(--setenv "${v}" "''${${v}}")
+        fi
+      '') envVars);
+
       wrapper = final.writeShellScript "claude" ''
+        ${if isDarwin then ''
         eval "$(${opnix}/bin/opnix env -config ${opnixEnvConfig} -token-file "''${OPNIX_ENV_TOKEN_FILE:-$HOME/.config/opnix/token}")"
+        '' else ""}
         export GH_CONFIG_DIR="${ghEmptyConfig}"
         export PATH="${ghWrapped}/bin:$PATH"
 
         add_dirs="$PWD"
-        if [[ -n "$CARGO_TARGET_DIR" ]]; then
+        if [[ -n "''${CARGO_TARGET_DIR:-}" ]]; then
           add_dirs="$add_dirs:$CARGO_TARGET_DIR"
         fi
 
@@ -114,24 +143,61 @@
           esac
         done
 
+        ${if isDarwin then ''
         ro_dirs="/nix:/private/etc:$HOME/.nix-defexpr"
+        '' else ''
+        ro_dirs="/nix:/etc:/run:$HOME/.nix-defexpr"
+        ''}
         if [[ -n "$extra_ro_dirs" ]]; then
           ro_dirs="$ro_dirs:$extra_ro_dirs"
         fi
 
-        rw_dirs="$add_dirs:$HOME/.cache:$HOME/.local/share"
+        rw_dirs="$add_dirs:$HOME/.cache:$HOME/.local/share:$HOME/.claude"
         if [[ -n "$extra_rw_dirs" ]]; then
           rw_dirs="$rw_dirs:$extra_rw_dirs"
         fi
 
+        ${if isDarwin then ''
         exec ${safehouse}/bin/safehouse \
           --add-dirs-ro="$ro_dirs" \
           --append-profile=${nixRunProfile} \
           --append-profile=${denyGhConfig} \
           --enable agent-browser \
           --add-dirs="$rw_dirs" \
-          --env-pass=PATH,GH_TOKEN,GH_CONFIG_DIR,ZENDESK_SUBDOMAIN,ZENDESK_EMAIL,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,AWS_REGION,AWS_DEFAULT_REGION,NIX_CFLAGS_COMPILE,NIX_CFLAGS_COMPILE_FOR_BUILD,NIX_LDFLAGS,NIX_LDFLAGS_FOR_BUILD,CARGO_TARGET_DIR,RUST_SRC_PATH,NODE_OPTIONS,PLAYWRIGHT_BROWSERS_PATH,PUPPETEER_EXECUTABLE_PATH,NIX_CC_WRAPPER_TARGET_HOST_${suffix},NIX_CC_WRAPPER_TARGET_BUILD_${suffix},SIGNOZ_API_KEY \
+          --env-pass=${envPassMacOS} \
           -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}"
+        '' else ''
+        sandbox_args=()
+
+        # Essential system mounts
+        sandbox_args+=(--dev /dev --proc /proc --tmpfs /tmp)
+
+        # Read-only bind mounts
+        IFS=':' read -ra _ro_paths <<< "$ro_dirs"
+        for p in "''${_ro_paths[@]}"; do
+          if [[ -n "$p" ]] && [[ -e "$p" ]]; then
+            sandbox_args+=(--ro-bind "$p" "$p")
+          fi
+        done
+
+        # Read-write bind mounts
+        IFS=':' read -ra _rw_paths <<< "$rw_dirs"
+        for p in "''${_rw_paths[@]}"; do
+          if [[ -n "$p" ]]; then
+            mkdir -p "$p"
+            sandbox_args+=(--bind "$p" "$p")
+          fi
+        done
+
+        # Pass through environment variables
+        ${envPassLinux}
+
+        # Namespace isolation with network access preserved
+        sandbox_args+=(--unshare-all --share-net)
+
+        exec ${final.bubblewrap}/bin/bwrap "''${sandbox_args[@]}" \
+          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}"
+        ''}
       '';
     in
       final.symlinkJoin {
