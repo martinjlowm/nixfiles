@@ -87,7 +87,10 @@
           pkgs = lib.mkPkgs {inherit system;};
           scripts = pkgs.callPackage ./scripts {};
         in
-          nixpkgs.lib.getAttrs scriptNames scripts;
+          nixpkgs.lib.getAttrs scriptNames scripts
+          // {
+            claude-code = pkgs.claude-code;
+          };
       }) systems);
   };
 }
