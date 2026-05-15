@@ -203,6 +203,7 @@
       final.symlinkJoin {
         name = "claude-code-safehouse";
         paths = [unwrapped];
+        inherit (unwrapped) meta;
         postBuild = ''
           rm $out/bin/claude
           ln -s ${wrapper} $out/bin/claude
