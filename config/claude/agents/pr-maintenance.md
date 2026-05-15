@@ -4,6 +4,34 @@ This agent focuses exclusively on getting existing PRs merged. It does NOT creat
 
 ## Workflow
 
+### Phase 0: Repository setup
+
+Detect the repo layout and set up accordingly:
+
+```
+git rev-parse --is-bare-repository
+```
+
+**If bare repository (`true`):** Use a shared `maintenance` worktree. Always use the `worktree` command in PATH — this is NOT `git worktree` and NOT the `EnterWorktree` tool.
+
+1. Check if a `maintenance` worktree already exists:
+   ```
+   git worktree list --porcelain | grep -A2 'worktree.*maintenance$'
+   ```
+2. If it does **not** exist, create one:
+   ```
+   worktree maintenance --base origin/master
+   ```
+3. If it **does** exist, reuse it — `cd` into the worktree path and update it:
+   ```
+   cd <worktree-path>
+   git fetch origin master
+   git merge origin/master
+   ```
+4. All subsequent work happens **inside the worktree**. State files (`.state/pr-maintenance/`) live in the **main repo**, not the worktree — use absolute paths or `$REPO_ROOT/.state/pr-maintenance/` when reading/writing state.
+
+**If regular repository (`false`):** Work directly in the checkout. No worktree setup needed — PR branches will be checked out directly in Phase 2.
+
 ### Phase 1: Build or refresh the worklist
 
 1. Read `./.state/pr-maintenance/progress.txt` for previously handled PRs and learnings
@@ -60,7 +88,9 @@ This agent focuses exclusively on getting existing PRs merged. It does NOT creat
 ### Phase 2: Pick and fix ONE PR
 
 8. Pick the first PR from the pick list. If the list is empty, go to the Stop Condition
-9. Check out the PR's branch: `git fetch origin <branch> && git checkout <branch>`
+9. Check out the PR's branch:
+   - **Bare repo (inside `maintenance` worktree):** `git fetch origin <branch> && git checkout <branch>`
+   - **Regular repo:** `git fetch origin <branch> && git checkout <branch>`
 10. Enter Nix dev shell before any work (generates pre-commit hooks)
 11. Address ALL issues on this PR:
     - **Merge conflicts:** merge the PR's base branch and resolve conflicts
