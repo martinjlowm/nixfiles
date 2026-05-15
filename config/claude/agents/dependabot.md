@@ -102,19 +102,30 @@ Always use the `worktree` command in PATH — this is NOT `git worktree` and NOT
         TMPDIR=$(mktemp -d)
         curl -sL <tarball-url> | tar xz -C "$TMPDIR"
         ```
-   b. **Diff the old vs new version source** — if practical, clone both versions and diff them. Focus on:
+   b. **Diff the old vs new version source** — this step is **mandatory**, not optional. Clone both the old and new version tags and produce a diff. Focus on:
       - New or modified install/post-install scripts (`postinstall`, `preinstall`, setup.py `cmdclass`, Makefile targets)
       - Network calls, shell/exec invocations, filesystem writes outside the package directory
       - Obfuscated code, encoded strings (base64, hex), `eval()`, dynamic `require()`/`import()` of URLs
       - Changes to authentication, cryptographic, or permission-related code
       - New native/binary dependencies or compiled artifacts that weren't present before
       - Unexpected scope expansion (a "patch" bump that adds major new capabilities)
-   c. **Verdict** — record one of:
+      ```
+      TMPDIR_OLD=$(mktemp -d)
+      git clone --depth 1 --branch <old-version-tag> <repo-url> "$TMPDIR_OLD/<package>"
+      diff -ruN "$TMPDIR_OLD/<package>" "$TMPDIR/<package>" > "$TMPDIR/version-diff.patch" || true
+      ```
+   c. **Prepare the diff summary for the PR comment** — produce a concise but complete summary of the diff to include in the PR assessment comment. The summary must contain:
+      - A high-level description of what changed (new files, removed files, modified files)
+      - The full list of changed files with a one-line description of each change
+      - Any security-relevant findings (flagged items from step 9b) quoted verbatim from the diff
+      - For small diffs (< 200 lines), include the **complete diff** in a collapsed `<details>` block
+      - For large diffs (>= 200 lines), include the diff stat (`diffstat` or `diff --stat`) and the security-relevant hunks in a collapsed `<details>` block
+   d. **Verdict** — record one of:
       - `PASS` — changes are consistent with the declared version bump, no suspicious patterns found
       - `FAIL` — suspicious or malicious patterns detected → set PR status to `skipped` with detailed reason, do NOT approve
       - `INCONCLUSIVE` — source is too large or complex to audit fully → set PR status to `skipped` with reason "manual security review required"
-   d. **Clean up** — remove the temporary directory: `rm -rf "$TMPDIR"`
-   e. **Include the verdict** in the approval comment (step 10) or skip reason
+   e. **Clean up** — remove the temporary directories: `rm -rf "$TMPDIR" "$TMPDIR_OLD"`
+   f. **Include the verdict AND diff summary** in the approval comment (step 10) or skip reason
 
    **Do NOT approve any PR that has not passed this security audit.**
 
@@ -123,7 +134,12 @@ Always use the `worktree` command in PATH — this is NOT `git worktree` and NOT
    - **If the PR required breaking change upgrades** (`has_breaking_changes: true`):
      Do **NOT** approve the PR. Leave a **comment** (not a review approval) describing what was done, so the PR still requires a human approval:
      ```
-     gh pr comment <number> --body "Dependency update includes breaking changes — applied necessary code upgrades. CI passes. Security audit: PASS — source reviewed at <version-tag>, no suspicious changes found. ⚠️ Requesting peer review before merge due to breaking change adaptations."
+     gh pr comment <number> --body "Dependency update includes breaking changes — applied necessary code upgrades. CI passes. Security audit: PASS — source reviewed at <version-tag>, no suspicious changes found.
+
+     ## Source diff: <old-version> → <new-version>
+     <diff summary from step 9c>
+
+     ⚠️ Requesting peer review before merge due to breaking change adaptations."
      ```
      Do **NOT** add to merge queue or auto-merge. Request review from `martinjlowm` and leave the PR open for peer review. Set status to `awaiting_review` in `worklist.json`.
      ```
@@ -131,7 +147,10 @@ Always use the `worktree` command in PATH — this is NOT `git worktree` and NOT
      ```
    - **Otherwise** (straightforward bump):
      ```
-     gh pr review <number> --approve --body "Dependency update looks good. CI passes. Security audit: PASS — source reviewed at <version-tag>, no suspicious changes found."
+     gh pr review <number> --approve --body "Dependency update looks good. CI passes. Security audit: PASS — source reviewed at <version-tag>, no suspicious changes found.
+
+     ## Source diff: <old-version> → <new-version>
+     <diff summary from step 9c>"
      gh pr merge <number> --squash --auto
      ```
      Set status to `in_merge_queue` in `worklist.json`.

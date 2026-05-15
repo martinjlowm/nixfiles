@@ -39,6 +39,21 @@ Name screenshot files by route: `home.png`, `dashboard.png`, `settings_profile.p
 - **User-started servers**: If the user started the servers, do NOT restart them on crash. Instead, report the crash clearly (which environment, the error if visible) and wait for the user's explicit go-ahead before resuming testing.
 - **Skill-started servers**: If you started a server as part of the comparison setup, recover from crashes by restarting it automatically, then resume testing from where it left off.
 
+**CRITICAL — Do not modify server setup. No exceptions.** You must NEVER change how the dev server is started. This includes but is not limited to:
+- Switching bundlers (e.g., bypassing Rspack/Turbopack to use Webpack)
+- Adding or removing CLI flags (e.g., `--webpack`, `--turbo`)
+- Setting, unsetting, or changing environment variables (e.g., `TURBOPACK`, `NODE_ENV`)
+- Killing hanging server processes to restart with different configuration
+- Any other "temporary" or "just for the comparison" workaround
+
+The server configuration must remain **exactly** as the project defines it. If the server hangs, crashes, or has issues:
+
+1. **Clear cached build outputs** — remove `<project>/src/dist` and/or `<project>/dist/` if they exist. Stale caches are a common cause of hangs.
+2. Restart the server **with the same command and configuration as before**.
+3. If the server still hangs or crashes after clearing caches, **stop the comparison entirely**, report the problem to the user with full details (error messages, which environment, what route triggered it), and **wait for explicit user instructions**.
+
+Do not attempt to diagnose or work around server infrastructure issues by modifying the server setup.
+
 Track who started each server so you handle crashes correctly.
 
 ### Viewport / screen size
@@ -56,11 +71,21 @@ Use the dimensions provided by the user. If the user did not specify a screen si
 
 If the user provides an API key, append `?token=<api-key>` to every URL when navigating (or `&token=<api-key>` if the URL already has query parameters). The API key applies to both X and Y environments.
 
+**CRITICAL — Authenticate before anything else.** The very first navigation in each browser session **must** include the `token=<api-key>` query parameter. If the browser session is started by visiting a URL **without** the token, the app will attempt to redirect to an auth/login route, which can crash the dev server (e.g., ESM import errors in auth API routes like `supports-color`). This crash is **not** a bug in the PR — it is a pre-existing issue triggered by unauthenticated access. The fix is simple: always include the token on the initial visit.
+
+**Obtaining a token:** If the user has not provided a token, they can obtain one by running:
+
+```bash
+fbctl user assume <company> <user>
+```
+
+This outputs a URL. The token is in the URL's query parameters — extract the `token=<value>` from it.
+
 **Key rotation**: If any request returns a 401/403 Unauthorized response, or the browser is redirected to a login/auth-error page, or the application shows an "unauthenticated"/"session expired" message:
 
 1. Stop testing immediately.
 2. Report which environment and route triggered the auth failure.
-3. Ask the user for a new API key.
+3. The token has likely expired. Ask the user to run `fbctl user assume <company> <user>` again and provide the new token.
 4. Once provided, substitute the new key into all subsequent URLs and resume testing from the route that failed.
 
 ## Procedure
@@ -146,6 +171,14 @@ Components that fire Mixpanel track events are **"hot" activity components** —
 #### e. General route discovery and navigation
 
 After all Mixpanel-tracked components have been covered, discover and test remaining routes:
+
+**CRITICAL — Navigate from `/`, do not construct URLs manually.** Many routes require query parameters with page-specific identifiers (e.g., `/reports?id=abc123`, `/devices/xyz`). You cannot guess these identifiers. Instead, start from the root URL (`/`) and discover pages by following links in the UI. This ensures you visit routes with the correct parameters that the application itself provides.
+
+**CRITICAL — Trailing slash sensitivity.** Routes may be sensitive to the presence or absence of a trailing `/`. Before navigating, check the application's `next.config.js` (or equivalent) for a `trailingSlash` setting:
+- `trailingSlash: true` → all routes must end with `/` (e.g., `/dashboard/`)
+- `trailingSlash: false` or not set → routes must NOT end with `/` (e.g., `/dashboard`)
+
+Using the wrong format can cause 404s or redirects. Match the convention used by the application.
 
 Routes are reached through two mechanisms:
 

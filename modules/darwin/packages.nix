@@ -202,6 +202,8 @@ in {
       scripts.pr-review
       scripts.github-issues
       scripts.pr-ua
+      scripts.pr-pr
+      scripts.pr-ready
       scripts.zendesk-ticket
       scripts.roadmap-sync
       scripts.claude-pm

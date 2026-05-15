@@ -133,6 +133,28 @@ in {
     checkPhase = "";
     text = builtins.readFile ./pr-ua.sh;
   };
+  pr-pr = pkgs.writeShellApplication {
+    name = "pr-pr";
+    runtimeInputs = [
+      pkgs.git
+      pkgs.gh
+      pkgs.jq
+      pkgs.fzf
+    ];
+    checkPhase = "";
+    text = builtins.readFile ./pr-pr.sh;
+  };
+  pr-ready = pkgs.writeShellApplication {
+    name = "pr-ready";
+    runtimeInputs = [
+      pkgs.gh
+      pkgs.jq
+      pkgs.fzf
+      pkgs.gnugrep
+    ];
+    checkPhase = "";
+    text = builtins.readFile ./pr-ready.sh;
+  };
   zendesk-ticket = pkgs.writeShellApplication {
     name = "zendesk-ticket";
     runtimeInputs = [
