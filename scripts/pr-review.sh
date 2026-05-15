@@ -181,6 +181,8 @@ echo "Spawning PR Review loop in new WezTerm window..."
 echo "Repo: $REPO_OWNER/$REPO_NAME"
 echo "Search: $SEARCH_QUERY"
 
+wezterm-ensure
+
 LOOP_PANE_ID=$(wezterm cli spawn --new-window --cwd "$REPO" -- "$0" --run "$URL" "$MAX_ITERATIONS")
 sleep 1
 

@@ -216,6 +216,8 @@ touch "$LOG_FILE"
 echo "Spawning Project loop in new WezTerm window..."
 echo "Project: $PROJECT_OWNER/$PROJECT_NUMBER"
 
+wezterm-ensure
+
 LOOP_PANE_ID=$(wezterm cli spawn --new-window --cwd "$REPO" -- "$0" --run "$URL" $EXTRA_ARGS)
 sleep 1
 

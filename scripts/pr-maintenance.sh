@@ -97,6 +97,8 @@ touch "$LOG_FILE"
 
 echo "Spawning PR Maintenance loop in new WezTerm window..."
 
+wezterm-ensure
+
 LOOP_PANE_ID=$(wezterm cli spawn --new-window --cwd "$REPO" -- "$0" --run "$MAX_ITERATIONS")
 sleep 1
 

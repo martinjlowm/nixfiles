@@ -34,10 +34,17 @@
     text = builtins.readFile ./claude-sleep.sh;
   };
 
+  wezterm-ensure = pkgs.writeShellApplication {
+    name = "wezterm-ensure";
+    runtimeInputs = [wezterm pkgs.coreutils];
+    checkPhase = "";
+    text = builtins.readFile ./wezterm-ensure.sh;
+  };
+
   mkWeztermScript = name:
     pkgs.writeShellApplication {
       inherit name;
-      runtimeInputs = [wezterm claude-follow claude-sleep];
+      runtimeInputs = [wezterm wezterm-ensure claude-follow claude-sleep];
       checkPhase = "";
       text = builtins.readFile ./${name}.sh;
     };

@@ -161,6 +161,8 @@ LOG_FILE="$STATE_DIR/loop.log"
 mkdir -p "$STATE_DIR"
 touch "$LOG_FILE"
 
+wezterm-ensure
+
 # Spawn the loop in a new window (top pane)
 LOOP_PANE_ID=$(wezterm cli spawn --new-window --cwd "$REPO" -- "$0" --run "$SPEC_NAME" "$MAX_ITERATIONS")
 sleep 1
