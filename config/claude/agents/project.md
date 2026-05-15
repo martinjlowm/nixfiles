@@ -87,7 +87,10 @@
     gh issue edit <number> --repo <owner>/<repo> --add-assignee @me
     ```
 12. **Record timing — issue picked up.** Write/update `./.state/__STATE_NAME__/timing/<issue-number>.json` (see **Timing Tracking** below) with `picked_up_at` set to the current UTC time
-13. Set up worktree by running: `worktree project-__PROJECT_NUMBER__/<issue-number>-<slug>` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool. Then `cd` into the created worktree directory. **Stack the branch:** If other project branches exist, merge the tip of the most recent one: `git merge project-__PROJECT_NUMBER__/<previous-branch>`. This ensures the new branch is additive on top of all prior work
+13. Set up working branch: `project-__PROJECT_NUMBER__/<issue-number>-<slug>`.
+    - **Bare repo** (`git rev-parse --is-bare-repository` → `true`): Run: `worktree project-__PROJECT_NUMBER__/<issue-number>-<slug>` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool. Then `cd` into the created worktree directory.
+    - **Regular repo:** `git checkout -b project-__PROJECT_NUMBER__/<issue-number>-<slug> origin/master`
+    **Stack the branch:** If other project branches exist, merge the tip of the most recent one: `git merge project-__PROJECT_NUMBER__/<previous-branch>`. This ensures the new branch is additive on top of all prior work
 14. Enter Nix dev shell before any work (generates pre-commit hooks)
 15. Implement the issue. Verify **every** acceptance criterion mentioned in the issue body before moving on. Run typecheck and tests for affected projects. **If the issue touches UI code, run a visual comparison** (see **Visual Comparison for UI Changes** below)
 16. Commit: `[feat|fix|chore](<Component>): #<issue-number> - <Title>`
@@ -114,7 +117,7 @@
 20. Update `prd.json`: set the issue's status to `pr-created`, fill in `pr_number` and `pr_url`
 21. Log the result in `./.state/__STATE_NAME__/progress.txt`
 
-**1 Issue = 1 Branch = 1 Worktree (= 1 PR when created).** Every issue gets its own dedicated branch and worktree — these always map 1:1. A PR is created from that branch when ready (or deferred if the PR limit is reached), but the branch and worktree exist regardless. Never share a worktree or branch across multiple issues, and never create multiple branches for a single issue. After completing steps 9–21 for one issue, **end the task** so the next iteration can begin.
+**1 Issue = 1 Branch (= 1 PR when created).** Every issue gets its own dedicated branch — these always map 1:1. In a bare repo, each branch gets its own worktree. A PR is created from that branch when ready (or deferred if the PR limit is reached), but the branch exists regardless. Never share a branch across multiple issues, and never create multiple branches for a single issue. After completing steps 9–21 for one issue, **end the task** so the next iteration can begin.
 
 **Stacked (chained) PRs are the default.** Every new issue branch MUST be based on the **tip of the most recent project branch** (the last PR in the stack), NOT on `master`. This makes each PR additive — it contains only its own diff on top of the previous work. When the base PR merges, GitHub automatically retargets the child to `master`.
 

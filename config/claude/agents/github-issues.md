@@ -30,7 +30,9 @@
    ```
    gh issue edit <number> --repo __REPO_OWNER__/__REPO_NAME__ --add-assignee @me
    ```
-8. Set up worktree: branch `issues/<issue-number>-<slug>`. Run: `worktree <name>` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool
+8. Set up working branch: `issues/<issue-number>-<slug>`.
+   - **Bare repo** (`git rev-parse --is-bare-repository` → `true`): Run: `worktree <name>` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool
+   - **Regular repo:** `git checkout -b <name> origin/master`
 9. Enter Nix dev shell before any work (generates pre-commit hooks)
 10. Implement the issue. Verify **every** acceptance criterion mentioned in the issue body before moving on. Run typecheck and tests for affected projects
 11. Commit: `[feat|fix|chore](<Component>): #<issue-number> - <Title>`

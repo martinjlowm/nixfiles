@@ -18,7 +18,9 @@
    - **Check CI for passing stories too** — if any required check has failed or been cancelled, set `passes: false`
    - **Check for merge conflicts on every PR** (even passing ones): `gh pr view <pr> --json mergeable` — if `mergeable` is `CONFLICTING`, set `passes: false` and resolve the conflicts by merging the base branch
    - Set `passes: false` if unaddressed feedback (including nits), CI failures, or merge conflicts remain
-3. Set up worktree: branch `[SPEC_SLUG]/[STORY]` off dependent branch (or origin/master). Run: `worktree -b <base-branch> <name>` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool
+3. Set up working branch: `[SPEC_SLUG]/[STORY]` off dependent branch (or origin/master).
+   - **Bare repo:** Run: `worktree -b <base-branch> <name>` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool
+   - **Regular repo:** `git checkout -b <name> <base-branch>`
 4. Enter Nix dev shell before any work (generates pre-commit hooks)
 5. Pick highest priority story with `passes: false` and **no running CI** (`gh pr checks <pr> --json name,state` — skip if any state is `PENDING`; if all blocked, **end the task immediately**). **Exception:** if any checks have already failed or been cancelled while others are still pending, do NOT skip — investigate and fix the failures immediately
 6. Implement/revise that **one** story. Verify **every item** in `acceptanceCriteria` is met before moving on. Run typecheck and tests for affected projects. **If the story touches UI code, run a visual comparison** (see **Visual Comparison for UI Changes** below)
@@ -29,7 +31,7 @@
     - CI has passed (not running, not failed, not cancelled)
     - PR has no merge conflicts (`gh pr view <pr> --json mergeable` shows `MERGEABLE`, not `CONFLICTING`)
     - Every `acceptanceCriteria` item verified by reading the actual code in the PR
-    - No uncommitted changes remain in the worktree (`git status` clean)
+    - No uncommitted changes remain (`git status` clean)
     - `prd.json` requirements have not changed since implementation began (re-read and compare)
     Never batch-mark stories — check each story individually. If any condition is not met, do not mark `passes: true`
 11. Append learnings to progress.txt

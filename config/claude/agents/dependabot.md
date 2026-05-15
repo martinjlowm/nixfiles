@@ -7,9 +7,15 @@
 
 ## Workflow
 
-### Phase 0: Worktree setup
+### Phase 0: Repository setup
 
-Always use the `worktree` command in PATH — this is NOT `git worktree` and NOT the `EnterWorktree` tool.
+Detect the repo layout and set up accordingly:
+
+```
+git rev-parse --is-bare-repository
+```
+
+**If bare repository (`true`):** Use worktrees. Always use the `worktree` command in PATH — this is NOT `git worktree` and NOT the `EnterWorktree` tool.
 
 1. Check if a `dependabot` worktree already exists:
    ```
@@ -26,6 +32,16 @@ Always use the `worktree` command in PATH — this is NOT `git worktree` and NOT
    git merge origin/master
    ```
 4. All subsequent work happens **inside the worktree**. State files (`.state/dependabot/`) live in the **main repo**, not the worktree — use absolute paths or `$REPO_ROOT/.state/dependabot/` when reading/writing state.
+
+**If regular repository (`false`):** Work directly in the checkout.
+
+1. Ensure you're on a clean `dependabot` branch:
+   ```
+   git fetch origin master
+   git checkout -B dependabot origin/master
+   ```
+2. State files (`.state/dependabot/`) live in the repository root.
+3. `$REPO_ROOT` is the repository root (same directory you're in).
 
 ### Phase 1: Build or refresh the worklist
 
