@@ -24,7 +24,7 @@ fi
 
 # No GUI, no server — start headless mux server
 echo "Starting headless WezTerm mux server..." >&2
-wezterm-mux-server --daemonize
+wezterm-mux-server --daemonize --config 'exit_behavior="Hold"'
 
 # Wait for the server to be ready
 for _ in $(seq 1 30); do
