@@ -34,17 +34,17 @@
     text = builtins.readFile ./claude-sleep.sh;
   };
 
-  wezterm-ensure = pkgs.writeShellApplication {
-    name = "wezterm-ensure";
-    runtimeInputs = [wezterm pkgs.coreutils];
+  mux-spawn = pkgs.writeShellApplication {
+    name = "mux-spawn";
+    runtimeInputs = [wezterm pkgs.tmux pkgs.coreutils];
     checkPhase = "";
-    text = builtins.readFile ./wezterm-ensure.sh;
+    text = builtins.readFile ./mux-spawn.sh;
   };
 
   mkWeztermScript = name:
     pkgs.writeShellApplication {
       inherit name;
-      runtimeInputs = [wezterm wezterm-ensure claude-follow claude-sleep];
+      runtimeInputs = [wezterm mux-spawn claude-follow claude-sleep];
       checkPhase = "";
       text = builtins.readFile ./${name}.sh;
     };

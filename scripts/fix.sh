@@ -146,16 +146,6 @@ LOG_FILE="$STATE_DIR/loop.log"
 mkdir -p "$STATE_DIR"
 touch "$LOG_FILE"
 
-echo "Spawning CI fix loop for PR #$PR_NUMBER in new WezTerm window..."
+echo "Spawning CI fix loop for PR #$PR_NUMBER..."
 
-wezterm-ensure
-
-LOOP_PANE_ID=$(wezterm cli spawn --new-window --cwd "$REPO" -- "$0" --run "$PR_INPUT" "$MAX_ITERATIONS")
-sleep 1
-
-SESSION_PANE_ID=$(wezterm cli split-pane --pane-id "$LOOP_PANE_ID" --bottom --percent 50 --cwd "$REPO" -- "$0" --follow "$STATE_DIR")
-
-echo ""
-echo "Loop started in pane: $LOOP_PANE_ID"
-echo "Session started in pane: $SESSION_PANE_ID"
-echo "Log file: $LOG_FILE"
+exec mux-spawn "$REPO" "$STATE_NAME" "$0" --run "$PR_INPUT" "$MAX_ITERATIONS" --- "$0" --follow "$STATE_DIR"
