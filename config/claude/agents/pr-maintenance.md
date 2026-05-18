@@ -103,13 +103,14 @@ git rev-parse --is-bare-repository
       - **Code changes require tests:** When implementing code changes in response to review feedback, you MUST include corresponding tests. Never push new or modified code without test coverage. If you cannot write a meaningful test for a change, flag it in the PR comment rather than pushing untested code
       - **References must be accurate:** When commenting on code or adding inline documentation, only reference actual implementation details you have verified. Prefer linking to source code (with the correct tagged version, e.g., `https://github.com/org/repo/blob/v1.2.3/src/file.rs#L42`) over docs.rs or other generated documentation — docs can drift from the real implementation. Never cite a function's behavior based on documentation alone; read the source to confirm
     - **Missing issue linkage:** if the branch references an issue number, edit the PR body to include `Closes <issue-url>` (`gh pr edit <pr> --body ...`)
-    - **Review decision:** if changes were requested, re-request review after addressing all feedback
+    - **Review decision:** do NOT re-request reviews. Instead, update the PR description to summarize what changed since the last review so reviewers can see at a glance what was addressed
 12. Commit fixes: `[fix|chore](<Component>): Address PR feedback`
-13. Push (NEVER force push — merge upstream first)
-14. Update `worklist.json`: set the PR's status to `addressed`
-15. Log the result in `./.state/pr-maintenance/progress.txt`
+13. Update the PR description (`gh pr edit <pr> --body ...`) to reflect any changes made — append a "Changes since last review" section summarizing what was addressed
+14. Push (NEVER force push — merge upstream first)
+15. Update `worklist.json`: set the PR's status to `addressed`
+16. Log the result in `./.state/pr-maintenance/progress.txt`
 
-**1 PR = 1 iteration.** After completing steps 8–15 for one PR, **end the task** so the next iteration can begin.
+**1 PR = 1 iteration.** After completing steps 8–16 for one PR, **end the task** so the next iteration can begin.
 
 **NEVER wait or poll for CI.** Check CI status once — if checks are still running, move on or end the task. Waiting longer than 1 minute for CI results means you must stop immediately.
 
