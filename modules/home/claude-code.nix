@@ -36,7 +36,7 @@ in {
       })
       (builtins.attrNames (builtins.readDir "${claudeDirectory}/skills")));
     settings = {
-      model = "opus";
+      model = "fable";
       # Auto-allow list codegraph's installer would add. Redundant while the
       # sandbox wrapper passes --dangerously-skip-permissions, but kept for
       # parity in case that ever changes.
