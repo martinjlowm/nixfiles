@@ -45,6 +45,53 @@
         mainProgram = "codegraph";
       };
     };
+    # Token-optimizing CLI proxy for coding agents (rewrites Bash commands
+    # like `git status` -> `rtk git status` via a Claude Code PreToolUse
+    # hook). Built from source instead of the upstream `rtk init -g`
+    # installer; the hook entry and CLAUDE.md awareness block it would write
+    # are declared in modules/home/claude-code.nix.
+    rtk = final.rustPlatform.buildRustPackage rec {
+      pname = "rtk";
+      version = "0.42.3";
+      src = final.fetchFromGitHub {
+        owner = "rtk-ai";
+        repo = "rtk";
+        rev = "v${version}";
+        hash = "sha256-UWiu6y3Ci5F5OYQZIB0QuFmgv+tRUTouD9RZfX+PcsA=";
+      };
+      # Vendored via importCargoLock instead of cargoHash: fetchCargoVendor's
+      # python-requests UA is blocked by the crates.io API WAF (403), so the
+      # index is remapped to the static CDN, which serves the same download
+      # paths. That remap makes importCargoLock emit a second source section
+      # for the crates.io index, which cargo rejects as a duplicate of its
+      # builtin `crates-io` source — scrub it from the generated config.
+      cargoDeps = let
+        vendor = final.rustPlatform.importCargoLock {
+          lockFile = ../lockfiles/rtk-Cargo.lock;
+          extraRegistries = {
+            "https://github.com/rust-lang/crates.io-index" = "https://static.crates.io/crates";
+          };
+        };
+      in
+        # Must be named cargo-vendor-dir: the generated config references the
+        # vendor directory by that literal (hash-stripped) name.
+        final.runCommand "cargo-vendor-dir" {} ''
+          cp -r ${vendor} $out
+          chmod -R u+w $out/.cargo
+          ${final.gnused}/bin/sed -i \
+            '/^\[source\."https:\/\/github\.com\/rust-lang\/crates\.io-index"\]$/,+2d' \
+            $out/.cargo/config.toml
+        '';
+      # Unit tests probe the environment (git on PATH, network-ish curl
+      # fixtures) and fail in the build sandbox.
+      doCheck = false;
+      meta = {
+        description = "CLI proxy that compresses command output to cut LLM token consumption";
+        homepage = "https://github.com/rtk-ai/rtk";
+        license = final.lib.licenses.asl20;
+        mainProgram = "rtk";
+      };
+    };
     # Canonical codegraph MCP entry, merged into every claude entry point:
     # the base wrapper below and each mkClaudeFlavor in scripts/default.nix.
     # Claude Code only reads server definitions from mutable state files

@@ -15,11 +15,17 @@ in {
   # writes config files — it wraps the binary with the variadic --mcp-config
   # flag ahead of "$@", which swallows positional args (`claude "prompt"`
   # and `claude mcp list` both break with "MCP config file not found").
-  home.packages = [pkgs.codegraph];
+  # rtk must resolve by bare name: the hook below rewrites commands to
+  # literal `rtk ...`, and rtk's self-check warns daily unless the hook
+  # command in settings.json is exactly "rtk hook claude".
+  home.packages = [pkgs.codegraph pkgs.rtk];
 
   programs.claude-code = {
     enable = true;
     package = nextPkgsClaude.claude-code;
+    # Global memory; carries the RTK awareness block `rtk init -g` would
+    # embed into ~/.claude/CLAUDE.md.
+    memory.source = claudeDirectory + "/CLAUDE.md";
     agents = builtins.listToAttrs (builtins.map (name: {
         name = stripMdExt name;
         value = claudeDirectory + "/agents/${name}";
@@ -58,6 +64,18 @@ in {
               {
                 type = "command";
                 command = "jq -re '.tool_input.command' | grep -q 'python3' && { echo 'ERROR: Python is not allowed. Use Node.js instead.' >&2; exit 2; } || true";
+              }
+            ];
+          }
+          # Declarative replacement for `rtk init -g`: rewrites Bash commands
+          # (git status -> rtk git status) to compress output before it
+          # reaches context.
+          {
+            matcher = "Bash";
+            hooks = [
+              {
+                type = "command";
+                command = "rtk hook claude";
               }
             ];
           }
