@@ -86,10 +86,17 @@ git rev-parse --is-bare-repository
    - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
    - **Check CI for all PRs** — if any required check has failed or been cancelled, investigate before proceeding
    - **Check if Dependabot still owns the PR**: look for a Dependabot comment stating the PR has been edited (e.g. "Dependabot will no longer manage this PR because it has been edited"). If found, the agent must **take over** the PR — manage it directly by checking out the branch, merging, pushing commits, etc. Do NOT use `@dependabot rebase` or `@dependabot recreate` on taken-over PRs; those commands will be ignored
-   - **Check for merge conflicts on every PR**: `gh pr view <number> --json mergeable` — if `CONFLICTING`:
+   - **Check for merge conflicts on EVERY open PR — regardless of status**: this is an **exhaustive sweep**, not a one-PR action. The Phase 3 "1 PR = 1 task" rule does **not** apply here — Phase 2 must resolve conflicts on **all** conflicting PRs in this turn before moving on. Enumerate every conflicting PR upfront in a single query rather than checking PRs one at a time:
+     ```
+     gh pr list --author "app/dependabot" --state open --json number,mergeable,title \
+       | jq -r '.[] | select(.mergeable == "CONFLICTING") | "\(.number)\t\(.title)"'
+     ```
+     This check applies to **every** open PR including those with status `awaiting_review`, `in_merge_queue`, `rebased`, or `skipped`. PRs blocked on human review still need their branches kept current with `master` so the reviewer doesn't inherit a conflict resolution task — failing to sweep these is a workflow violation. For each `CONFLICTING` PR:
      - Checkout the branch locally, merge `origin/master`, resolve conflicts, and push. (This will cause Dependabot to relinquish ownership — that is acceptable for conflict resolution)
      - If the PR has already been taken over: same approach — checkout, merge, push
+     - For `awaiting_review` PRs: resolve the conflict but do **not** change the PR status — it remains `awaiting_review` since the human review is still pending
      - If `UNKNOWN`: skip (GitHub is still computing)
+     Only after **every** conflicting PR in the sweep has been resolved (or recorded as `UNKNOWN`) may you proceed to Phase 3. Resolving N conflicts in a single turn is expected and correct — do **not** stop after the first one.
      All PRs target `master` directly — no stacked PRs
 
 ### Phase 3: Pick and handle ONE PR
@@ -130,10 +137,43 @@ git rev-parse --is-bare-repository
       git clone --depth 1 --branch <old-version-tag> <repo-url> "$TMPDIR_OLD/<package>"
       diff -ruN "$TMPDIR_OLD/<package>" "$TMPDIR/<package>" > "$TMPDIR/version-diff.patch" || true
       ```
+   b2. **package.json scrutiny — mandatory for any PR that touches `package.json`:**
+      - Extract the raw `package.json` diff from the dependency source (old vs new tag) and also from the PR itself (`gh pr diff <number> -- '**/package.json'`). Both must be captured verbatim — these are the surfaces a malicious publisher most commonly weaponizes.
+      - Inspect both old and new `package.json` for an `"scripts"` block. If a `preinstall`, `install`, `postinstall`, or `prepare` script is present in **either** version, the audit moves to **extra-careful mode**:
+        - Identify every file or executable referenced by those scripts (e.g. `node scripts/setup.js` → `scripts/setup.js`; `./bin/build.sh` → `bin/build.sh`; piped/dynamically-fetched URLs → flag immediately).
+        - Diff each referenced file across old → new versions:
+          ```
+          diff -u "$TMPDIR_OLD/<package>/<referenced-file>" "$TMPDIR/<package>/<referenced-file>"
+          ```
+        - Read the new version of each referenced file in full. Look for: network fetches, shell-outs to untrusted input, writes outside the package directory, credential/env-var exfiltration, conditional payloads (e.g. only runs on CI), or any obfuscation.
+        - If a referenced file is **new** in the upgrade, the entire file is the diff — read it end-to-end.
+        - If a referenced file is **missing** (script points at a path that doesn't exist in the tarball), flag as suspicious — it implies a runtime download.
+        - Any unexplained change in a preinstall-referenced file is a `FAIL` verdict, not a `PASS` with a warning.
+   b3. **Rust `build.rs` scrutiny — mandatory for any PR that touches a Rust crate (`Cargo.toml` / `Cargo.lock`):**
+      Rust's `build.rs` runs arbitrary code at compile time with full filesystem and network access — it is the direct analog of npm's `preinstall` hook and the same supply-chain attack surface. Treat it with the same care.
+      - Extract the raw `Cargo.toml` diff from the dependency source (old vs new tag) and from the PR itself (`gh pr diff <number> -- '**/Cargo.toml'`). Capture verbatim.
+      - Inspect both old and new `Cargo.toml` for a build-script declaration:
+        - The `build = "path/to/script.rs"` field in `[package]` (defaults to `build.rs` at crate root if absent and a `build.rs` exists)
+        - Any `[build-dependencies]` block — new entries here are highly suspicious in a "patch" bump
+        - Any `links = "..."` field (native library linkage often paired with `build.rs`)
+      - If a `build.rs` is present in **either** version of the crate (or any sub-crate in a workspace), the audit moves to **extra-careful mode**:
+        - Diff `build.rs` (and any custom-named build script per `build = ...`) across old → new versions:
+          ```
+          diff -u "$TMPDIR_OLD/<crate>/build.rs" "$TMPDIR/<crate>/build.rs"
+          ```
+        - Read the new version of `build.rs` in full. Look for: network fetches (`reqwest`, `curl`, `ureq`, raw `TcpStream`), shell-outs (`std::process::Command`, `Command::new("sh")`), writes outside `OUT_DIR`, environment-variable harvesting beyond the standard `CARGO_*` / `TARGET` / `OUT_DIR` set, conditional payloads (e.g. only runs on specific targets or CI envs), proc-macro registration that pulls code from network, or any obfuscation.
+        - Diff and read every helper module imported by `build.rs` (e.g. `mod build_helpers;` → `build_helpers.rs`, files under `build/`).
+        - If `build.rs` is **new** in the upgrade, the entire file is the diff — read it end-to-end.
+        - Inspect new `[build-dependencies]` crates with the same audit lens you apply to runtime dependencies — they execute at build time on the developer/CI host.
+        - Any unexplained change in `build.rs` or a build-script-referenced file is a `FAIL` verdict, not a `PASS` with a warning.
    c. **Prepare the diff summary for the PR comment** — produce a concise but complete summary of the diff to include in the PR assessment comment. The summary must contain:
       - A high-level description of what changed (new files, removed files, modified files)
       - The full list of changed files with a one-line description of each change
       - Any security-relevant findings (flagged items from step 9b) quoted verbatim from the diff
+      - **Always embed the raw `package.json` diff verbatim** in a collapsed `<details>` block titled `package.json diff (raw — for human review)` whenever the PR or the dependency upgrade modifies any `package.json`. This is non-negotiable: even if the overall source diff is summarized, `package.json` must appear in full so a human reviewer can scan the scripts/dependencies block directly. Use a fenced ```diff code block inside the `<details>`.
+      - **If a preinstall/install/postinstall/prepare script exists** (per step 9b2), additionally embed the full diff of each referenced file in its own collapsed `<details>` block titled `Preinstall script: <path> (raw — for human review)`, and call out the script in the top-line summary so the reviewer cannot miss it.
+      - **Always embed the raw `Cargo.toml` diff verbatim** in a collapsed `<details>` block titled `Cargo.toml diff (raw — for human review)` whenever the PR or the dependency upgrade modifies any `Cargo.toml`. Same rationale as `package.json` — `[build-dependencies]`, `build = ...`, and `links = ...` are the high-risk surfaces a human must see directly. Use a fenced ```toml code block inside the `<details>`.
+      - **If a `build.rs` (or custom-named build script) exists** (per step 9b3), additionally embed the full diff of `build.rs` and every helper module it imports in its own collapsed `<details>` block titled `build.rs: <path> (raw — for human review)`, and call out the build script in the top-line summary so the reviewer cannot miss it.
       - For small diffs (< 200 lines), include the **complete diff** in a collapsed `<details>` block
       - For large diffs (>= 200 lines), include the diff stat (`diffstat` or `diff --stat`) and the security-relevant hunks in a collapsed `<details>` block
    d. **Verdict** — record one of:
@@ -173,7 +213,7 @@ git rev-parse --is-bare-repository
 12. Update `worklist.json`: set the PR's status to `in_merge_queue`, `awaiting_review` (if breaking changes), or `skipped` (if audit failed). When skipping, always populate `skip_reason`
 13. **Log the result** in `$REPO_ROOT/.state/dependabot/progress.txt` — include the security audit verdict and any findings
 
-**1 PR = 1 task.** After completing steps 6–12 for one PR, **end the task**.
+**1 PR = 1 task — applies to Phase 3 only.** After completing steps 6–12 for one PR, **end the task**. This rule does **not** restrict Phase 2: the merge-conflict sweep and PR-feedback review in Phase 2 must process **every** open PR in the worklist before Phase 3 begins, even if that means resolving conflicts on many PRs in the same turn.
 
 **NEVER wait or poll for CI.** Check CI status once — if checks are still running, move on or end the task. Waiting longer than 1 minute for CI results means you must stop immediately.
 
