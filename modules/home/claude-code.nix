@@ -30,21 +30,8 @@ in {
       hooks = {
         PreToolUse = [
           {
-            matcher = "AskUserQuestion";
-            hooks = [
-              {
-                type = "command";
-                command = "/Users/martinjlowm/.claude/hooks/block-ask-user-question.py";
-              }
-            ];
-          }
-          {
             matcher = "Bash";
             hooks = [
-              {
-                type = "command";
-                command = "/Users/martinjlowm/.claude/hooks/block-dangerous-git.py";
-              }
               {
                 type = "command";
                 command = "jq -re '.tool_input.command' | grep -q 'python3' && { echo 'ERROR: Python is not allowed. Use Node.js instead.' >&2; exit 2; } || true";
