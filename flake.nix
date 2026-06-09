@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nextNixpkgsDevenv.url = "github:NixOS/nixpkgs/e99366c665bdd53b7b500ccdc5226675cfc51f45";
     nextNixpkgs.url = "github:NixOS/nixpkgs/d1c2cd5033acedf3f29affd8d44e288107e95238";
-    nextNixpkgsClaude.url = "github:NixOS/nixpkgs/e552f73adecc5e4f5314b525f287a1aac02b4f3e";
+    nextNixpkgsClaude.url = "github:samestep/nixpkgs/5900fe6cf8eca7dc124309029a50c7f80e90b6c9";
 
     nix-darwin.url = "github:martinjlowm/nix-darwin/nix-darwin-25.11";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
@@ -82,15 +82,16 @@
       scriptNames = ["dependabot" "fix" "git-bug-hotspots" "git-commit-velocity" "git-contributor-rankings" "git-firefighting" "git-most-changed" "git-recent-contributors" "github-issues" "github-project" "loop" "playwright-at" "pr-maintenance" "pr-review" "project" "rmtree" "tech-spec" "worktree"];
     in
       builtins.listToAttrs (map (system: {
-        name = system;
-        value = let
-          pkgs = lib.mkPkgs {inherit system;};
-          scripts = pkgs.callPackage ./scripts {};
-        in
-          nixpkgs.lib.getAttrs scriptNames scripts
-          // {
-            claude-code = pkgs.claude-code;
-          };
-      }) systems);
+          name = system;
+          value = let
+            pkgs = lib.mkPkgs {inherit system;};
+            scripts = pkgs.callPackage ./scripts {};
+          in
+            nixpkgs.lib.getAttrs scriptNames scripts
+            // {
+              claude-code = pkgs.claude-code;
+            };
+        })
+        systems);
   };
 }
