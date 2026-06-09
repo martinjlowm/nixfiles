@@ -1,12 +1,22 @@
 # Claude Code configuration
 {
   nextPkgsClaude,
+  pkgs,
   lib,
   ...
 }: let
   claudeDirectory = ../../config/claude;
   stripMdExt = name: lib.removeSuffix ".md" name;
 in {
+  # CLI on PATH for manual use (codegraph status/query/impact ...). The MCP
+  # server itself is injected via pkgs.codegraph-mcp-servers: the claude-code
+  # overlay wrapper and every mkClaudeFlavor pass it with --mcp-config.
+  # NOT declared via programs.claude-code.mcpServers: that option never
+  # writes config files — it wraps the binary with the variadic --mcp-config
+  # flag ahead of "$@", which swallows positional args (`claude "prompt"`
+  # and `claude mcp list` both break with "MCP config file not found").
+  home.packages = [pkgs.codegraph];
+
   programs.claude-code = {
     enable = true;
     package = nextPkgsClaude.claude-code;
@@ -27,6 +37,19 @@ in {
       (builtins.attrNames (builtins.readDir "${claudeDirectory}/skills")));
     settings = {
       model = "opus";
+      # Auto-allow list codegraph's installer would add. Redundant while the
+      # sandbox wrapper passes --dangerously-skip-permissions, but kept for
+      # parity in case that ever changes.
+      permissions.allow = [
+        "mcp__codegraph__codegraph_explore"
+        "mcp__codegraph__codegraph_search"
+        "mcp__codegraph__codegraph_node"
+        "mcp__codegraph__codegraph_callers"
+        "mcp__codegraph__codegraph_callees"
+        "mcp__codegraph__codegraph_impact"
+        "mcp__codegraph__codegraph_files"
+        "mcp__codegraph__codegraph_status"
+      ];
       hooks = {
         PreToolUse = [
           {

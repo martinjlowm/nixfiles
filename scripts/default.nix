@@ -57,7 +57,9 @@
     preExec ? "",
   }: let
     mcpConfig = pkgs.writeText "${name}-mcp.json" (builtins.toJSON {
-      mcpServers = mcpServers;
+      # codegraph is enabled in every flavor; explicitly defined servers
+      # win on a name clash.
+      mcpServers = pkgs.codegraph-mcp-servers // mcpServers;
     });
   in
     pkgs.writeShellApplication {
@@ -73,7 +75,9 @@
           echo "Session: $SESSION_ID"
         fi
         echo "🎯 ${name}: ${purpose}"
-        exec claude "''${SESSION_ARGS[@]}" --mcp-config ${mcpConfig} "$@"
+        # --mcp-config last: it is variadic and would swallow a positional
+        # prompt in "$@" as config file paths if it came first.
+        exec claude "''${SESSION_ARGS[@]}" "$@" --mcp-config ${mcpConfig}
       '';
     };
 
@@ -236,12 +240,14 @@ in {
   };
   tech-spec = let
     mcpConfig = pkgs.writeText "tech-spec-mcp.json" (builtins.toJSON {
-      mcpServers = {
-        notion = {
-          type = "http";
-          url = "https://mcp.notion.com/mcp";
+      mcpServers =
+        pkgs.codegraph-mcp-servers
+        // {
+          notion = {
+            type = "http";
+            url = "https://mcp.notion.com/mcp";
+          };
         };
-      };
     });
     templatePath = ../config/claude/templates/tech-spec.md;
   in

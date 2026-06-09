@@ -21,6 +21,42 @@
                     "REQUIRED COMPONENTS log log_setup thread program_options date_time filesystem chrono"
         '';
     });
+    # Semantic code intelligence MCP server for Claude Code. Built from
+    # source instead of the upstream `npx @colbymchenry/codegraph` installer;
+    # the MCP entry it would write is wired via codegraph-mcp-servers below,
+    # and the permissions live in modules/home/claude-code.nix. Pure JS/wasm
+    # deps — no native addons.
+    codegraph = final.buildNpmPackage rec {
+      pname = "codegraph";
+      version = "0.9.9";
+      src = final.fetchFromGitHub {
+        owner = "colbymchenry";
+        repo = "codegraph";
+        rev = "v${version}";
+        hash = "sha256-Oy0WpllYQDmKpVhf+xI3Y18s+0x2bzkN8DDgTOJf4B4=";
+      };
+      npmDepsHash = "sha256-PnD1POY39S/qaS4fOwJyYnRsCxbJ9pm49yVVAGlGt/E=";
+      # Upstream bundles Node 24; Node 25 is hard-blocked (V8 wasm JIT bug).
+      nodejs = final.nodejs_24;
+      meta = {
+        description = "Semantic code intelligence for coding agents";
+        homepage = "https://github.com/colbymchenry/codegraph";
+        license = final.lib.licenses.mit;
+        mainProgram = "codegraph";
+      };
+    };
+    # Canonical codegraph MCP entry, merged into every claude entry point:
+    # the base wrapper below and each mkClaudeFlavor in scripts/default.nix.
+    # Claude Code only reads server definitions from mutable state files
+    # (~/.claude.json, .mcp.json) — never settings.json — so the declarative
+    # channel is the --mcp-config flag.
+    codegraph-mcp-servers = {
+      codegraph = {
+        type = "stdio";
+        command = final.lib.getExe final.codegraph;
+        args = ["serve" "--mcp"];
+      };
+    };
     claude-code = let
       isDarwin = final.stdenv.isDarwin;
 
@@ -68,6 +104,10 @@
 
       # --- Shared ---
       ghEmptyConfig = final.runCommand "gh-empty-config" {} "mkdir -p $out";
+
+      codegraphMcpConfig = final.writeText "codegraph-mcp.json" (builtins.toJSON {
+        mcpServers = final.codegraph-mcp-servers;
+      });
 
       ghWrapped = final.writeShellScriptBin "gh" ''
         args=()
@@ -143,6 +183,17 @@
           esac
         done
 
+        # Enable codegraph for every session. Trailing placement is load-bearing:
+        # --mcp-config is variadic, so ahead of the user args it swallows
+        # positional prompts as config paths. Subcommands (claude mcp list,
+        # claude doctor, ...) reject the flag outright, so skip those.
+        mcp_args=(--mcp-config ${codegraphMcpConfig})
+        case "''${claude_args[0]:-}" in
+          agents|auth|auto-mode|config|doctor|install|mcp|migrate-installer|plugin|plugins|project|setup-token|ultrareview|update|upgrade)
+            mcp_args=()
+            ;;
+        esac
+
         ${if isDarwin then ''
         ro_dirs="/nix:/private/etc:$HOME/.nix-defexpr"
         '' else ''
@@ -165,7 +216,7 @@
           --enable agent-browser \
           --add-dirs="$rw_dirs" \
           --env-pass=${envPassMacOS} \
-          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}"
+          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}" "''${mcp_args[@]}"
         '' else ''
         sandbox_args=()
 
@@ -196,7 +247,7 @@
         sandbox_args+=(--unshare-all --share-net)
 
         exec ${final.bubblewrap}/bin/bwrap "''${sandbox_args[@]}" \
-          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}"
+          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}" "''${mcp_args[@]}"
         ''}
       '';
     in
