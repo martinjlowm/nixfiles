@@ -123,6 +123,29 @@ in {
       compctl -K _just_completion just
     '';
 
+    # Lazily build a codegraph index when cd-ing into a worktree of a repo
+    # that uses codegraph — one index per worktree, never a shared one at
+    # the root. Opt-in per repo: triggers only when a sibling master/main
+    # worktree (or the base checkout for nested layouts) is already
+    # initialized; bootstrap a repo once with `codegraph init` in master.
+    # scripts/worktree.sh runs the same init at worktree creation; this
+    # hook covers pre-existing worktrees that never got an index.
+    initContent = ''
+      _codegraph_auto_init() {
+        setopt LOCAL_OPTIONS NO_BG_NICE
+        command -v codegraph >/dev/null 2>&1 || return 0
+        local toplevel base
+        toplevel=$(git rev-parse --path-format=absolute --show-toplevel 2>/dev/null) || return 0
+        [[ -n $toplevel && ! -d $toplevel/.codegraph ]] || return 0
+        base=''${toplevel:h}
+        [[ -d $base/master/.codegraph || -d $base/main/.codegraph || -d $base/.codegraph ]] || return 0
+        echo "[codegraph] indexing ''${toplevel:t} in background (log: /tmp/codegraph-init-''${toplevel:t}.log)"
+        (codegraph init "$toplevel" && codegraph index "$toplevel") >"/tmp/codegraph-init-''${toplevel:t}.log" 2>&1 &!
+      }
+      autoload -U add-zsh-hook
+      add-zsh-hook chpwd _codegraph_auto_init
+    '';
+
     oh-my-zsh = {
       enable = true;
       plugins =

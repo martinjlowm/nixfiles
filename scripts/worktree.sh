@@ -66,8 +66,9 @@ function _worktree {
   treename=''${branchname//\//_}
 
   # Get the base directory for worktrees (parent of git common dir)
-  # This works for both regular repos and bare repos
-  GIT_COMMON_DIR="$(git rev-parse --git-common-dir)"
+  # This works for both regular repos and bare repos. Absolute so it stays
+  # valid after we cd into the new worktree.
+  GIT_COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir)"
   WORKTREE_BASE="$(dirname "$GIT_COMMON_DIR")"
   WORKTREE_PATH="$WORKTREE_BASE/$treename"
 
@@ -178,6 +179,28 @@ function _worktree {
     # Fallback: package.json exists but no lockfile, try yarn
     echo "Running yarn install in background..."
     (yarn install || warn "yarn install failed") &
+    PIDS+=($!)
+  fi
+
+  # Build a codegraph index for this worktree in the background — one index
+  # per worktree, never a shared one at the root (codegraph warns against
+  # cross-worktree index borrowing). Opt-in per repo: only runs when the
+  # master/main worktree (or the base checkout) is already initialized.
+  CODEGRAPH_REF=""
+  if [ -n "$MASTER_WORKTREE" ] && [ -d "$MASTER_WORKTREE/.codegraph" ]; then
+    CODEGRAPH_REF="$MASTER_WORKTREE/.codegraph"
+  elif [ -d "$WORKTREE_BASE/.codegraph" ]; then
+    CODEGRAPH_REF="$WORKTREE_BASE/.codegraph"
+  fi
+  if command -v codegraph > /dev/null 2>&1 && [ -n "$CODEGRAPH_REF" ] && [ ! -d ".codegraph" ]; then
+    # Durable fix: keep index dirs and nested agent worktrees out of git
+    # status and out of each other's indexes, across all worktrees at once.
+    mkdir -p "$GIT_COMMON_DIR/info"
+    grep -qx '.codegraph/' "$GIT_COMMON_DIR/info/exclude" 2>/dev/null || echo '.codegraph/' >> "$GIT_COMMON_DIR/info/exclude"
+    grep -qx '.claude/worktrees/' "$GIT_COMMON_DIR/info/exclude" 2>/dev/null || echo '.claude/worktrees/' >> "$GIT_COMMON_DIR/info/exclude"
+
+    echo "Running codegraph init+index in background..."
+    { { codegraph init . && codegraph index .; } > /dev/null 2>&1 || warn "codegraph init failed"; } &
     PIDS+=($!)
   fi
 

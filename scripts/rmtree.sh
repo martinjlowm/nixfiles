@@ -78,6 +78,18 @@ function rmtree {
 
     warn "Removing worktree: $treename (branch: $branch_name)"
 
+    # Stop a lingering codegraph daemon first: it would keep serving the
+    # deleted index from memory, and a later re-init in a same-named tree
+    # would silently query stale data until the daemon dies.
+    pidfile="$WORKTREE_PATH/.codegraph/daemon.pid"
+    if [ -f "$pidfile" ]; then
+      daemon_pid=$(jq -r '.pid // empty' "$pidfile" 2>/dev/null)
+      if [ -n "$daemon_pid" ] && kill -0 "$daemon_pid" 2>/dev/null; then
+        warn "Stopping codegraph daemon (pid $daemon_pid)"
+        kill "$daemon_pid" 2>/dev/null || true
+      fi
+    fi
+
     # Remove the worktree (this also removes the directory)
     if ! git worktree remove "$WORKTREE_PATH"; then
       err "Failed to remove worktree, trying force removal..."

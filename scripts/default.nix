@@ -105,6 +105,7 @@ in {
   worktree = pkgs.writeShellApplication {
     name = "worktree";
     runtimeInputs = [
+      pkgs.codegraph
       pkgs.coreutils
       pkgs.direnv
       pkgs.git
@@ -117,6 +118,7 @@ in {
     name = "rmtree";
     runtimeInputs = [
       pkgs.git
+      pkgs.jq
     ];
     checkPhase = "";
     text = builtins.readFile ./rmtree.sh;
