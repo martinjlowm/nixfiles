@@ -171,6 +171,7 @@ in {
       ssm-session-manager-plugin
       attic-client
       podman
+      podman-compose
       inkscape
 
       # Browsers & Apps
