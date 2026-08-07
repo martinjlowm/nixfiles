@@ -105,11 +105,15 @@ in {
   worktree = pkgs.writeShellApplication {
     name = "worktree";
     runtimeInputs = [
+      # awscli2 + zstd: a fresh nest worktree pulls the published codegraph
+      # index from s3://mj-codegraph-index instead of indexing locally.
+      pkgs.awscli2
       pkgs.codegraph
       pkgs.coreutils
       pkgs.direnv
       pkgs.git
       pkgs.gnugrep
+      pkgs.zstd
     ];
     checkPhase = "";
     text = builtins.readFile ./worktree.sh;

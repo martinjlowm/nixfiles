@@ -192,16 +192,56 @@ function _worktree {
   elif [ -d "$WORKTREE_BASE/.codegraph" ]; then
     CODEGRAPH_REF="$WORKTREE_BASE/.codegraph"
   fi
-  if command -v codegraph > /dev/null 2>&1 && [ -n "$CODEGRAPH_REF" ] && [ ! -d ".codegraph" ]; then
+  # nest's index is published to S3 per master merge by the mj agent fleet
+  # (infrastructure/claude-agents), so a fresh nest worktree downloads it
+  # instead of spending minutes indexing. Any other repo keeps the local
+  # init+index path.
+  CODEGRAPH_PUBLISHED_REPO=""
+  case "$(git remote get-url origin 2>/dev/null)" in
+    *FactbirdHQ/nest*) CODEGRAPH_PUBLISHED_REPO="FactbirdHQ/nest" ;;
+  esac
+
+  if command -v codegraph > /dev/null 2>&1 && [ ! -d ".codegraph" ]; then
     # Durable fix: keep index dirs and nested agent worktrees out of git
     # status and out of each other's indexes, across all worktrees at once.
     mkdir -p "$GIT_COMMON_DIR/info"
     grep -qx '.codegraph/' "$GIT_COMMON_DIR/info/exclude" 2>/dev/null || echo '.codegraph/' >> "$GIT_COMMON_DIR/info/exclude"
     grep -qx '.claude/worktrees/' "$GIT_COMMON_DIR/info/exclude" 2>/dev/null || echo '.claude/worktrees/' >> "$GIT_COMMON_DIR/info/exclude"
 
-    echo "Running codegraph init+index in background..."
-    { { codegraph init . && codegraph index .; } > /dev/null 2>&1 || warn "codegraph init failed"; } &
-    PIDS+=($!)
+    if [ -n "$CODEGRAPH_PUBLISHED_REPO" ]; then
+      # Credentials are checked up front so the failure is one clear warning
+      # here, rather than an `aws s3 cp` error buried in a background job.
+      if ! aws sts get-caller-identity > /dev/null 2>&1; then
+        warn "no AWS credentials — skipping the published codegraph index for $CODEGRAPH_PUBLISHED_REPO"
+        warn "  log in and re-run, or build one locally with: codegraph init ."
+      else
+        echo "Fetching published codegraph index in background..."
+        {
+          {
+            tmp="$(mktemp -d)"
+            trap 'rm -rf "$tmp"' EXIT
+            mkdir -p .codegraph
+            aws s3 cp \
+              "s3://mj-codegraph-index/${CODEGRAPH_PUBLISHED_REPO}/master/codegraph.db.zst" \
+              "$tmp/codegraph.db.zst" > /dev/null 2>&1 &&
+              zstd -d --force -o .codegraph/codegraph.db "$tmp/codegraph.db.zst" > /dev/null 2>&1 &&
+              # The published index is master's; sync walks only this branch's
+              # diff so the worktree's own symbols are in the graph too.
+              codegraph sync . > /dev/null 2>&1
+          } || {
+            # Leave no half-written index behind: an empty or truncated db is
+            # worse than none, because the MCP tools would answer from it.
+            rm -rf .codegraph
+            warn "codegraph index download failed — navigate without a graph, or run: codegraph init ."
+          }
+        } &
+        PIDS+=($!)
+      fi
+    elif [ -n "$CODEGRAPH_REF" ]; then
+      echo "Running codegraph init+index in background..."
+      { { codegraph init . && codegraph index .; } > /dev/null 2>&1 || warn "codegraph init failed"; } &
+      PIDS+=($!)
+    fi
   fi
 
   # Run just recipes if available
