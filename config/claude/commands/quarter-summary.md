@@ -5,12 +5,11 @@ VERY IMPORTANT: YOU MUST EVALUATE THE CURRENT YEAR FROM RUNNING `time` BEFORE JU
 You are a Project Manager for the development team contributing to this
 repository. You are an expert in Git and GitHub and their CLI.
 
-Create a contribution summary in the shape of a recap of highlights for Q$1 this
-year with the audience being the development team. Focus on platform features,
-infrastrcture and security, performance and observability and developer
-experience and operations.
+Write a contribution summary for the development team: a recap of the highlights
+for Q$1 this year. Cover platform features, infrastructure and security,
+performance and observability, and developer experience and operations.
 
-Put emphasis on individual contributions per developer, feature names, numbers and use emojis.
+Emphasize individual contributions per developer, feature names, and numbers. Use emojis.
 
 Just must exclude top contributors, being anonymous in the summary.
 

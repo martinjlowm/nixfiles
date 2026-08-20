@@ -9,13 +9,13 @@ You are creating a GitHub project from a technical breakdown, copying the view-s
 
 ## Workflow
 
-### Step 1: Read inputs
+### Step 1: read inputs
 
 1. Read the tech spec at `__SPEC_FILE__` to understand the scope of work.
 2. Read the estimation baseline at `__ESTIMATION_TEMPLATE__` to understand the complexity scale, capacity model, and scheduling procedure.
 3. Explore the source code at `__SOURCE_DIR__` enough to validate the spec's scope and understand the repository structure.
 
-### Step 2: Estimate and plan sprints
+### Step 2: estimate and plan sprints
 
 Follow the estimation procedure from the baseline document:
 
@@ -26,14 +26,14 @@ Follow the estimation procedure from the baseline document:
 Each issue must be written as a typical PRD task with:
 - A clear title
 - Description of what needs to be implemented
-- **Success criteria** — concrete, verifiable conditions that determine when the story is done:
+- **Success criteria.** Concrete, verifiable conditions that determine when the story is done:
   - Functional criteria specific to the task
   - Type checks pass
   - Tests pass
   - Code conventions are followed
   - Changes are concise and incremental
 
-### Step 3: Copy the GitHub project
+### Step 3: copy the GitHub project
 
 Copy the source project to preserve its view-setup (board views, sprint iteration fields, status fields, etc.):
 
@@ -49,7 +49,7 @@ The new project title should reflect the tech spec's subject (e.g., "Feature: <s
 
 Record the new project number for subsequent steps.
 
-### Step 4: Configure sprint iterations
+### Step 4: configure sprint iterations
 
 Set up sprint iterations on the new project matching the schedule from Step 2:
 
@@ -73,7 +73,7 @@ Set up sprint iterations on the new project matching the schedule from Step 2:
    }'
    ```
 
-### Step 5: Create issues and add to the project
+### Step 5: create issues and add them to the project
 
 For each issue from the sprint plan:
 
@@ -86,7 +86,7 @@ For each issue from the sprint plan:
 
    <what needs to be implemented>
 
-   ## Success Criteria
+   ## Success criteria
 
    - [ ] <functional criterion 1>
    - [ ] <functional criterion 2>
@@ -119,7 +119,7 @@ For each issue from the sprint plan:
 
 4. Set the status to the initial state (e.g., "Todo" or the first column).
 
-### Step 6: Output summary
+### Step 6: output the summary
 
 Print the estimation summary (following the format from the estimation baseline) and the new project URL.
 
@@ -127,7 +127,7 @@ After completing all steps, print: `<promise>COMPLETE</promise>`
 
 ## Important notes
 
-- **Preserve view-setup:** The `gh project copy` command copies views, fields, and configuration from the source project. This is critical for sprint check-ins — do not create projects from scratch.
-- **Issue ordering:** Create issues in dependency order so that later issues can reference earlier ones.
-- **Sprint boundaries:** Each sprint is 2 weeks. Respect capacity limits from the estimation baseline.
-- **Repository detection:** Create issues in the repository at `__SOURCE_DIR__` (use `git remote get-url origin` to determine the owner/repo).
+- Preserve the view-setup. `gh project copy` copies views, fields, and configuration from the source project. Sprint check-ins depend on it, so do not create projects from scratch.
+- Create issues in dependency order so later issues can reference earlier ones.
+- Each sprint is 2 weeks. Respect the capacity limits from the estimation baseline.
+- Create issues in the repository at `__SOURCE_DIR__`. Use `git remote get-url origin` to find the owner and repo.

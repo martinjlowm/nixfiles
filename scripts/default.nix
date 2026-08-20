@@ -100,20 +100,35 @@
       mv $out/bin/server $out/bin/signoz-mcp-server
     '';
   };
+  # Fetches the codegraph index the mj fleet publishes per master merge, rather
+  # than indexing locally. Defined here in the `let` so worktree can put it on
+  # its own PATH.
+  codegraph-pull = pkgs.writeShellApplication {
+    name = "codegraph-pull";
+    runtimeInputs = [
+      pkgs.awscli2
+      pkgs.codegraph
+      pkgs.coreutils
+      pkgs.git
+      pkgs.jq
+      pkgs.zstd
+    ];
+    checkPhase = "";
+    text = builtins.readFile ./codegraph-pull.sh;
+  };
 in {
-  inherit claude-follow;
+  inherit claude-follow codegraph-pull;
   worktree = pkgs.writeShellApplication {
     name = "worktree";
     runtimeInputs = [
-      # awscli2 + zstd: a fresh nest worktree pulls the published codegraph
-      # index from s3://mj-codegraph-index instead of indexing locally.
-      pkgs.awscli2
+      # A fresh nest worktree pulls the published codegraph index instead of
+      # indexing locally; codegraph itself stays for the local fallback path.
+      codegraph-pull
       pkgs.codegraph
       pkgs.coreutils
       pkgs.direnv
       pkgs.git
       pkgs.gnugrep
-      pkgs.zstd
     ];
     checkPhase = "";
     text = builtins.readFile ./worktree.sh;
@@ -128,6 +143,7 @@ in {
     text = builtins.readFile ./rmtree.sh;
   };
   loop = mkWeztermScript "loop";
+  loop2 = mkWeztermScript "loop2";
   dependabot = mkWeztermScript "dependabot";
   project = mkWeztermScript "project";
   pr-maintenance = mkWeztermScript "pr-maintenance";
@@ -183,7 +199,7 @@ in {
   };
   claude-pm = mkClaudeFlavor {
     name = "claude-pm";
-    purpose = "Project Management — Notion and Figma integrations for planning and design workflows";
+    purpose = "Project Management — Notion, Figma and Drata integrations for planning, design and compliance workflows";
     mcpServers = {
       notion = {
         type = "http";
@@ -192,6 +208,10 @@ in {
       figma = {
         type = "http";
         url = "https://mcp.figma.com/mcp";
+      };
+      drata = {
+        type = "http";
+        url = "https://mcp-euc1.drata.com/mcp/";
       };
     };
   };

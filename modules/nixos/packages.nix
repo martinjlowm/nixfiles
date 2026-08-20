@@ -28,7 +28,7 @@
     # Development - Other
     ast-grep
     git-lfs
-    nextPkgs.devenv
+    devenv
     nextPkgsClaude.claude-code
 
     # Media

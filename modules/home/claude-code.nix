@@ -23,9 +23,9 @@ in {
   programs.claude-code = {
     enable = true;
     package = nextPkgsClaude.claude-code;
-    # Global memory; carries the RTK awareness block `rtk init -g` would
-    # embed into ~/.claude/CLAUDE.md.
-    memory.source = claudeDirectory + "/CLAUDE.md";
+    # Global context; carries the RTK awareness block `rtk init -g` would
+    # embed into ~/.claude/CLAUDE.md. (Renamed from memory.source in HM 26.05.)
+    context = claudeDirectory + "/CLAUDE.md";
     agents = builtins.listToAttrs (builtins.map (name: {
         name = stripMdExt name;
         value = claudeDirectory + "/agents/${name}";

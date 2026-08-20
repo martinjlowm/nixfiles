@@ -1,5 +1,11 @@
 # Agent instructions
 
+> Note on priority handoffs. If this prompt begins with a **PRIORITY HANDOFF
+> INSTRUCTIONS** block, those instructions were handed off by the previous
+> process and **take precedence over everything in this workflow**. Follow them
+> first. Use the workflow below only for details the handoff leaves unspecified,
+> and only where it does not conflict with the handoff.
+
 ## Workflow
 
 1. Read `./.state/__SPEC__/prd.json` (from `./specs/__SPEC__.md`) and `./.state/__SPEC__/progress.txt` (check Codebase Patterns first)
@@ -254,6 +260,76 @@ Append to progress.txt:
 Story pass/fail state lives only in the `passes` field in `prd.json`.
 Add reusable **Codebase Patterns** to the TOP of progress.txt.
 
+## Next condition (handoff)
+
+loop2 lets the **conclusion of an iteration hand off a fresh set of prompt
+instructions** to whatever process picks up next. Use it when the work you just
+did has reshaped what should happen next so much that the standard workflow above
+is no longer the right starting point.
+
+### When the next condition is true
+
+Evaluate the next condition at the **very end** of the iteration, after all other
+work is done. It is true when **all** of the following hold:
+
+1. You have finished, or deliberately stopped, the current iteration's work.
+2. The next process should **not** simply re-run the standard workflow. It needs a
+   different, more specific objective that you can state concretely now: a focused
+   follow-up, a one-off migration, a cleanup pass, a hand-off to a different spec,
+   or a narrowed scope that supersedes normal story selection.
+3. You can express that objective as **self-contained instructions**, covering
+   everything the next process needs, without relying on this iteration's memory.
+
+If the next condition is **false**, do nothing special. End the task normally and
+the next iteration runs the standard workflow.
+
+### How to hand off
+
+When the next condition is true, emit a single `<next>...</next>` block as part of
+your conclusion. Everything between the tags is captured verbatim, persisted, and
+injected at the **top** of the next iteration's prompt as **PRIORITY HANDOFF
+INSTRUCTIONS that take precedence over this entire workflow**.
+
+```
+<next>
+# Objective for the next process
+<one paragraph stating the goal that overrides the standard workflow>
+
+## Do this
+1. <concrete, ordered steps the next process must follow>
+2. ...
+
+## Constraints and context
+- <anything the next process needs: branch names, file paths, IDs, prior decisions>
+
+## When to stop or hand back
+- <what "done" looks like, or the condition under which the next process should
+  fall back to the standard workflow or emit its own <next> block>
+</next>
+```
+
+Rules for the handoff block:
+
+- Be precedence-aware. The next process is told these instructions OVERRIDE the
+  standard workflow. Only point it back to the standard workflow for details you
+  deliberately leave unspecified, and say so explicitly.
+- Be self-contained. Include concrete names, paths, IDs, and decisions. The next
+  process does not share your conversation memory.
+- One baton at a time. Emit at most one `<next>` block per iteration. Exactly the
+  next iteration consumes it. If that iteration needs to keep handing off, it must
+  emit its own `<next>` block.
+- Do **not** wrap the standard workflow itself in `<next>`. Only the new,
+  overriding instructions.
+- A `<next>` handoff and `<promise>COMPLETE</promise>` are mutually exclusive. If all
+  work is genuinely done, complete. If there is a redirected next step, hand off.
+
 ## Stop condition
 
 If ALL stories pass: <promise>COMPLETE</promise>
+
+Otherwise, if the **next condition** is true, emit a `<next>...</next>` block (see
+"Next condition (handoff)" above) and end the task. The next iteration picks up
+those instructions with precedence over this workflow.
+
+Otherwise, end the task normally without any promise. The next iteration runs the
+standard workflow.

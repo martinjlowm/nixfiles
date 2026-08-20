@@ -2,15 +2,15 @@
   description = "NixOS and nix-darwin configurations";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nextNixpkgsDevenv.url = "github:NixOS/nixpkgs/e99366c665bdd53b7b500ccdc5226675cfc51f45";
     nextNixpkgs.url = "github:NixOS/nixpkgs/d1c2cd5033acedf3f29affd8d44e288107e95238";
-    nextNixpkgsClaude.url = "github:samestep/nixpkgs/5900fe6cf8eca7dc124309029a50c7f80e90b6c9";
+    nextNixpkgsClaude.url = "github:NixOS/nixpkgs/104240a772428cc2e20d8fd86c9ddbb886bbaff2";
 
-    nix-darwin.url = "github:martinjlowm/nix-darwin/nix-darwin-25.11";
+    nix-darwin.url = "github:nix-darwin/nix-darwin/nix-darwin-26.05";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
 
-    home-manager.url = "github:nix-community/home-manager/release-25.11";
+    home-manager.url = "github:nix-community/home-manager/release-26.05";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
     onepassword-secrets.url = "github:brizzbuzz/opnix";
@@ -90,7 +90,26 @@
             nixpkgs.lib.getAttrs scriptNames scripts
             // {
               claude-code = pkgs.claude-code;
+              gh-image = pkgs.gh-image;
+              gh-with-image = pkgs.gh-with-image;
             };
+        })
+        systems);
+
+    # `nix develop <nixfiles>#gh-image`: gh with the gh-image extension embedded.
+    devShells = let
+      systems = ["aarch64-darwin" "x86_64-linux" "x86_64-darwin" "aarch64-linux"];
+    in
+      builtins.listToAttrs (map (system: {
+          name = system;
+          value = let
+            pkgs = lib.mkPkgs {inherit system;};
+          in rec {
+            gh-image = pkgs.mkShell {
+              packages = [pkgs.gh-with-image];
+            };
+            default = gh-image;
+          };
         })
         systems);
   };

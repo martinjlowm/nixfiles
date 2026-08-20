@@ -2,7 +2,7 @@
 
 My Nix battle station configuration.
 
-## Getting Started (macOS)
+## Getting started (macOS)
 
 > [!NOTE]
 > ```bash

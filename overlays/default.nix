@@ -92,6 +92,44 @@
         mainProgram = "rtk";
       };
     };
+    # gh extension for uploading attachments to GitHub; used by the
+    # gh-image-upload and visual-comparison Claude skills.
+    gh-image = final.buildGoModule rec {
+      pname = "gh-image";
+      version = "1.2.0";
+      src = final.fetchFromGitHub {
+        owner = "drogers0";
+        repo = "gh-image";
+        rev = "v${version}";
+        hash = "sha256-It7DivJXX0PrCRTuZr/tFq89OjheMUiyYCMs69y2qsI=";
+      };
+      vendorHash = "sha256-TzVyLcfpa3eN9bHQJnuPuGeiOgxYbBurFdKq0EfpJL4=";
+      ldflags = ["-s" "-w" "-X main.version=v${version}"];
+      meta = {
+        description = "gh CLI extension that uploads attachments to GitHub from the command line";
+        homepage = "https://github.com/drogers0/gh-image";
+        license = final.lib.licenses.mit;
+        mainProgram = "gh-image";
+      };
+    };
+    # gh with gh-image baked in. There is no GH_DATA_DIR, so XDG_DATA_HOME is
+    # pinned to a store path holding just the extension (auth is unaffected;
+    # imperatively-installed extensions are hidden).
+    gh-with-image = let
+      extensionsDir = final.runCommand "gh-image-extensions" {} ''
+        mkdir -p $out/gh/extensions/gh-image
+        ln -s ${final.lib.getExe final.gh-image} $out/gh/extensions/gh-image/gh-image
+      '';
+    in
+      final.symlinkJoin {
+        name = "gh-with-image";
+        paths = [final.gh];
+        nativeBuildInputs = [final.makeWrapper];
+        postBuild = ''
+          wrapProgram $out/bin/gh --set XDG_DATA_HOME ${extensionsDir}
+        '';
+        inherit (final.gh) meta;
+      };
     # Canonical codegraph MCP entry, merged into every claude entry point:
     # the base wrapper below and each mkClaudeFlavor in scripts/default.nix.
     # Claude Code only reads server definitions from mutable state files
@@ -136,6 +174,7 @@
       '';
 
       opnix = final.opnix;
+      coreutils = final.coreutils;
       opnixEnvConfig = final.writeText "claude-opnix-env.json" (builtins.toJSON {
         vars = [
           {
@@ -156,6 +195,8 @@
         mcpServers = final.codegraph-mcp-servers;
       });
 
+      # gh-with-image so `gh image` works in-sandbox; browser cookies are
+      # unreachable here, so auth comes from GH_SESSION_TOKEN (see envVars).
       ghWrapped = final.writeShellScriptBin "gh" ''
         args=()
         for arg in "$@"; do
@@ -164,12 +205,12 @@
             *) args+=("$arg") ;;
           esac
         done
-        exec ${final.gh}/bin/gh "''${args[@]}"
+        exec ${final.gh-with-image}/bin/gh "''${args[@]}"
       '';
 
       envVars = [
         "PATH" "HOME" "USER" "TERM"
-        "GH_TOKEN" "GH_CONFIG_DIR"
+        "GH_TOKEN" "GH_CONFIG_DIR" "GH_SESSION_TOKEN"
         "ZENDESK_SUBDOMAIN" "ZENDESK_EMAIL"
         "AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY" "AWS_SESSION_TOKEN"
         "AWS_REGION" "AWS_DEFAULT_REGION"
@@ -192,7 +233,51 @@
 
       wrapper = final.writeShellScript "claude" ''
         ${if isDarwin then ''
-        eval "$(${opnix}/bin/opnix env -config ${opnixEnvConfig} -token-file "''${OPNIX_ENV_TOKEN_FILE:-$HOME/.config/opnix/token}")"
+        # Resolving the service-account reference costs ~2.4s -- almost all of
+        # it local key derivation, not network -- and it dominated startup.
+        # Cache the resolved exports and serve them stale-while-revalidate, so
+        # only the very first launch pays. The cache lives under ~/.config,
+        # which the sandbox denies by default (unlike ~/.cache or ~/.claude),
+        # and is written 0600 via mktemp inside a 0700 directory.
+        opnix_cache="$HOME/.config/opnix/cache/claude-env"
+        opnix_ttl="''${CLAUDE_OPNIX_TTL:-43200}"
+
+        opnix_fetch() {
+          local dir tmp
+          dir="''${opnix_cache%/*}"
+          mkdir -p "$dir" || return 1
+          chmod 700 "$dir" || return 1
+          tmp="$(${coreutils}/bin/mktemp "$opnix_cache.XXXXXX")" || return 1
+          if ${opnix}/bin/opnix env -config ${opnixEnvConfig} \
+               -token-file "''${OPNIX_ENV_TOKEN_FILE:-$HOME/.config/opnix/token}" \
+               >"$tmp" 2>/dev/null && grep -q '^export ' "$tmp"; then
+            mv -f "$tmp" "$opnix_cache"
+          else
+            rm -f "$tmp"
+            return 1
+          fi
+        }
+
+        opnix_age=-1
+        if [[ -f $opnix_cache ]]; then
+          # Pinned coreutils: whichever stat PATH resolves to differs on the
+          # mtime flag (-c %Y vs -f %m), so don't leave it to PATH order.
+          opnix_age=$(( $(${coreutils}/bin/date +%s) - $(${coreutils}/bin/stat -c %Y "$opnix_cache") ))
+        fi
+
+        # Cold cache, or an explicit refresh after rotating the token: block.
+        if (( opnix_age < 0 )) || [[ -n "''${CLAUDE_OPNIX_REFRESH:-}" ]]; then
+          opnix_fetch || true
+          opnix_age=0
+        fi
+
+        if [[ -f $opnix_cache ]]; then
+          eval "$(<"$opnix_cache")"
+          # Past its TTL: use the cached token now, refresh for the next launch.
+          if (( opnix_age >= opnix_ttl )); then
+            ( opnix_fetch >/dev/null 2>&1 & )
+          fi
+        fi
         '' else ""}
         export GH_CONFIG_DIR="${ghEmptyConfig}"
         export PATH="${ghWrapped}/bin:$PATH"
@@ -307,15 +392,5 @@
           ln -s ${wrapper} $out/bin/claude
         '';
       };
-    whatsapp-for-mac = prev.whatsapp-for-mac.overrideAttrs (old: {
-      version = "2.26.9.17";
-
-      src = prev.fetchzip {
-        extension = "zip";
-        name = "WhatsApp.app";
-        url = "https://web.whatsapp.com/desktop/mac_native/release/?version=2.26.9.17&extension=zip&configuration=Release&branch=master";
-        hash = "sha256-bba22HBnIeio4M92mckiOa1IQpRUfx/I7OkfA4hO6rU=";
-      };
-    });
   };
 }

@@ -26,13 +26,11 @@ if [[ -z "$prs" ]]; then
   exit 0
 fi
 
-selected=$(echo "$prs" \
+echo "$prs" \
   | fzf \
       --delimiter=$'\t' \
       --with-nth=1,2 \
       --preview='gh pr view {1} --comments' \
       --preview-window=right:50%:wrap \
-      --header="Select a PR to open in browser")
-
-url=$(echo "$selected" | cut -f3)
-open "$url"
+      --header="Enter: open PR in browser (list stays open). Esc: quit" \
+      --bind='enter:execute-silent(open {3})'

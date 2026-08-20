@@ -12,7 +12,7 @@
   }:
     pkgs.writers.writeBashBin name ''
       export NODE_OPTIONS="";
-      ${pkgs.nodePackages_latest.yarn}/bin/yarn node ${bin} "$@"
+      ${pkgs.yarn}/bin/yarn node ${bin} "$@"
     '';
 
   typescript-language-server = pnpWrap {
@@ -150,7 +150,7 @@ in {
       # Development - Other
       ast-grep
       git-lfs
-      nextPkgsDevenv.devenv
+      devenv
 
       # Image processing
       imagemagick

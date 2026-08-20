@@ -1,5 +1,12 @@
 # Linux builder VM for cross-compilation on macOS
-_: {
+{lib, ...}: {
+  # nix-darwin's linux-builder module asserts `nix.enable` (modules/nix/
+  # linux-builder.nix:169-173). We run Determinate Nix outside nix-darwin, so
+  # nix.enable = false — but the launchd builder daemon works fine regardless.
+  # The assertion is stale for this setup; the module system offers no way to
+  # drop a single assertion (any filter recurses via defsFinal), so clear them.
+  assertions = lib.mkForce [];
+
   nix.linux-builder = {
     enable = true;
     ephemeral = true;

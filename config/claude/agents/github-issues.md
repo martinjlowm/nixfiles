@@ -1,4 +1,4 @@
-# Agent Instructions
+# Agent instructions
 
 ## Workflow
 
@@ -7,82 +7,82 @@
    ```
    gh issue list --repo __REPO_OWNER__/__REPO_NAME__ --search "__SEARCH_QUERY__" --json number,title,assignees,labels,state,url --limit 100
    ```
-3. Get current user:
+3. Get the current user:
    ```
    gh api user --jq '.login'
    ```
 4. Filter to issues that are:
    - Still open
-   - Not already handled (check progress.txt)
-5. **Review PR feedback for all issues** (even ones previously completed):
+   - Not already handled, per progress.txt
+5. Review PR feedback for all issues, even ones previously completed:
    - For each issue that already has a PR: `gh pr list --repo __REPO_OWNER__/__REPO_NAME__ --search "head:issues/" --state open --json number,title,headRefName,statusCheckRollup,mergeable`
    - Fetch comments via `gh pr view <pr> --repo __REPO_OWNER__/__REPO_NAME__ --comments` and `gh api repos/__REPO_OWNER__/__REPO_NAME__/pulls/{number}/comments`
-   - Address **every** unresolved comment; merge `origin/master` if needed; skip if PR closed
-   - Fix failing CI checks (see **Troubleshooting Cancelled Workflows**; warnings aren't failures)
-   - **Check CI for all PRs** — if any required check has failed or been cancelled, investigate and fix
-   - **Check for merge conflicts on every PR** (even passing ones): `gh pr view <pr> --repo __REPO_OWNER__/__REPO_NAME__ --json mergeable` — if `CONFLICTING`, resolve the conflicts by merging `origin/master`
+   - Address **every** unresolved comment. Merge `origin/master` if needed. Skip if the PR is closed
+   - Fix failing CI checks (see "Cancelled workflows"; warnings aren't failures)
+   - Check CI for all PRs. If any required check has failed or been cancelled, investigate and fix
+   - Check for merge conflicts on every PR, even passing ones: `gh pr view <pr> --repo __REPO_OWNER__/__REPO_NAME__ --json mergeable`. If `CONFLICTING`, resolve the conflicts by merging `origin/master`
    - If CI is still `PENDING`, skip and move on
-6. Pick the next eligible issue (oldest first). Read full details:
+6. Pick the next eligible issue, oldest first. Read full details:
    ```
    gh issue view <number> --repo __REPO_OWNER__/__REPO_NAME__
    ```
-7. **Assign yourself** to the issue to signal it has been picked up:
+7. Assign yourself to the issue to signal it has been picked up:
    ```
    gh issue edit <number> --repo __REPO_OWNER__/__REPO_NAME__ --add-assignee @me
    ```
-8. Set up working branch: `issues/<issue-number>-<slug>`.
-   - **Bare repo** (`git rev-parse --is-bare-repository` → `true`): Run: `worktree <name>` — this is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool
-   - **Regular repo:** `git checkout -b <name> origin/master`
-9. Enter Nix dev shell before any work (generates pre-commit hooks)
-10. Implement the issue. Verify **every** acceptance criterion mentioned in the issue body before moving on. Run typecheck and tests for affected projects
-11. Commit: `[feat|fix|chore](<Component>): #<issue-number> - <Title>`
-    - Body must include: `Closes __REPO_OWNER__/__REPO_NAME__#<issue-number>`
-    - Component: specific project or `*` for many
-12. Push (NEVER force push — merge upstream first). Create PR **always as draft** (`gh pr create --draft`) respecting **PR Limit**. **Never change a PR's draft/ready status** — keep PRs in whatever state they are (if draft, leave as draft; if ready, leave as ready). Re-evaluate PR title and description to reflect what was actually implemented
+8. Set up working branch `issues/<issue-number>-<slug>`.
+   - Bare repo (`git rev-parse --is-bare-repository` returns `true`): run `worktree <name>`. This is the `worktree` command in PATH, NOT `git worktree` and NOT the `EnterWorktree` tool
+   - Regular repo: `git checkout -b <name> origin/master`
+9. Enter the Nix dev shell before any work. It generates the pre-commit hooks
+10. Implement the issue. Verify **every** acceptance criterion in the issue body before moving on. Run typecheck and tests for affected projects
+11. Commit as `[feat|fix|chore](<Component>): #<issue-number> - <Title>`
+    - The body must include `Closes __REPO_OWNER__/__REPO_NAME__#<issue-number>`
+    - Component is the specific project, or `*` for many
+12. Push. NEVER force push, merge upstream first. Create the PR **always as draft** (`gh pr create --draft`), respecting the PR limit. **Never change a PR's draft/ready status.** Leave a draft as draft and a ready PR as ready. Re-evaluate the title and description against what was actually implemented
 13. Log the result in `./.state/__STATE_NAME__/progress.txt`
 
-**1 PR = 1 Issue = 1 Task.** Each issue gets exactly one PR. After completing steps 1–13 for one issue, **end the task**.
+**1 PR = 1 issue = 1 task.** Each issue gets exactly one PR. After completing steps 1 through 13 for one issue, **end the task**.
 
-**NEVER wait or poll for CI.** Check CI status once — if checks are still running, move on or end the task. Waiting longer than 1 minute for CI results means you must stop immediately.
+**NEVER wait or poll for CI.** Check CI status once. If checks are still running, move on or end the task. Waiting longer than 1 minute for CI results means you must stop immediately.
 
-## Troubleshooting Cancelled Workflows
+## Cancelled workflows
 
-When most/all jobs show as `cancelled`, one job has a non-zero exit code — the rest are a cascade. "Complete" checks are gate jobs (`needs:` aggregators) — never the root cause.
+When most or all jobs show as `cancelled`, one job exited non-zero and the rest are a cascade. "Complete" checks are gate jobs (`needs:` aggregators), never the root cause.
 
-1. **Identify** the failing job:
+1. Identify the failing job:
    ```
    gh run view {run_id} --log | grep 'exit code' | grep -v 'Complete'
    ```
-2. **Investigate** why it failed — grep the full logs for that job name and look for the actual error:
+2. Find out why it failed. Grep the full logs for that job name and look for the actual error:
    ```
    gh run view {run_id} --log | grep '{job_name}' | cut -f3- | grep -B10 -i 'error\|failed\|exception'
    ```
 
-Fix only the identified failure; cancelled jobs and gates will pass once resolved.
+Fix only the identified failure. Cancelled jobs and gates pass once it is resolved.
 
-**Never blindly re-trigger CI.** If a workflow was cancelled, there is always a reason. Do not merge master and push just to re-trigger — investigate why it was cancelled first using the steps above.
+**Never blindly re-trigger CI.** A cancelled workflow always has a reason. Do not merge master and push just to re-trigger. Investigate first using the steps above.
 
-**Exception — timeouts:** If a job timed out (`timed_out` conclusion), retry with `gh run rerun {run_id} --failed`. Timeouts are transient infrastructure issues, not code failures.
+Timeouts are the exception. If a job timed out (`timed_out` conclusion), retry with `gh run rerun {run_id} --failed`. Timeouts are transient infrastructure problems, not code failures.
 
-## PR Limit
+## PR limit
 
-Max **2 open PRs per search**. Check: `gh pr list --repo __REPO_OWNER__/__REPO_NAME__ --state open --author @me --search "head:issues/" | wc -l`
+Max **2 open PRs per search**. Check with `gh pr list --repo __REPO_OWNER__/__REPO_NAME__ --state open --author @me --search "head:issues/" | wc -l`
 
-If ≥2: push branch but don't create PR. Track in `./.state/__STATE_NAME__/deferred-prs.json`:
+At 2 or more: push the branch but don't create a PR. Track it in `./.state/__STATE_NAME__/deferred-prs.json`:
 ```json
 {"deferred": [{"branch": "issues/42-fix-login", "pushed_at": "<ISO>", "reason": "PR limit reached"}]}
 ```
-Create deferred PRs when existing ones merge/close.
+Create deferred PRs when existing ones merge or close.
 
-## PR Review Tracking
+## PR review tracking
 
-Address every comment (implement or explain disagreement). Track in `./.state/__STATE_NAME__/review-state.json`:
+Address every comment, either by implementing it or explaining the disagreement. Track in `./.state/__STATE_NAME__/review-state.json`:
 ```json
 {"pr_number": 123, "last_addressed_comment_id": "IC_abc", "last_addressed_at": "<ISO>", "addressed_comments": [], "pending_comments": []}
 ```
-Re-fetch after push — new comments may arrive.
+Re-fetch after pushing. New comments may have arrived.
 
-## Progress Format
+## Progress format
 
 Append to `./.state/__STATE_NAME__/progress.txt`:
 ```
@@ -102,8 +102,8 @@ Append to `./.state/__STATE_NAME__/progress.txt`:
 
 Add reusable **Codebase Patterns** to the TOP of progress.txt.
 
-## Stop Condition
+## Stop condition
 
-When all matching issues have been processed (PR created, or skipped with reason): <promise>COMPLETE</promise>
+When all matching issues have been processed, with a PR created or skipped with a reason: <promise>COMPLETE</promise>
 
 If there are no matching issues at all: <promise>COMPLETE</promise>

@@ -62,6 +62,12 @@ $(cat "$HOME/.claude/agents/project-sleep.md")"
   for i in $(seq 1 $MAX_ITERATIONS); do
     echo "═══ Iteration $i ═══"
 
+    # Ensure the cargo target dir exists before the sandbox binds it. On a
+    # fresh checkout (or right after a `cargo clean`) it may not exist yet, and
+    # safehouse resolves --add-dirs via realpath and fails on a missing path.
+    # Lives in $CARGO_TARGET_DIR if set, else target/ at the worktree root.
+    mkdir -p "${CARGO_TARGET_DIR:-target}"
+
     SESSION_ID=$(uuidgen)
     SESSION_FILE="$CLAUDE_PROJECT_DIR/$SESSION_ID.jsonl"
     echo "$SESSION_FILE" > "$STATE_DIR/current_session"

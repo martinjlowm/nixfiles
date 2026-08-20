@@ -4,11 +4,11 @@ description: View Zendesk tickets and their full comment threads, download attac
 version: 1.0.0
 ---
 
-# Zendesk Ticket Skill
+# Zendesk ticket
 
 CLI tool for viewing Zendesk tickets and their full comment threads.
 
-## When to Use This Skill
+## When to use
 
 Use this skill when:
 - Viewing a Zendesk support ticket and its conversation thread
@@ -22,9 +22,9 @@ Three environment variables are required:
 
 | Variable | Description | Configured |
 |----------|-------------|------------|
-| `ZENDESK_SUBDOMAIN` | Zendesk subdomain (`factbird`) — overridden when a URL is passed | Yes — in sessionVariables |
-| `ZENDESK_EMAIL` | Agent email (`mj@factbird.com`) | Yes — in sessionVariables |
-| `ZENDESK_API_TOKEN` | API token | No — must be set per-session or sourced from a secret manager |
+| `ZENDESK_SUBDOMAIN` | Zendesk subdomain (`factbird`), overridden when a URL is passed | Yes, in sessionVariables |
+| `ZENDESK_EMAIL` | Agent email (`mj@factbird.com`) | Yes, in sessionVariables |
+| `ZENDESK_API_TOKEN` | API token | No, must be set per session or sourced from a secret manager |
 
 **If `ZENDESK_API_TOKEN` is not set**, you MUST use the AskUserQuestion tool to ask the user for their Zendesk API token before running any zendesk-ticket commands. Once provided, export it in the shell:
 
@@ -32,11 +32,11 @@ Three environment variables are required:
 export ZENDESK_API_TOKEN="<token from user>"
 ```
 
-Do NOT proceed with API calls without a valid token — they will fail with 401 Unauthorized.
+Do NOT proceed with API calls without a valid token. They fail with 401 Unauthorized.
 
 Base URL: `https://factbird.zendesk.com`
 
-## CLI Usage
+## CLI usage
 
 Accepts either a numeric ticket ID or a full Zendesk agent URL:
 
@@ -56,11 +56,11 @@ zendesk-ticket 12345 --json
 
 When a URL is provided, the subdomain is parsed from the hostname and overrides `ZENDESK_SUBDOMAIN`. This means `ZENDESK_SUBDOMAIN` is only required when passing a bare ticket ID.
 
-## Output Format
+## Output format
 
 The default text output renders:
 - A header box with ticket ID and subject
-- Metadata line: status, priority, requester ID, assignee ID, created/updated timestamps, tags
+- A metadata line with status, priority, requester ID, assignee ID, created and updated timestamps, and tags
 - Each comment separated by a divider, showing `[Public]` or `[Internal Note]`, author ID, timestamp, and the plain-text body
 
 The `--json` flag emits a single JSON object:
@@ -71,7 +71,7 @@ The `--json` flag emits a single JSON object:
 }
 ```
 
-## Working with Attachments
+## Working with attachments
 
 Comments in the Zendesk API include an `attachments` array. Each attachment object has:
 
@@ -80,10 +80,10 @@ Comments in the Zendesk API include an `attachments` array. Each attachment obje
 | `id` | integer | Attachment ID |
 | `file_name` | string | Original filename |
 | `content_url` | string | Direct download URL |
-| `content_type` | string | MIME type (e.g. `image/png`, `application/pdf`) |
+| `content_type` | string | MIME type, such as `image/png` or `application/pdf` |
 | `size` | integer | Size in bytes |
 
-### Listing Attachments
+### Listing attachments
 
 ```bash
 zendesk-ticket 12345 --json | jq '
@@ -98,7 +98,7 @@ zendesk-ticket 12345 --json | jq '
 '
 ```
 
-### Downloading Attachments
+### Downloading attachments
 
 The `content_url` from the JSON output can be fetched directly with curl. Authentication is required.
 
@@ -119,23 +119,23 @@ zendesk-ticket 12345 --json | jq -r '
 done
 ```
 
-### Processing Attachments
+### Processing attachments
 
-After downloading all attachments for a ticket, you MUST automatically process and inspect them based on file type. Do not wait for the user to ask — proactively examine every attachment.
+After downloading all attachments for a ticket, you MUST process and inspect them by file type. Do not wait for the user to ask. Examine every attachment.
 
-**Automatic processing rules by file type:**
+Processing rules by file type:
 
-- **Images** (png, jpg, gif, bmp, webp): Use the Read tool to view them directly (Claude is multimodal). Describe what you see.
-- **PDFs**: Use the Read tool with `pages` parameter. Summarize contents.
-- **Log files / text** (log, txt, csv, json, xml): Use the Read tool or Grep for specific patterns. Highlight errors or anomalies.
-- **Archives** (zip, tar.gz): Extract with `tar` or `unzip`, then inspect contents recursively.
-- **Video files** (mp4, mov, avi, mkv, webm, m4v, 3gp): **Extract frames with ffmpeg** for visual context (see below).
+- Images (png, jpg, gif, bmp, webp): read them directly with the Read tool, since Claude is multimodal. Describe what you see.
+- PDFs: use the Read tool with the `pages` parameter. Summarize the contents.
+- Log files and text (log, txt, csv, json, xml): use the Read tool, or Grep for specific patterns. Highlight errors and anomalies.
+- Archives (zip, tar.gz): extract with `tar` or `unzip`, then inspect the contents recursively.
+- Video files (mp4, mov, avi, mkv, webm, m4v, 3gp): **extract frames with ffmpeg** for visual context (see below).
 
-### Extracting Frames from Video Attachments
+### Extracting frames from video attachments
 
-When a ticket contains video attachments, use ffmpeg to extract representative frames so you can visually inspect what the video shows. This is critical for understanding customer-reported issues that are demonstrated via screen recordings.
+When a ticket has video attachments, use ffmpeg to extract representative frames so you can see what the video shows. Customers often demonstrate an issue with a screen recording, and the frames are the only way to read it.
 
-**Standard extraction — evenly spaced frames across the video:**
+Standard extraction, evenly spaced frames across the video:
 
 ```bash
 TICKET_DIR="/tmp/zendesk-12345"
@@ -153,55 +153,55 @@ ffmpeg -i "$VIDEO" -vf "fps=1/${INTERVAL}" -frames:v 10 \
   "${FRAMES_DIR}/frame_%03d.png" 2>/dev/null
 ```
 
-**For short videos (< 30s) — extract 1 frame per second:**
+For short videos, under 30 seconds, extract 1 frame per second:
 ```bash
 ffmpeg -i "$VIDEO" -vf fps=1 "${FRAMES_DIR}/frame_%03d.png" 2>/dev/null
 ```
 
-**For long videos (> 5min) — extract ~15 frames max to keep context manageable:**
+For long videos, over 5 minutes, extract at most 15 frames to keep context manageable:
 ```bash
 INTERVAL=$(echo "$DURATION / 15" | bc -l)
 ffmpeg -i "$VIDEO" -vf "fps=1/${INTERVAL}" -frames:v 15 \
   "${FRAMES_DIR}/frame_%03d.png" 2>/dev/null
 ```
 
-After extracting frames, use the Read tool to view each frame image. Describe the visual content and note anything relevant to the customer's issue (error messages on screen, UI state, unexpected behavior, etc.).
+After extracting frames, read each frame image with the Read tool. Describe what it shows and note anything relevant to the customer's issue: error messages on screen, UI state, unexpected behavior.
 
-**Complete workflow for video attachments:**
+Complete workflow for video attachments:
 
-1. Download the video attachment using curl (as shown above)
+1. Download the video attachment with curl, as shown above
 2. Probe the video duration with `ffprobe`
-3. Choose frame extraction strategy based on duration
+3. Choose the frame extraction strategy from the duration
 4. Extract frames to a subdirectory named `frames_<original_filename_without_ext>`
 5. View each extracted frame with the Read tool
 6. Summarize what the video shows in the context of the ticket
 
-## API Reference
+## API reference
 
 The CLI uses two Zendesk API endpoints:
 
-### Show Ticket
+### Show ticket
 ```
 GET /api/v2/tickets/{ticket_id}.json
 ```
-Returns ticket metadata (subject, status, priority, requester, assignee, tags, timestamps). Does **not** include the full comment thread.
+Returns ticket metadata: subject, status, priority, requester, assignee, tags, timestamps. Does **not** include the full comment thread.
 
-### List Comments
+### List comments
 ```
 GET /api/v2/tickets/{ticket_id}/comments.json?page[size]=100
 ```
 Returns all comments with cursor-based pagination. Each comment includes `plain_body`, `html_body`, `author_id`, `public` flag, `created_at`, and `attachments` array.
 
-### Show Attachment
+### Show attachment
 ```
 GET /api/v2/attachments/{attachment_id}
 ```
-Returns metadata for a single attachment including `content_url`, `malware_scan_result`, dimensions (for images), and inline flag.
+Returns metadata for a single attachment: `content_url`, `malware_scan_result`, dimensions for images, and the inline flag.
 
 ## Tips
 
-- Use `--json | jq` for any programmatic access — the structured output is stable
+- Use `--json | jq` for any programmatic access. The structured output is stable
 - Pipe `--json` output to an LLM for summarisation of long threads
-- The `author_id` in comments is a Zendesk user ID — resolve to names via `GET /api/v2/users/{id}.json` if needed
+- The `author_id` in comments is a Zendesk user ID. Resolve it to a name via `GET /api/v2/users/{id}.json` if needed
 - Internal notes (`public: false`) are only visible with `--internal`
 - Attachments on internal notes are also only visible with `--internal`
