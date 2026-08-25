@@ -74,16 +74,28 @@ Track who started each server so you handle crashes correctly.
 Set the browser viewport on both sessions before taking any screenshots:
 
 ```bash
-agent-browser --session x resize <width> <height>
-agent-browser --session y resize <width> <height>
+agent-browser --session x set viewport <width> <height>
+agent-browser --session y set viewport <width> <height>
 ```
 
 Use the dimensions the user provided. If the user did not specify a screen size, **you must ask them before proceeding**. Suggest a few common options such as 1920x1080, 1440x900, or 1280x720, but let them choose.
 
 Enforce the invariant:
 
-1. Verify after setting. Confirm both sessions actually report the requested dimensions, via a snapshot or viewport query, rather than trusting that the resize call succeeded.
-2. Re-apply after any browser or server restart. A crash recovery, token rotation, or session re-open resets the viewport. Always resize **both** sessions back to the agreed dimensions before resuming, even if only one session restarted.
+1. Verify on the **artifact**, not the setting. A viewport query is not proof. `--full` screenshots are sized by *content* width, not viewport width, so a page that overflows horizontally by a pixel yields an off-spec capture from a perfectly set viewport:
+
+   ```
+   {innerWidth:1920, dpr:1, docW:1921}   ->   captured PNG: 1921x1144
+   ```
+
+   So after the first capture on each session, assert the file itself:
+
+   ```bash
+   magick identify -format '%w' .visual-comparison/x/<route>.png   # must equal the agreed width
+   ```
+
+   A capture wider than the agreed width means the page overflows horizontally. That is a finding in its own right. Record it, and treat the pair as comparable only if X and Y overflow by the **same** amount. Also pin `deviceScaleFactor` to 1 where the tool allows it: a 2x DPR silently doubles every capture and passes a viewport query unnoticed.
+2. Re-apply after any browser or server restart. A crash recovery, token rotation, or session re-open resets the viewport. Always re-apply the viewport to **both** sessions back to the agreed dimensions before resuming, even if only one session restarted.
 3. Check before diffing. Screenshots for the same route whose **widths** differ prove the viewports diverged. Do not "fix" this in post-processing. Stop, re-apply the viewport to both sessions, and re-take both screenshots.
 
 ### Authentication
@@ -126,6 +138,8 @@ Key rotation. If a 401, 403, sign-in redirect, or "unauthenticated" or "session 
 agent-browser --session x open "<X_URL>?token=<api-key>"
 agent-browser --session y open "<Y_URL>?token=<api-key>"
 ```
+
+**Establish baseline equivalence before anything else.** X must differ from Y *only* by the change under test. Record the commit each environment serves and confirm X is at the branch's merge base (`git merge-base origin/master HEAD`, or the branch's second parent on a merge commit). A deployed baseline is usually behind it, and any commit in the gap is a candidate explanation for a diff you would otherwise attribute to the change. Verifying that X merely *lacks* the feature under test is not sufficient. If X cannot be brought to the merge base, state the gap up front and mark every verdict provisional.
 
 This first navigation doubles as the session warm-up from the authentication section. Wait for `networkidle`, then verify each session is still on the app's domain, with no sign-in redirect and no auth-related network errors, before proceeding. If either fails to load, report it. Follow the crash-handling rules above.
 
@@ -453,7 +467,9 @@ y_size=$(magick identify -format "%wx%h" .visual-comparison/y/<route>.png)
 
 Interpret a mismatch by dimension. They mean different things:
 
-- **Differing widths mean a viewport mismatch. Never pad.** The two sessions were not at the same resolution (see the invariant in "Viewport and screen size"), so the renders are not comparable at all. Re-apply the viewport to **both** sessions, re-take **both** screenshots, and only then diff.
+- **Check both widths against the agreed width, not only against each other.** `xw == yw` is necessary, not sufficient; `xw == yw == agreed` is the invariant. Equal-but-wrong is the case that slips through: two captures that both come out 1921 on an agreed 1920 match each other and read as clean.
+  - **Widths differ from each other: viewport mismatch. Never pad.** The two sessions were not at the same resolution (see the invariant in "Viewport and screen size"), so the renders are not comparable at all. Re-apply the viewport to **both** sessions, re-take **both** screenshots, and only then diff.
+  - **Widths agree with each other but not with the agreed width:** the viewport is fine and the page overflows horizontally. The pair is comparable, but say so in the report instead of letting the row read as clean.
 - **Differing heights at the same width are a legitimate content-height difference** in full-page captures, for example one environment rendering an extra row. That is comparable. Pad the shorter image's canvas with white at the bottom so the diff tool accepts them, and note that the height itself differed. It is often a finding in its own right, not noise:
 
 ```bash
