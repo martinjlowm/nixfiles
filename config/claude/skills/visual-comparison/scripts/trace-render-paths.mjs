@@ -174,13 +174,79 @@ function resolveTrigger(guard, comp) {
   const visit = (node) => {
     if (trigger) return;
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === setter) {
-      const arg = node.arguments[0];
-      if (!arg || arg.kind !== ts.SyntaxKind.FalseKeyword) trigger = describeHandlerSite(node, comp);
+      if (!isClearingCall(node) && !enclosingQueryCallback(node, comp)) trigger = describeHandlerSite(node, comp);
     }
     ts.forEachChild(node, visit);
   };
   visit(comp.node);
   return trigger;
+}
+
+// setX(false) / setX(null) / setX(undefined) resets the state, it never reveals the child.
+function isClearingCall(callNode) {
+  const arg = callNode.arguments[0];
+  if (!arg) return false;
+  return (
+    arg.kind === ts.SyntaxKind.FalseKeyword ||
+    arg.kind === ts.SyntaxKind.NullKeyword ||
+    (ts.isIdentifier(arg) && arg.text === 'undefined')
+  );
+}
+
+const QUERY_HOOKS = /^use(Lazy|Suspense|Background)?Query$|^useQueries$/;
+const QUERY_CALLBACKS = new Set(['onCompleted', 'onData', 'onSuccess', 'onResult']);
+
+// Is this call sitting in a data-arrival callback (useQuery({ onCompleted })) rather than
+// in a user-interaction handler? If so, the state is decided by the response, not by a click.
+function enclosingQueryCallback(node, comp) {
+  for (let cur = node.parent; cur && cur !== comp.node; cur = cur.parent) {
+    if (!ts.isPropertyAssignment(cur) || !ts.isIdentifier(cur.name)) continue;
+    if (!QUERY_CALLBACKS.has(cur.name.text)) continue;
+    const call = cur.parent?.parent;
+    if (!call || !ts.isCallExpression(call)) continue;
+    const callee = ts.isPropertyAccessExpression(call.expression) ? call.expression.name : call.expression;
+    if (ts.isIdentifier(callee) && QUERY_HOOKS.test(callee.text)) return callee.text;
+  }
+  return null;
+}
+
+// Is `guard` decided by query data rather than by an interaction? Two shapes:
+//   const { data } = useQuery(...)  →  {data?.x && <Card/>}
+//   const [x, setX] = useState(); useQuery({ onCompleted: (d) => setX(...) })
+function isDataDerived(guard, comp) {
+  let expr = guard;
+  while (ts.isPrefixUnaryExpression(expr)) expr = expr.operand;
+  while (ts.isPropertyAccessExpression(expr) || ts.isNonNullExpression(expr)) expr = expr.expression;
+  if (!ts.isIdentifier(expr)) return false;
+  const name = expr.text;
+
+  // Bound straight off a query hook's result.
+  const sym = checker.getSymbolAtLocation(expr);
+  for (const d of sym?.getDeclarations() ?? []) {
+    for (let cur = d; cur; cur = cur.parent) {
+      if (ts.isVariableDeclaration(cur) && cur.initializer && ts.isCallExpression(cur.initializer)) {
+        const callee = ts.isPropertyAccessExpression(cur.initializer.expression)
+          ? cur.initializer.expression.name
+          : cur.initializer.expression;
+        if (ts.isIdentifier(callee) && QUERY_HOOKS.test(callee.text)) return true;
+      }
+      if (ts.isSourceFile(cur)) break;
+    }
+  }
+
+  // Written only from a query's data-arrival callback.
+  const setter = 'set' + name[0].toUpperCase() + name.slice(1);
+  let fromQuery = false;
+  let fromElsewhere = false;
+  const visit = (n) => {
+    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === setter && !isClearingCall(n)) {
+      if (enclosingQueryCallback(n, comp)) fromQuery = true;
+      else fromElsewhere = true;
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(comp.node);
+  return fromQuery && !fromElsewhere;
 }
 
 function describeHandlerSite(callNode, comp) {
@@ -243,6 +309,8 @@ function guardNote(guard, comp, containerName) {
   const trigger = resolveTrigger(guard, comp);
   if (trigger) return containerName ? `[click ${trigger} → opens ${containerName}]` : `[click ${trigger}]`;
   const text = guard.getText().replace(/\s+/g, ' ').slice(0, 48);
+  // No trigger flips this — the response decides. Needs a fixture, not a click.
+  if (isDataDerived(guard, comp)) return `[data ${text} — needs fixture]`;
   return `[state ${text} — trigger?]`;
 }
 
@@ -395,6 +463,9 @@ if (opts.json) {
     for (const p of t.paths) console.log('  ' + p.breadcrumb);
     console.log('');
   }
-  const unresolved = output.flatMap((t) => t.paths).filter((p) => p.breadcrumb.includes('trigger?')).length;
+  const all = output.flatMap((t) => t.paths);
+  const unresolved = all.filter((p) => p.breadcrumb.includes('trigger?')).length;
   if (unresolved) console.error(`note: ${unresolved} path(s) contain unresolved triggers ([state … — trigger?]) — resolve those manually before traversal.`);
+  const gated = all.filter((p) => p.breadcrumb.includes('needs fixture')).length;
+  if (gated) console.error(`note: ${gated} path(s) are data-gated ([data … — needs fixture]) — pick an entity whose data satisfies the guard before capture.`);
 }

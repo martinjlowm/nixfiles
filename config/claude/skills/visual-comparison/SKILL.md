@@ -18,7 +18,7 @@ When the user asks to compare two web applications: "compare localhost:3000 and 
 3. Pages and routes to navigate. The user may specify routes, and those are always included. Beyond that, the skill builds its own coverage plan: first the routes and states affected by the diff against `origin/master` (see "Build the coverage plan"), then Mixpanel-tracked critical paths, then generally discovered routes
 4. API key, if required. Passed as a `token=<api-key>` query parameter on all requests
 5. Screen size, optional. Viewport dimensions for screenshots (`1920x1080`, `1440x900`, `1280x720`). If the user does not specify one, **ask them before starting the comparison**. Do not assume a default. Different applications are designed for different viewports and the choice affects how accurate the comparison is.
-6. Diff thresholds, optional. The gate that decides whether a diff is **substantial**, a real change someone should look at, or the pair is assumed equal. Defaults: pixel sensitivity `10%` (a per-channel difference below this is not a changed pixel), largest contiguous changed region `1600 px` (roughly 40x40), total changed fraction `0.2%`. A pair is substantial if **either** the region or the fraction threshold is exceeded, otherwise it is marked good. Only substantial diffs are reported as findings and uploaded to GitHub.
+6. Diff thresholds, optional. The gate that decides whether a diff is **substantial**, a real change someone should look at, or the pair is assumed equal. Defaults: pixel sensitivity `10%` (a per-channel difference below this is not a changed pixel), largest contiguous changed region `1600 px` (roughly 40x40), total changed fraction `0.2%`. A pair is substantial if **either** the region or the fraction threshold is exceeded, otherwise it is marked good. Only substantial diffs are reported as findings, but every captured pair is uploaded to GitHub so a reviewer can check the verdict against the actual renders.
 
 ## Setup
 
@@ -165,17 +165,18 @@ The primary driver of what to traverse and screenshot is **what the PR changed**
    Record an entry path for every route, either `direct` or the click chain from a route you can reach directly. **A route with no entry path recorded is not ready to capture.** Either finish the search or record it as `unreachable` here, in the plan, with what you searched for. Do not carry an unresolved route into capture and decide there.
 
    **Never let URL construction stand in for this.** Failing to hand-assemble a working URL says nothing about whether a route is reachable, only that you do not have a parameter value yet. The app produces those values. Find where.
-4. **Map changes to states, not just routes.** If the change lives in a modal, dropdown, tab panel, empty state, or error state, a screenshot of the default page state will not show it. The tracer's breadcrumbs make these states explicit. Every `[click ...]` and `[tab ...]` hop is an interaction that must be performed, traversed in Priority 1.5, step 3d, and screenshotted before and after in both environments.
-5. Produce a prioritized coverage plan:
+4. **Resolve the data precondition of every state, and pick a fixture that satisfies it.** See "Data-gated states and fixture selection" below. Do this now, in the plan, for every breadcrumb. A component that renders only when the data says so is not reachable by clicking harder, and discovering that at capture time is the same failure as discovering a missing route parameter there.
+5. **Map changes to states, not just routes.** If the change lives in a modal, dropdown, tab panel, empty state, or error state, a screenshot of the default page state will not show it. The tracer's breadcrumbs make these states explicit. Every `[click ...]`, `[tab ...]`, `[data ...]`, and `[state ...]` hop is an interaction or a fixture requirement that must be satisfied, traversed in Priority 1.5, step 3d, and screenshotted before and after in both environments.
+6. Produce a prioritized coverage plan:
    - **Priority 0.** Routes the user explicitly listed.
    - **Priority 1.** Diff-affected routes and states, from this section. These MUST all be traversed and screenshotted.
-   - **Priority 1.5.** In-app interaction traversal of changed components (step 3d). Every changed component whose visible state sits behind an interaction, a dialog, tab panel, drawer, dropdown, or accordion, MUST be opened and captured, not just the page that hosts it.
+   - **Priority 1.5.** In-app interaction traversal of changed components (step 3d). A changed component whose visible state sits behind an interaction, such as a dialog, tab panel, drawer, dropdown, or accordion, MUST be opened and captured. One sitting behind a data gate MUST be given a fixture that renders it and captured. The page that hosts it is not enough.
    - **Priority 2.** Mixpanel-tracked critical paths (see below).
    - **Priority 3.** Remaining routes from general discovery.
 
-Record the plan as a mapping of changed file, route or routes, entry path, and state or interaction. It feeds the report and the PR comment, so reviewers can see why each screenshot exists. The tracer's breadcrumbs (below) ARE the route and state half of this mapping. Paste them into the plan verbatim and add the entry path from step 3 to each.
+Record the plan as a mapping of changed file, route or routes, entry path, fixture, and state or interaction. It feeds the report and the PR comment, so reviewers can see why each screenshot exists. The tracer's breadcrumbs (below) ARE the route and state half of this mapping. Paste them into the plan verbatim and add the entry path from step 3 and the fixture from step 4 to each.
 
-The plan is complete only when every row has an entry path. Do not start capture with unresolved rows.
+The plan is complete only when every row has both an entry path and a fixture. Do not start capture with unresolved rows.
 
 #### Analytical render-path tracing with the TypeScript TypeChecker
 
@@ -187,7 +188,7 @@ node <skill-dir>/scripts/trace-render-paths.mjs ExportDialog src/components/Filt
 node <skill-dir>/scripts/trace-render-paths.mjs --json --max-paths 5 <Component|file>...
 ```
 
-Targets are PascalCase component names or changed file paths, which cover all components declared in the file. It builds a reverse render graph, resolving which component renders which through imports and aliases via the checker, analyzes the guard on each render edge (`{open && <Dialog/>}`, ternaries, `<Dialog open={...}>`, `<TabPanel value=...>`), and resolves which `on*` handler flips the guarding state, following one level of named-handler indirection. Output is one breadcrumb per path, root-first:
+Targets are PascalCase component names or changed file paths, which cover all components declared in the file. It builds a reverse render graph, resolving which component renders which through imports and aliases via the checker, analyzes the guard on each render edge (`{open && <Dialog/>}`, ternaries, `<Dialog open={...}>`, `<TabPanel value=...>`), and resolves which `on*` handler flips the guarding state, following one level of named-handler indirection. Guards no handler flips are checked against the component's data hooks and reported as data gates rather than as unresolved triggers. Output is one breadcrumb per path, root-first:
 
 ```
 == ExportDialog — src/components/ExportDialog.tsx ==
@@ -203,16 +204,42 @@ Breadcrumb grammar:
 - `▸` is static render nesting. The parent renders the next crumb unconditionally.
 - `[click "<label>"]` means this hop requires an interaction. The labeled element's handler sets the state revealing the next crumb. This is the trigger for Priority 1.5 step 2.
 - `[tab "<value>"]` means the next crumb is a tab panel selected by that value.
-- `[state <expr> — trigger?]` means guarded, but the tracer could not resolve which element flips the state. Resolve it manually, from source plus an interactive snapshot, before traversal.
+- `[data <expr> — needs fixture]` means the guard is decided by query data, not by an interaction: bound off a `useQuery` result, or written only from a query's `onCompleted`. **No click reveals this crumb.** It is a data gate, and it needs the fixture search from section 2 step 4. This is the trigger for that step.
+- `[state <expr> — trigger?]` means guarded, and the tracer could resolve neither a triggering element nor a data source. Resolve it manually, from source plus an interactive snapshot, before traversal. Check whether it is a data gate the tracer's heuristics missed, for instance state written from a `useEffect` over query data.
 - `[inside <Container>]` means nested in a dialog, drawer, or menu whose guard prop was not statically analyzable.
 
 How the breadcrumbs feed the run:
 
-- Coverage plan: the `(/route)` prefixes are the Priority 1 routes, and every breadcrumb containing an interaction hop is a Priority 1.5 entry.
-- Priority 1.5 steps 1 and 2: route and trigger are read directly off the breadcrumb. Only `trigger?` hops need manual resolution. Step 3's open-versus-mutate classification stays mandatory. The tracer finds the trigger, it does not certify it side-effect-free.
+- Coverage plan: the `(/route)` prefixes are the Priority 1 routes, and every breadcrumb containing an interaction or data hop is a Priority 1.5 entry.
+- Priority 1.5 steps 1 and 2: route and trigger are read directly off the breadcrumb. `trigger?` hops need manual resolution, `needs fixture` hops need a fixture search rather than a trigger. Step 3's open / read-only-submit / mutate classification stays mandatory. The tracer finds the trigger, it does not certify it side-effect-free.
 - Render paths: a breadcrumb is a render path. Use it verbatim as the row key in the report and PR comment.
 
 Treat the output as a high-recall draft, not ground truth. Dynamic component maps, render props, portals mounted from unrelated trees, and non-file-based router configs are not modeled. Where the tracer is blind, fall back to manual import-chain tracing plus snapshot exploration, and record in the plan which paths were derived manually.
+
+#### Data-gated states and fixture selection
+
+Not every state is behind a click. Many are behind **data**. The component renders only for entities whose data satisfies a condition, and no amount of clicking on the wrong entity reveals it. These are the states runs miss most often. The page loads fine, the interaction succeeds, and the component is not there, which reads as "nothing to capture" rather than "wrong fixture".
+
+Recognize a data gate from the guard, not from the breadcrumb hop type:
+
+- `[data <expr> — needs fixture]` is the tracer saying so outright: nothing flips this guard, the response decides it. Do not hunt for a button. Find an entity where the query returns something.
+- `[state <expr> — trigger?]` is the same thing unlabeled whenever `<expr>` turns out to be derived from query data anyway, such as state written from a `useEffect` over a response, or a selector the tracer's heuristics did not follow. Read the guard's source before assuming a trigger exists.
+- A `[click "<label>"]` on a *clearing* handler is a false trigger. If clicking the resolved element does not reveal the component, re-read the guard: it is usually a data gate whose setter also happens to be called from a reset button.
+- A `[click "<label>"]` hop can still be data-gated when the trigger itself only appears, or only does anything, for qualifying data. A "N unregistered stops" banner that opens a dialog is inert on a line with zero stops.
+- Empty-state and "no data" branches (`No Golden Batch found`, `Select a product`, `No lines available`) that you land on ARE the signal. Landing on one means the fixture is wrong, not that the state is unreachable.
+
+For each data-gated state, resolve a fixture **before capture**:
+
+1. Read the guard chain in source and write down the concrete condition: "a (line, product) pair with a current or best-pending golden batch", "a line with at least one unregistered stop in the window", "a line with a manual counter sensor", "a dashboard with at least one saved group".
+2. Search the data for an entity that satisfies it. In order of preference:
+   - Query the backend directly, with the same GraphQL query the component uses, over the candidate set. This answers the question once instead of N page loads.
+   - Walk the in-app selector: open the line, product, group, or entity picker and try candidates. Stop at about five, or at the end of the list if it is shorter. Widen the time range before widening the candidate set, since many of these conditions are window-scoped.
+   - Ask the user. They know which line in the test company has a golden batch, a manual counter, or unregistered stops. One question here is cheaper than an unbounded search, and much cheaper than a missing capture.
+3. Record the chosen fixture in the plan by identity, the line name and id, product, group, batch, not as "the first one". Both environments MUST use that same fixture.
+
+**The "first row under a stable sort" default does not apply to data-gated states.** It is the rule for picking *between* equivalent entities, where any of them would render the state. When the state exists for only some entities, the first row is the most likely one to render an empty state, which is exactly how these get dropped.
+
+If the bounded search finds nothing, that is a real result: record `unreachable (no qualifying fixture)` with the condition and the search you ran, in the plan, before capture. That is a legitimate drop. "The component did not appear" is not.
 
 #### Dropping a traced path requires evidence
 
@@ -221,11 +248,14 @@ Once a breadcrumb is in the plan, it is a commitment. A path may leave the plan 
 | Reason | Evidence required |
 |---|---|
 | `not traversed (depth cap)` | the breadcrumb has more than 2 interaction hops below the page |
-| `skipped (mutation)` | the trigger handler's source shows `useMutation`, `client.mutate`, or a `mutation` gql tag |
+| `skipped (mutation)` | the trigger handler's source shows `useMutation`, `client.mutate`, or a `mutation` gql tag **on the trigger itself**, not merely somewhere in the opened component |
 | `blocked` | the concrete failure: HTTP status and endpoint, error overlay text, persistent redirect |
 | `unreachable` | the producer search from step 3 came up empty, recorded in the plan **before** capture started |
+| `unreachable (no qualifying fixture)` | the condition from the fixture search in step 4, plus the candidate set searched, recorded in the plan **before** capture started |
 
-"I could not figure out how to get there" is not one of these, and at this point it is too late to become one. Entry paths are resolved in step 3, before capture. A route arriving at capture time without an entry path means step 3 was skipped for it, so go back and do the producer search rather than inventing a reason here. If the run is already over, the honest label is `not captured (search incomplete)`, never `unreachable`.
+"I could not figure out how to get there" is not one of these, and at this point it is too late to become one. Entry paths and fixtures are resolved in steps 3 and 4, before capture. A path arriving at capture time without one means that step was skipped for it, so go back and do the search rather than inventing a reason here.
+
+**`not captured (search incomplete)` is not a terminal state.** It is an admission that a required planning step was skipped, and it exists only so an in-progress run can name its own gap honestly. It is not a label you may publish. If reconciliation turns one up, the run is not finished: go back, finish the search, and capture the path. Something may genuinely prevent that, say the environment cannot produce the fixture or the user's time box is up. Then tell the user and get their call **before** posting the PR comment. Do not ship a comment whose reconciliation table is a list of searches you did not run.
 
 ### 3. For each route in the coverage plan
 
@@ -316,21 +346,34 @@ Immediately after the diff-affected routes' default states are captured, travers
 
 **Reaching a route is itself an interaction.** This phase is not only about components nested inside a page. A route that only exists once some other view supplies its parameter, such as `/dashboard/shift-group?groupId=...`, is entered exactly the way a dialog is opened: navigate to the route that hosts the producing control, click through it, and let the app hand you the parameter. Their entry paths are already in the plan from section 2 step 3, so this phase executes a click chain you resolved up front: the sidebar item, menu entry, table row, or card that calls `router.push`. Capture the destination once it loads, and record the render path of the destination route, not of the control you clicked.
 
-For **each changed component and each parameter-gated route** from the coverage plan, run this loop:
+**Selecting a fixture is itself an interaction.** A line picker, product selector, or group sidebar whose choice decides whether the changed component renders at all is part of the traversal, not setup noise. Perform the selection in both sessions, with the same values, in the same order, and only then gate and capture.
 
-1. Resolve the route. Take the `(/route)` prefix from the component's breadcrumb (analytical render-path tracing, section 2) and its recorded entry path, either `direct` or the click chain resolved in step 3. If several breadcrumbs exist, pick one representative route per distinct context. If the entry path is missing, the plan was left incomplete: do the producer search now, before capturing anything else.
+For **each changed component, each parameter-gated route, and each data-gated state** from the coverage plan, run this loop:
+
+1. Resolve the route and fixture. Take the `(/route)` prefix from the component's breadcrumb (analytical render-path tracing, section 2), its recorded entry path, either `direct` or the click chain resolved in step 3, and its recorded fixture from step 4. If several breadcrumbs exist, pick one representative route per distinct context. If the entry path or fixture is missing, the plan was left incomplete: do that search now, before capturing anything else.
 2. Identify the trigger. Read the `[click "<label>"]` and `[tab "<value>"]` hops off the breadcrumb, then confirm the element exists in the live page via the interactive snapshot (`agent-browser --session <s> snapshot -i --json`). For `[state ... — trigger?]` or `[inside <...>]` hops the tracer could not resolve, find the trigger manually: the tab, the "Edit" or "New" or row-click that opens the dialog, the menu item, the accordion header, the drawer toggle.
-3. Classify the trigger as open or mutate:
-   - Open means a pure UI state change: switches a tab, opens a dialog, drawer, menu, or popover, expands a section. No mutation fires. Safe to click.
-   - Mutate means it fires a GraphQL mutation, submits a form, or otherwise writes data. Never click these. Capture the pre-interaction state only and record the component as `skipped (mutation)`.
-   - The open-versus-submit distinction: *opening* a form dialog is an open action, *submitting* it is a mutation. Open the dialog, screenshot it with its fields in their default state, and never press submit, save, confirm, or delete inside it. Verify the classification in source. The trigger handler must touch local state or the router only, with no `useMutation`, `client.mutate`, or mutation `gql` tags. When in doubt, treat it as mutate.
-4. Use a shared fixture. If the trigger targets a data entity, such as a row's edit dialog or an item's detail panel, both sessions MUST open it on the **same entity**, the same row, id, and name, chosen deterministically: the first row under a stable sort, or a named fixture present in both environments. Diffing dialogs opened on different entities produces pure noise, not a comparison.
-5. Click to open on X and Y. Perform the identical trigger interaction in both sessions, in the same order.
+3. Classify the trigger by **what its handler does**, into one of three kinds. Read the handler in source; do not classify from the button's label.
+   - **Open.** A pure UI state change: switches a tab, opens a dialog, drawer, menu, or popover, expands a section. Safe to click.
+   - **Read-only submit.** A form or control whose submit handler only sets local state, updates the router or query string, or fires a GraphQL **query**. It writes nothing. Safe to click, and it MUST be traversed. For many components this is the only way the state exists at all.
+   - **Mutate.** Fires a GraphQL mutation, or otherwise writes data. Never click. Capture the pre-interaction state only and record the component as `skipped (mutation)`.
+
+   **A submit button is not a mutation by virtue of being a submit button.** Labels like Generate, Apply, Run, Search, Show, and Continue usually sit on read-only handlers. Take a report setup form whose "Generate report" handler is `setReportInput(input)`. That is a read-only submit. The report body only renders once you press it, so skipping it means the changed component is never captured. Look at the handler:
+
+   ```bash
+   rg -n "generateReport|onSubmit|handleGenerate" src/views/reports/   # then read the handler body
+   ```
+
+   Mutate is the classification for `useMutation`, `client.mutate`, and `gql` tags containing `mutation` **reached by the trigger's own handler**. A mutation elsewhere in the component you are opening does not make opening it a mutation. A history dialog that can edit rows is safe to open and screenshot, as long as you never press its save or delete. When the handler is still ambiguous after you read it, treat it as mutate and say so. Not having read it is not ambiguity.
+4. Use the fixture recorded in the plan. If the trigger targets a data entity, such as a row's edit dialog or an item's detail panel, both sessions MUST open it on the **same entity**, the same row, id, and name. For data-gated states that is the fixture resolved in section 2 step 4. Otherwise pick deterministically: the first row under a stable sort, or a named fixture present in both environments. Diffing dialogs opened on different entities produces pure noise, not a comparison.
+5. Perform the interaction on X and Y. Apply the fixture selection first, meaning the line, product, group, or entity, then the trigger. Identical in both sessions, in the same order.
 6. Readiness-gate the revealed state in both sessions independently. The full gate from step (b) applies to dialog and tab content just as it does to page loads, since dialogs frequently lazy-load their data after opening.
-7. Screenshot both. Name them with the interaction descriptor, `<route>_<component>-open.png`, for example `reports_export-dialog-open.png`, and record the render path down to the opened element: `(/reports) ReportsPage > ExportDialog`.
-8. Reset. Restore the default state in both sessions before the next trigger: close the dialog with its close button or Escape, switch back to the default tab, or re-navigate to the route, with the token, per the direct-navigation rule in step a. Never let state leak from one capture into the next.
+7. Confirm the target component actually rendered, in both sessions, before screenshotting. The interaction succeeding is not evidence that the component is on screen. Find its own markup in the snapshot, the dialog title or the card or the table, not merely the container that should hold it. If you instead find an empty state, a "no data" message, or a bare container, **the fixture is wrong, not the path**. Go back to section 2 step 4, pick another candidate, and retry. Screenshotting the empty state and calling the path covered is worse than skipping it. It counts as coverage in the report and shows the reviewer nothing about the change.
+8. Screenshot both. Name them with the interaction descriptor, `<route>_<component>-open.png`, for example `reports_export-dialog-open.png`, and record the render path down to the opened element: `(/reports) ReportsPage > ExportDialog`.
+9. Reset. Restore the default state in both sessions before the next trigger: close the dialog with its close button or Escape, switch back to the default tab, or re-navigate to the route, with the token, per the direct-navigation rule in step a. Never let state leak from one capture into the next.
 
 **Depth cap:** traverse at most **two interaction levels** below the page, for example page, then dialog, then a tab inside that dialog. Deeper states, such as a nested confirm inside a dialog's tab, are out of scope. Record them as `not traversed (depth cap)` in the report rather than capturing them ad hoc.
+
+The cap counts hops that **reveal new state**. Getting to the state does not count against it. Navigating in via a producing control, and selecting the fixture that makes the component exist, are the cost of reaching the page at all. A line picker, then a product picker, then the card that renders is one level, not three. Do not let the cap become the reason a data-gated component goes uncaptured. That is the depth cap laundering a fixture search you did not do.
 
 #### e. Priority 2: Mixpanel-tracked components (critical paths)
 
@@ -377,7 +420,7 @@ Routes are reached through two mechanisms. Both are first-class and both must be
 
 Prefer performing the actual in-app click over re-opening the discovered URL directly. It preserves the in-app session and matches real user behavior. If a direct URL open is unavoidable, or the anchor causes a full page load, the token rule from step (a) applies: always append `token=<api-key>`.
 
-**CRITICAL: avoid any onClick handler that fires a GraphQL mutation.** Before clicking an element with an onClick handler, check the source to confirm the handler performs a route or navigation change (`history.push`, `navigate()`, `router.push`, a Next.js `Link`) and does NOT trigger a GraphQL mutation (`useMutation`, `client.mutate`, `gql` tags with `mutation`). When in doubt, do not click. Skip it and note it in the report.
+**CRITICAL: avoid any onClick handler that fires a GraphQL mutation.** Before clicking an element with an onClick handler, check the source to confirm the handler performs a route or navigation change (`history.push`, `navigate()`, `router.push`, a Next.js `Link`), a local state change, or a query, and does NOT trigger a GraphQL mutation (`useMutation`, `client.mutate`, `gql` tags with `mutation`). This is the same three-way classification as Priority 1.5 step 3, and the same caution applies to reading it. "In doubt" means you read the handler and could not tell, not that you did not read it. When in doubt, do not click. Skip it and note it in the report.
 
 How to discover navigatable routes:
 
@@ -473,7 +516,7 @@ Each screenshot pair gets exactly one verdict: **good**, assumed equal, not a fi
 
 3. Verdict:
    - A largest contiguous changed region of **1600 px** or more, roughly 40x40, OR a total changed fraction of **0.2%** or more, is **substantial**.
-   - Anything else is **good**. Equality is assumed. Record the render path as good and move on. Do not report sub-threshold pixel counts as findings. That is exactly the noise this gate exists to remove.
+   - Anything else is **good**. Equality is assumed. Record the render path as good, with its percentage, and move on. Do not report sub-threshold pixel counts as findings. That is exactly the noise this gate exists to remove. Good pairs still get their before and after published, collapsed, per step 7. The verdict decides prominence, not whether a reviewer can see the page.
 
    Thresholds are the defaults from Inputs. Use the user's overrides if given.
 
@@ -539,7 +582,15 @@ Before resuming after **any** recovery (server restart, browser session re-open,
 
 After all routes are tested, **reconcile the plan against what was actually captured before writing anything**. Take the tracer's breadcrumb list from section 2 and check off each one against the files in `.visual-comparison/x/`. Every planned breadcrumb must appear in the reconciliation table below with either a screenshot or a reason from the evidence table in "Dropping a traced path requires evidence". A planned path simply absent from the report is a defect in the run, not an omission in the write-up.
 
-Re-read each drop reason before publishing it. If the reason is a claim about the app ("not reachable from the UI", "no such trigger exists"), confirm it against the producer search rather than against your recollection of why you moved on at the time. Reasons written mid-run under time pressure are exactly the ones that turn out to be wrong. If one is wrong, correct it and queue the missing capture. If the false reason was already published in a PR comment or verification draft, correct that too rather than leaving it standing.
+**Reconciliation is a gate, not a formality.** Its normal outcome when rows are missing is that you go back into capture, not that you write them up as gaps. Before the report can be written, every ❌ row must pass all three checks:
+
+1. Its reason is one of the five in the evidence table. `not captured (search incomplete)` is not one of them. It means the run is unfinished (see "Dropping a traced path requires evidence").
+2. Its evidence exists and is specific: the handler source for `skipped (mutation)`, the HTTP status for `blocked`, the searched candidate set for `unreachable (no qualifying fixture)`.
+3. The evidence was produced **before** capture, in the plan, not reconstructed now to justify a gap.
+
+Then re-read each drop reason before publishing it. If the reason is a claim about the app ("not reachable from the UI", "no such trigger exists", "requires data we do not have"), confirm it against the producer or fixture search rather than against your recollection of why you moved on at the time. Reasons written mid-run under time pressure are exactly the ones that turn out to be wrong. If one is wrong, correct it and queue the missing capture. If the false reason was already published in a PR comment or verification draft, correct that too rather than leaving it standing.
+
+A run that ends with several ❌ rows and no substantial per-path findings behind them has usually mis-scoped the *capture* phase, not discovered a hard boundary in the app. Check that before publishing: the modal, tab, and data-gated states are where a change to shared data plumbing shows up differently from the default page, so they are the rows a reviewer most needs and the ones cheapest to quietly drop.
 
 Then produce a summary:
 
@@ -551,8 +602,9 @@ Then produce a summary:
 |---|---|---|
 | (/dashboard) DashboardPage | ✅ | |
 | (/dashboard) DashboardPage ▸ [click "Export"] ExportDialog | ✅ | |
-| (/dashboard/shift-group) DashboardGroupShift ▸ GroupShiftDashboard | ❌ | not captured (search incomplete). Entered via group sidebar (`dashboard-menu.tsx:88`), interaction not traversed |
+| (/dashboard/shift-group) DashboardGroupShift ▸ GroupShiftDashboard | ✅ | fixture: group "Packaging AM", entered via group sidebar (`dashboard-menu.tsx:88`) |
 | (/reports) ReportsPage ▸ DeleteConfirm | ❌ | skipped (mutation). Handler calls `useMutation(DELETE_REPORT)` |
+| (/insights/golden-batch) GoldenBatchPage ▸ GoldenBatchCard | ❌ | unreachable (no qualifying fixture). Needs a (line, product) pair with a current or pending golden batch; queried `goldenBatch` for all 14 lines × their products, none returned one |
 
 ### Comparison verdicts
 | Render path | Coverage reason | Verdict |
@@ -616,10 +668,20 @@ Because of the setup-time preflight, a missing token at this point is not an exp
 
 What is specific to this skill:
 
-1. **Upload images ONLY for substantial verdicts.** Screenshot pairs that passed the threshold gate are assumed equal. They get a table row, never an upload. If nothing is substantial, upload nothing and the comment is just the verdict table. For each substantial pair, upload the before and after screenshots plus the diff image.
+1. **Upload a before and after image for every captured render path.** The pixel verdict is the summary. The screenshots are the proof. A reviewer must be able to see what each compared page looked like on both sides and judge for themselves, including on the paths the gate called good. That is how a reviewer catches a real difference the thresholds missed, a chart the mask hid, or a fixture that rendered an empty state. A verdict with no image behind it is an assertion, not evidence.
 
-   **The threshold gate is the only filter. Do not curate.** Every captured render path gets a table row, and image sections are decided by the verdict, never by which screenshots look most interesting, most chart-heavy, or most worth a reviewer's time. Trimming the published set to a tidier handful hides coverage you actually have, and a reviewer counting rows will conclude you never captured the missing ones. If the table is long, that is the correct shape of a thorough run. Collapse the good rows in a `<details>` block rather than deleting them.
-2. Comment structure. The verdict table covers every compared render path, and image sections exist only for substantial ones:
+   What each verdict publishes:
+
+   | Verdict | Images |
+   |---|---|
+   | ⚠️ substantial | before, after, **and** the diff overlay, in an expanded section |
+   | ✅ good | before and after, inside a collapsed `<details>` |
+   | ⛔ blocked / skipped / ⬜ not captured | none, there is nothing to show |
+
+   Good pairs are collapsed so the comment stays readable, never omitted. If that is a large number of uploads, that is the correct shape of a thorough run. Pass every file to a single `gh image` invocation rather than one call per screenshot, and map the returned URLs back to render paths in capture order.
+
+   **The threshold gate decides prominence, not inclusion. Do not curate.** Every captured render path gets a table row and its pair of images, never chosen by which screenshots look most interesting, most chart-heavy, or most worth a reviewer's time. Trimming the published set to a tidier handful hides coverage you actually have, and a reviewer counting rows will conclude you never captured the missing ones.
+2. Comment structure. The verdict table covers every compared render path; substantial paths get an expanded section, good ones a collapsed gallery:
 
    ```markdown
    ## Visual comparison: <X label> vs <Y label>
@@ -632,23 +694,46 @@ What is specific to this skill:
    | (/dashboard) DashboardPage | ✅ |
    | (/dashboard) DashboardPage > FilterPanel | ⚠️ apply-button row shifted ~4px, button color changed. See below |
    | (/reports) ReportsPage > ExportDialog | ⛔ blocked, API 503 in Y (not compared) |
-   | (/dashboard/shift-group) DashboardGroupShift > GroupShiftDashboard | ⬜ not captured, group-sidebar interaction not traversed |
+   | (/insights/golden-batch) GoldenBatchPage > GoldenBatchCard | ⬜ not captured, no line/product pair in the test company has a golden batch |
 
    ### (/dashboard) DashboardPage > FilterPanel
    Apply-button row shifted ~4px down, button color changed. Largest changed region 220x48px.
    | Before (X) | After (Y) |
    |---|---|
-   | ![dashboard-x](…) | ![dashboard-y](…) |
+   | ![dashboard-filterpanel-x](…) | ![dashboard-filterpanel-y](…) |
    <details><summary>Diff overlay</summary>
 
-   ![dashboard-diff](…)
+   ![dashboard-filterpanel-diff](…)
+   </details>
+
+   <details><summary>Before / after for the 8 paths within thresholds</summary>
+
+   **(/home) HomePage**, 0.0002%
+   | Before (X) | After (Y) |
+   |---|---|
+   | ![home-x](…) | ![home-y](…) |
+
+   **(/dashboard) DashboardPage**, 0.0000%
+   | Before (X) | After (Y) |
+   |---|---|
+   | ![dashboard-x](…) | ![dashboard-y](…) |
    </details>
 
    _Masked regions excluded from comparison: dev-server indicator, live throughput chart._
    ```
 
-   Verdict column values: `✅` good (assumed equal), `⚠️` substantial with the one-line diff summary, `⛔` or `skipped` for blocked or mutation-skipped paths with the reason, `⬜` planned but not captured with the reason. The `⬜` rows come straight from the reconciliation table. A gap the reviewer can see is recoverable, one you quietly dropped is not.
-3. Include the posted comment URL in the final report to the user.
+   Verdict column values: `✅` good (assumed equal), `⚠️` substantial with the one-line diff summary, `⛔` or `skipped` for blocked or mutation-skipped paths with the reason, `⬜` planned but not captured with the reason. The `⬜` rows come straight from the reconciliation table, and per that section they should be rare and evidenced. A gap the reviewer can see is recoverable, one you quietly dropped is not.
+
+   Keep image alt text keyed to the render path, `<route>-<component>-x` and `-y`, so a reviewer reading the raw markdown can still tell which pair is which.
+3. **Crop where a full-page screenshot cannot show the difference.** Some substantial changes are small or dense: a shifted axis, a few pixels of trace deviation, a line-weight change. For those, also upload a zoomed crop of the changed region on both sides, above the full-page pair. Take the crop box from the largest blob's bounding box in step (j.2), pad it, and apply the **same** box to X and Y:
+
+   ```bash
+   magick .visual-comparison/x/<route>.png -crop <w>x<h>+<x>+<y> +repage .visual-comparison/diff/<route>_crop-x.png
+   magick .visual-comparison/y/<route>.png -crop <w>x<h>+<x>+<y> +repage .visual-comparison/diff/<route>_crop-y.png
+   ```
+
+   A reviewer scanning a 1920x3000 page render will not find a 4px tick shift on their own. The crop is what makes the finding checkable; the full pair stays for context.
+4. Include the posted comment URL in the final report to the user.
 
 ## Notes for PR reviewers
 
