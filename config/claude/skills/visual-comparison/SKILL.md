@@ -607,12 +607,14 @@ Then produce a summary:
 | (/insights/golden-batch) GoldenBatchPage ▸ GoldenBatchCard | ❌ | unreachable (no qualifying fixture). Needs a (line, product) pair with a current or pending golden batch; queried `goldenBatch` for all 14 lines × their products, none returned one |
 
 ### Comparison verdicts
-| Render path | Coverage reason | Verdict |
-|---|---|---|
-| (/home) HomePage | discovery | ✅ good |
-| (/dashboard) DashboardPage | diff: src/styles/button.css | ✅ good |
-| (/dashboard) DashboardPage > FilterPanel | diff: src/components/FilterPanel.tsx | ⚠️ substantial. Apply-button row shifted ~4px, button color changed (diff/dashboard_after-filter-open.png) |
-| (/dashboard) DashboardPage > ExportButton | Mixpanel "Export Clicked" | skipped (mutation), pre-interaction state only |
+Every ✅ and ⚠️ row here must carry a local X and Y screenshot path. Those become the image cells in the PR comment's table (step 7), so a row without them cannot be published.
+
+| Render path | Coverage reason | Verdict | X / Y files |
+|---|---|---|---|
+| (/home) HomePage | discovery | ✅ 0.0002% | x/home.png, y/home.png |
+| (/dashboard) DashboardPage | diff: src/styles/button.css | ✅ 0.0000% | x/dashboard.png, y/dashboard.png |
+| (/dashboard) DashboardPage > FilterPanel | diff: src/components/FilterPanel.tsx | ⚠️ 0.84%. Apply-button row shifted ~4px, button color changed | x/dashboard_filter-open.png, y/dashboard_filter-open.png |
+| (/dashboard) DashboardPage > ExportButton | Mixpanel "Export Clicked" | skipped (mutation), pre-interaction state only | n/a |
 
 ### Mixpanel-tracked components (critical paths)
 | Event name | Render path | Interaction | Verdict |
@@ -668,64 +670,65 @@ Because of the setup-time preflight, a missing token at this point is not an exp
 
 What is specific to this skill:
 
-1. **Upload a before and after image for every captured render path.** The pixel verdict is the summary. The screenshots are the proof. A reviewer must be able to see what each compared page looked like on both sides and judge for themselves, including on the paths the gate called good. That is how a reviewer catches a real difference the thresholds missed, a chart the mask hid, or a fixture that rendered an empty state. A verdict with no image behind it is an assertion, not evidence.
+1. **The verdict table carries the screenshots. They are columns in it, not a section below it.** Every row that was compared shows its own X and Y image inline, next to its render path and its percentage. The pixel verdict is the summary and the screenshots are the proof, so they belong in the same row. A reviewer scanning the table sees both sides of every path at once, including the ones the gate called good. That is how they catch a real difference the thresholds missed, a chart the mask hid, or a fixture that rendered an empty state. A verdict with no image beside it is an assertion, not evidence.
 
-   What each verdict publishes:
+   | Verdict | X and Y columns | Extra below the table |
+   |---|---|---|
+   | ⚠️ substantial | both images, embedded | full-width pair, zoom crop, diff overlay |
+   | ✅ good | both images, embedded | none |
+   | ⛔ blocked / skipped / ⬜ not captured | empty cells, there is nothing to show | none |
 
-   | Verdict | Images |
-   |---|---|
-   | ⚠️ substantial | before, after, **and** the diff overlay, in an expanded section |
-   | ✅ good | before and after, inside a collapsed `<details>` |
-   | ⛔ blocked / skipped / ⬜ not captured | none, there is nothing to show |
+   **Embed the images, never link them.** Every image cell is `![alt](url)`. A bare `[alt](url)` renders as a link, which makes the reviewer open ten tabs to do what the table was supposed to do for them. If a cell in your draft starts with `[` and not `![`, it is wrong.
 
-   Good pairs are collapsed so the comment stays readable, never omitted. If that is a large number of uploads, that is the correct shape of a thorough run. Pass every file to a single `gh image` invocation rather than one call per screenshot, and map the returned URLs back to render paths in capture order.
-
-   **The threshold gate decides prominence, not inclusion. Do not curate.** Every captured render path gets a table row and its pair of images, never chosen by which screenshots look most interesting, most chart-heavy, or most worth a reviewer's time. Trimming the published set to a tidier handful hides coverage you actually have, and a reviewer counting rows will conclude you never captured the missing ones.
-2. Comment structure. The verdict table covers every compared render path; substantial paths get an expanded section, good ones a collapsed gallery:
+   **The threshold gate decides what gets a section, not what gets pictures. Do not curate.** Image cells are filled for every compared path, never chosen by which screenshots look most interesting, most chart-heavy, or most worth a reviewer's time. Trimming the published set to a tidier handful hides coverage you actually have, and a reviewer counting images will conclude you never captured the missing ones. If that is a large number of uploads, that is the correct shape of a thorough run. Pass every file to a single `gh image` invocation rather than one call per screenshot, and map the returned URLs back to render paths in capture order.
+2. Comment structure. One table, every compared path in it with its pair. Substantial paths repeat below at full width, where the change is actually legible:
 
    ```markdown
    ## Visual comparison: <X label> vs <Y label>
 
-   Viewport: <width>x<height> · <N> render paths compared · <M> substantial · <K> planned but not captured
+   Viewport 1920x1080, <N> render paths compared, <M> substantial, <K> not captured.
 
-   | Render path | Verdict |
+   | Render path | Verdict | X (before) | Y (after) |
+   |---|---|---|---|
+   | `(/) Lines ▸ LineCard ▸ Chart` | ⚠️ 1.56%, largest region 88x95px | ![lines-x](…) | ![lines-y](…) |
+   | `(/sensors) … ▸ SensorCard` | ⚠️ 1.06%, tick labels shifted ~4px | ![sensors-x](…) | ![sensors-y](…) |
+   | `(/line?tab=live) LiveViewPage` @ 1W | ✅ 0.07% | ![live-1w-x](…) | ![live-1w-y](…) |
+   | `(/dashboard/batch) BatchDashboardContent` | ✅ 0.0000% | ![batch-x](…) | ![batch-y](…) |
+   | `(/operator) OperatorView` | ✅ 0.0000% | ![operator-x](…) | ![operator-y](…) |
+   | `(/reports) ReportsPage ▸ ExportDialog` | ⛔ blocked, API 503 in Y | | |
+   | `… ▸ EditCountDialog` | skipped (mutation) | | |
+   | `(/insights/golden-batch) … ▸ GoldenBatchCard` | ⬜ not captured, no line/product pair has a golden batch | | |
+
+   ### `(/) Lines ▸ LineCard ▸ Chart`, 1.56%
+   Trace deviates up to 12px per point, axis ticks shifted. Largest changed region 88x95px.
+
+   Zoomed on the changed region, X left, Y right:
+
+   | X | Y |
    |---|---|
-   | (/home) HomePage | ✅ |
-   | (/dashboard) DashboardPage | ✅ |
-   | (/dashboard) DashboardPage > FilterPanel | ⚠️ apply-button row shifted ~4px, button color changed. See below |
-   | (/reports) ReportsPage > ExportDialog | ⛔ blocked, API 503 in Y (not compared) |
-   | (/insights/golden-batch) GoldenBatchPage > GoldenBatchCard | ⬜ not captured, no line/product pair in the test company has a golden batch |
+   | ![lines-crop-x](…) | ![lines-crop-y](…) |
 
-   ### (/dashboard) DashboardPage > FilterPanel
-   Apply-button row shifted ~4px down, button color changed. Largest changed region 220x48px.
-   | Before (X) | After (Y) |
+   <details><summary>Full page and diff overlay</summary>
+
+   | X, legacy | Y, samplesV2 |
    |---|---|
-   | ![dashboard-filterpanel-x](…) | ![dashboard-filterpanel-y](…) |
-   <details><summary>Diff overlay</summary>
+   | ![lines-full-x](…) | ![lines-full-y](…) |
 
-   ![dashboard-filterpanel-diff](…)
+   ![lines-diff](…)
    </details>
 
-   <details><summary>Before / after for the 8 paths within thresholds</summary>
-
-   **(/home) HomePage**, 0.0002%
-   | Before (X) | After (Y) |
-   |---|---|
-   | ![home-x](…) | ![home-y](…) |
-
-   **(/dashboard) DashboardPage**, 0.0000%
-   | Before (X) | After (Y) |
-   |---|---|
-   | ![dashboard-x](…) | ![dashboard-y](…) |
-   </details>
-
-   _Masked regions excluded from comparison: dev-server indicator, live throughput chart._
+   _Masked from every diff: dev-server indicator, live throughput chart._
    ```
 
-   Verdict column values: `✅` good (assumed equal), `⚠️` substantial with the one-line diff summary, `⛔` or `skipped` for blocked or mutation-skipped paths with the reason, `⬜` planned but not captured with the reason. The `⬜` rows come straight from the reconciliation table, and per that section they should be rare and evidenced. A gap the reviewer can see is recoverable, one you quietly dropped is not.
+   Verdict column values: `✅` good with its percentage, `⚠️` substantial with its percentage and the one-line diff summary, `⛔` or `skipped` for blocked or mutation-skipped paths with the reason, `⬜` planned but not captured with the reason. **The percentage appears on good rows too.** `✅ 0.0000%` and `✅ 0.11%` say different things to a reviewer, and a bare checkmark throws that away. The `⬜` rows come straight from the reconciliation table, and per that section they should be rare and evidenced. A gap the reviewer can see is recoverable, one you quietly dropped is not.
 
    Keep image alt text keyed to the render path, `<route>-<component>-x` and `-y`, so a reviewer reading the raw markdown can still tell which pair is which.
-3. **Crop where a full-page screenshot cannot show the difference.** Some substantial changes are small or dense: a shifted axis, a few pixels of trace deviation, a line-weight change. For those, also upload a zoomed crop of the changed region on both sides, above the full-page pair. Take the crop box from the largest blob's bounding box in step (j.2), pad it, and apply the **same** box to X and Y:
+
+   In-table images render as thumbnails scaled to the column, which is what makes the table scannable. The reviewer clicks through for detail. That is also why substantial paths repeat below at full width with a crop: the thumbnail proves the page rendered, the crop shows the finding.
+3. **Check the table before posting.** Count the rows whose verdict is ✅ or ⚠️, and count the filled image cells. The second number must be exactly twice the first. If it is not, you either dropped a pair or left a row unfilled, and the comment is not ready. Then check that every image cell starts with `![`.
+
+   A re-run does not get to shrink this. Adding a run-over-run column, or a table comparing this run's percentages against the last one's, is useful context and belongs in the comment. It **replaces nothing**. The per-path table with its image pairs is the deliverable, and a second run that posts percentage deltas instead of screenshots has published less than the first run did while looking like progress.
+4. **Crop where a full-page screenshot cannot show the difference.** Some substantial changes are small or dense: a shifted axis, a few pixels of trace deviation, a line-weight change. For those, upload a zoomed crop of the changed region on both sides and lead the path's section with it, keeping the full pair below in the `<details>`. Take the crop box from the largest blob's bounding box in step (j.2), pad it, and apply the **same** box to X and Y:
 
    ```bash
    magick .visual-comparison/x/<route>.png -crop <w>x<h>+<x>+<y> +repage .visual-comparison/diff/<route>_crop-x.png
@@ -733,7 +736,7 @@ What is specific to this skill:
    ```
 
    A reviewer scanning a 1920x3000 page render will not find a 4px tick shift on their own. The crop is what makes the finding checkable; the full pair stays for context.
-4. Include the posted comment URL in the final report to the user.
+5. Include the posted comment URL in the final report to the user.
 
 ## Notes for PR reviewers
 
