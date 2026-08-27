@@ -48,3 +48,42 @@ the `--ready` and `draft: false` forms of it, belong to the user, however finish
 is and however green CI is. The draft flag is the handover, not a claim about the code: it
 keeps the PR out of review queues and reviewer notifications until the user promotes it.
 Likewise never flip a PR the other way. A ready PR stays ready, a draft stays draft.
+
+# Documentation: four modes, kept apart
+
+Documentation committed to a repository follows the Diátaxis framework
+(https://diataxis.fr/). Every page serves exactly one of four reader needs, and a page that
+serves two is the failure this rule exists to catch.
+
+- **Tutorial.** Teaches a beginner by walking one path that works. Explicit about everything,
+  offers no choices, and never stops to explain. The reader is learning, not deciding.
+- **How-to guide.** Gets a competent reader to a stated goal. Assumes they know the tools,
+  branches on real conditions, and teaches nothing.
+- **Reference.** Describes the machinery: options, attributes, outputs, file layouts. Austere,
+  structured to mirror the thing it documents, and never instructive.
+- **Explanation.** Says why the code is shaped this way, what was rejected, and what the
+  history is. Never instructs, never catalogues.
+
+Diagnose a page by the need it serves, not by its length. A reference table that has grown
+steps is two pages. A tutorial that pauses to justify a design decision has lost the learner
+and is missing an explanation page. Move the intruding material to the page that owns it
+rather than deleting it.
+
+Reference pages carry no guesses. Every option, attribute and default is read out of the code
+before it is written down, and a name that is defined but never wired up is documented as
+such rather than quietly listed with the rest.
+
+Do not cite the framework or link it from the documentation itself. Naming the sections after
+the four modes helps a reader navigate and is wanted; crediting the method that produced them
+helps nobody who came to read the docs.
+
+# Writing: run the unslop skill over it
+
+The `unslop` skill applies to everything you write, not only when asked: documentation, commit
+messages, PR titles and bodies, review replies, Slack drafts, and prose in code comments. Run
+it before handing over anything you wrote, and again after any substantial rewrite.
+
+The rules it enforces that get broken most often here: no em dashes, no colon splicing two
+clauses together, active voice with the actor named, a concrete noun in every claim, sentence
+case in headings, and no decorative emoji. A sentence that would survive unchanged in another
+project's documentation says nothing about this one, so cut it.
