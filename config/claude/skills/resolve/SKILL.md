@@ -49,6 +49,10 @@ When the user invokes `/resolve <problem reference>`, where the reference is an 
 
    Write the title and body with the `pr-description` skill. The body is the squash-merge commit message, so it describes the change in its final form. Link the issue with `Closes #123` when that applies. Longer context for the reviewer goes in a comment on the PR, not the body. Return the PR URL to the user.
 
+   **Mention nobody.** No `@handle` in the title, the body, or the comment, and no naming a
+   person in prose. `pr-description` has the rule and the reason; it applies to every PR this
+   skill opens.
+
 ## Notes
 
 - Always branch off the base. Never commit directly to `origin/master`.

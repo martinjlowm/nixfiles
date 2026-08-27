@@ -104,6 +104,25 @@ thing, cut the throat-clearing. Two lines is usually the whole reply.
 Cut what the thread already knows. No restating the reviewer's comment, no "thanks for the
 review", no "let me know if you'd like anything else".
 
+### Never mention a person
+
+**No reply or comment you post names a person.** The thread already notifies everyone on it,
+so a `@handle` adds nothing but a second notification, and it pulls anyone else you name into
+a conversation they were not part of. This holds for inline replies, top-level comments,
+review summaries, and any body you edit.
+
+- No "@reviewer good catch", no "as @someone suggested", no addressing the reviewer by name.
+  Open on what changed.
+- Never name a third party to route the thread to them. If a thread needs someone else, say
+  what is undecided and leave it in the report; the user pulls them in.
+- A handle that is part of the change itself, a CODEOWNERS line or a config value, goes in a
+  code span or a fenced block, never in running prose.
+- Before posting, grep the body: every `@` must sit inside a code span or be gone.
+
+```bash
+grep -n "@[A-Za-z0-9]" <file>
+```
+
 ### Link the location
 
 Build the link from the pushed head SHA. A blob permalink survives later pushes; a branch
@@ -174,6 +193,10 @@ than `martinjlowm`. Comment by comment, in thread order:
 <n> addressed · <n> declined · <n> pending
 ```
 
+The `*@<reviewer>*` heading is plain text, a label so the user can tell the entries apart.
+Never build it as a real Slack mention (`<@U…>`), and never mention anyone in the summary
+body.
+
 `✅` addressed · `💬` declined with reasoning · `⏳` pending. Two lines per entry. The detail
 lives on the threads, and the summary exists to be skimmed.
 
@@ -190,6 +213,8 @@ with `slack_search_channels` if the name does not take.
   and include them in the summary when the author is not `martinjlowm`.
 - A comment asking for work outside the PR's scope gets a reply saying so and a follow-up
   note, not a wider diff.
+- Everything `pr-description` says about not naming people applies to comments too, and to
+  any PR body this pass makes you edit.
 - If the review changed what the PR does, update the body with `pr-description`. Fold the
   change into the section it belongs to; a commit message has no "addressed feedback"
   section.

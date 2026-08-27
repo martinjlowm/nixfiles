@@ -30,7 +30,7 @@ Apply this skill to every PR you open or touch, not only when asked.
 **Single PR.** The default. The PR you just opened, or one the user named.
 
 **Sweep.** The user asks to scan a set of PRs, for example "all open PRs authored by
-@martinjlowm in FactbirdHQ/nest". Enumerate them, apply the rules to each, then post the
+martinjlowm in FactbirdHQ/nest". Enumerate them, apply the rules to each, then post the
 report (see [Report](#report)). Sweeps are the only mode that produce a report.
 
 ```bash
@@ -77,6 +77,39 @@ gh pr diff <number> --repo <owner>/<repo>
   or a title that only names the ticket, moves the explanation into a system the reader may
   not be able to open and that outlives no migration. State the problem and the change in
   the body; the reference is a pointer to more, not the answer.
+
+## Never mention a person
+
+**No PR text you write names a person.** Not the title, not the body, not a comment. A
+`@handle` is a notification: it pages that account on the PR, on every edit, and again on the
+squash-merge commit that carries it into `git log` forever. A bare name without the `@` pings
+nobody but is still the wrong content, because who owns a path or wrote the earlier code is a
+fact about people, not about the change.
+
+`FactbirdHQ/nest#20951` is the case this rule exists for. The title read
+`chore(codeowners): narrow @martinjlowm to platform and InfluxDB paths`, the body named two
+handles, and a comment listed six more to state that their ownership was unchanged. Nine
+notifications, and the one thing every recipient learned was that the PR did not concern them.
+
+- **Write around the person.** "The `*` fallback made one account a code owner of all 9227
+  tracked files" says everything the handle did. Use the role, the rule, or the path.
+- **Never roll-call the unaffected.** Listing everyone a change does *not* touch is the worst
+  form of this: every name is a notification whose payload is "ignore me".
+- **When a handle is the data, quote it as data.** A CODEOWNERS line, a team reference or a
+  config value belongs in a code span or a fenced block, where GitHub renders it inert. A
+  handle in backticks notifies no one. Never write one in running prose.
+- **Attribution is not description.** Who requested the change, who reviewed it, who wrote the
+  code being fixed: all of it is process, and the commit-message rule above already cuts it.
+- **Strip mentions from every body you touch**, including PRs you opened earlier. Rewrite the
+  sentence around the handle rather than deleting the sentence.
+
+The same rule binds PR comments, review replies, and anything else this skill has you post to
+GitHub. Before posting a title or a body, grep it: every hit must sit inside a code span or
+be gone.
+
+```bash
+grep -n "@[A-Za-z0-9]" <file>
+```
 
 ## Open on the problem
 
@@ -245,6 +278,8 @@ gh pr comment <number> --repo <owner>/<repo> --body-file <file>
   A title that needs more is usually two changes.
 - State what the change does now, not what it set out to do.
 - A title that names only a ticket (`JIRA-42`, `#125`) is not a title.
+- **No handle in the title.** It becomes the commit subject, and GitHub notifies on mentions
+  in commit messages. Name the paths or the rule the change touches instead.
 - On an existing PR, keep the current type and scope unless the diff shows they are wrong.
 
 ## Restraint
@@ -260,6 +295,7 @@ Act when a description:
   it is. If nothing does, that is a line in the report, not a guess in the body,
 - restates the diff instead of describing the change,
 - stands on a ticket reference alone,
+- names a person, or carries an `@handle` outside a code span,
 - carries CI-verified or process noise,
 - reports verification, or the fixture it ran against, or
 - explains mechanism, defends a choice, or enumerates behaviour past the point the reader

@@ -193,8 +193,9 @@ git rev-parse --is-bare-repository
 
    **Do NOT approve any PR that has not passed this security audit.**
 
-10. Read PR comments before merge decisions. Before approving or sending any PR to the merge queue, fetch and read all PR comments (`gh pr view <number> --comments` and `gh api repos/{owner}/{repo}/pulls/{number}/comments`). Comments may contain reviewer feedback, blockers, or instructions that prevent merging even when CI is green and the audit passed. Only approve or merge if no unresolved comments block the PR.
-11. Approve and merge, only if the security audit verdict is `PASS` **and all CI checks pass** **and no unresolved comments block the PR**:
+10. Mention nobody in anything you post. No `@handle` in a PR body, comment, or review body, and no naming a person in prose. Requesting a review with `gh pr edit --add-reviewer` is the way to reach someone; a mention just pages them. `@dependabot` commands are the one exception, since they address a bot that acts on them.
+11. Read PR comments before merge decisions. Before approving or sending any PR to the merge queue, fetch and read all PR comments (`gh pr view <number> --comments` and `gh api repos/{owner}/{repo}/pulls/{number}/comments`). Comments may contain reviewer feedback, blockers, or instructions that prevent merging even when CI is green and the audit passed. Only approve or merge if no unresolved comments block the PR.
+12. Approve and merge, only if the security audit verdict is `PASS` **and all CI checks pass** **and no unresolved comments block the PR**:
    - If the PR required breaking change upgrades (`has_breaking_changes: true`):
      Do **NOT** approve the PR. Leave a **comment**, not a review approval, describing what was done, so the PR still requires a human approval:
      ```
@@ -218,10 +219,10 @@ git rev-parse --is-bare-repository
      gh pr merge <number> --squash --auto
      ```
      Set status to `in_merge_queue` in `worklist.json`.
-12. Update `worklist.json`: set the PR's status to `in_merge_queue`, `awaiting_review` for breaking changes, or `skipped` if the audit failed. When skipping, always populate `skip_reason`
-13. Log the result in `$REPO_ROOT/.state/dependabot/progress.txt`, including the security audit verdict and any findings
+13. Update `worklist.json`: set the PR's status to `in_merge_queue`, `awaiting_review` for breaking changes, or `skipped` if the audit failed. When skipping, always populate `skip_reason`
+14. Log the result in `$REPO_ROOT/.state/dependabot/progress.txt`, including the security audit verdict and any findings
 
-**1 PR = 1 task, in Phase 3 only.** After completing steps 6 through 12 for one PR, **end the task**. This rule does **not** restrict Phase 2. The merge-conflict sweep and PR-feedback review in Phase 2 must process **every** open PR in the worklist before Phase 3 begins, even if that means resolving conflicts on many PRs in the same turn.
+**1 PR = 1 task, in Phase 3 only.** After completing steps 6 through 14 for one PR, **end the task**. This rule does **not** restrict Phase 2. The merge-conflict sweep and PR-feedback review in Phase 2 must process **every** open PR in the worklist before Phase 3 begins, even if that means resolving conflicts on many PRs in the same turn.
 
 **NEVER wait or poll for CI.** Check CI status once. If checks are still running, move on or end the task. Waiting longer than 1 minute for CI results means you must stop immediately.
 

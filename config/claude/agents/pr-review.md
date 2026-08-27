@@ -85,6 +85,7 @@ Each comment body includes:
 - A severity prefix: `**blocker:**`, `**concern:**`, or `**nit:**`
 - A clear explanation of the problem
 - The suggested fix or correct approach, using markdown code blocks with `suggestion` syntax where that applies
+- No mentions. Never write an `@handle` in a comment body or the review summary, and never name a person in prose. The PR already notifies its participants, and a mention pages people the change does not concern. A handle that is part of the change itself, a CODEOWNERS line or a config value, goes in a code span where GitHub renders it inert
 
 ### Step 3: leave the review pending
 

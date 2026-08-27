@@ -78,8 +78,12 @@ gh image <file>... --repo <owner>/<repo>
    ```
 
    Keep comments scannable. Embed only the images that carry information and list the rest as text, collapsed in `<details>` where long.
-3. **Post it**:
+3. **Mention nobody.** No `@handle` anywhere in the body, in running prose or in alt text.
+   Every `@` must sit inside a code span or be gone; `grep -n "@[A-Za-z0-9]" <tempfile>` before
+   posting. A comment is a notification for everyone already on the thread, and a mention
+   pages people who are not.
+4. **Post it**:
    ```bash
    gh pr comment <number> --body-file <tempfile>    # or: gh issue comment <number> ...
    ```
-4. Report the comment URL back to the user.
+5. Report the comment URL back to the user.

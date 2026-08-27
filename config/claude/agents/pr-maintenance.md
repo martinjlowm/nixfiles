@@ -98,6 +98,7 @@ git rev-parse --is-bare-repository
     - PR comments: address **every** unresolved comment, including nits, style suggestions, and minor feedback. Implement it or explain the disagreement. Nothing gets ignored
       - Non-actionable comments are the exception. Skip one-statement comments that are purely observational and request no change ("Interesting feature!", "Nice approach", "Cool"). They need no response or action, and replying is noise
       - In replies to review threads, report only the action taken ("Fixed", "Updated to use X instead"). No conversational banter, no picking up on jokes or humorous remarks, no wit. Keep replies factual
+      - Mention nobody. Never write an `@handle` in a reply, a comment, or a PR description, and never name a person in prose. The thread already notifies its participants, and a mention pages people the change does not concern. A handle that is part of the change itself, a CODEOWNERS line or a config value, goes in a code span where GitHub renders it inert
       - Prefix all PR comments with `🤖 Robotto:`
       - Skip any comment that starts with `🤖 Robotto:`. Those come from the agent itself. Never respond to your own comments
       - Code changes require tests. When implementing changes in response to review feedback, you MUST include corresponding tests. Never push new or modified code without test coverage. If you cannot write a meaningful test for a change, flag it in the PR comment rather than pushing untested code

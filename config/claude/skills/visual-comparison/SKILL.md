@@ -479,6 +479,8 @@ magick .visual-comparison/y/<route>.png -background white -gravity NorthWest -ex
 
 Use the shared width and the maximum of the two heights as the target dimensions.
 
+This step writes back over the original, which is deliberate: the diff will not accept mismatched heights at all, and padding only adds white below content that is already there. It is the one in-place edit in the pipeline. Masking, below, is not allowed to work this way.
+
 #### i. Mask watermarks and dev server indicators
 
 Development servers, Next.js among them, often render floating indicators, watermarks, or build-status badges that are not part of the application UI. Exclude them from the diff to avoid false positives.
@@ -491,12 +493,20 @@ Common indicators to mask:
 
 Masking procedure:
 1. Identify the bounding box of the indicator by inspecting the screenshot or the DOM, looking for selectors like `[data-nextjs-toast]` or `nextjs-portal`.
-2. Draw a filled white rectangle over that region on **both** X and Y screenshots before diffing:
+2. Draw a filled white rectangle over that region on **both** X and Y screenshots, writing to **new** `_masked-x` / `_masked-y` files. Never write a mask back over the source screenshot:
 
 ```bash
-magick .visual-comparison/x/<route>.png -fill white -draw "rectangle <x1>,<y1> <x2>,<y2>" .visual-comparison/x/<route>.png
-magick .visual-comparison/y/<route>.png -fill white -draw "rectangle <x1>,<y1> <x2>,<y2>" .visual-comparison/y/<route>.png
+magick .visual-comparison/x/<route>.png -fill white -draw "rectangle <x1>,<y1> <x2>,<y2>" \
+  .visual-comparison/diff/<route>_masked-x.png
+magick .visual-comparison/y/<route>.png -fill white -draw "rectangle <x1>,<y1> <x2>,<y2>" \
+  .visual-comparison/diff/<route>_masked-y.png
 ```
+
+`magick <img> ... <img>` reads and writes the same path. Written that way — and a `for img in "$X" "$Y"` loop invites exactly that — the white box becomes permanent, and the screenshots you publish are the defaced ones rather than the real pixels. Two explicit writes to separate outputs keep `x/<route>.png` and `y/<route>.png` read-only for the rest of the run.
+
+**Both** downstream consumers must then read the masked pair: the difference composite in step (j.1) and the red-highlight `compare` in step (j.4). Repointing only one silently reintroduces the masked region as a difference.
+
+Masking must stay symmetric — the same rectangles on both sides — or the mask itself becomes a difference. If a route has nothing to mask, skip this step and let the diff read `x/<route>.png` and `y/<route>.png` directly.
 
 If you cannot determine the exact bounding box, mask a conservative region in the corner where the indicator appears, such as the bottom-right 300x80px.
 
@@ -507,7 +517,7 @@ Each screenshot pair gets exactly one verdict: **good**, assumed equal, not a fi
 1. Build the changed-pixel mask and total percentage. Take the per-channel max difference, NOT a grayscale conversion, which applies Rec.709 luma weights and heavily discounts pure-blue changes, then blur and morphologically open to kill sub-pixel and text anti-aliasing noise:
 
    ```bash
-   magick .visual-comparison/x/<route>.png .visual-comparison/y/<route>.png \
+   magick .visual-comparison/diff/<route>_masked-x.png .visual-comparison/diff/<route>_masked-y.png \
      -alpha off -compose difference -composite \
      -separate -evaluate-sequence Max \
      -blur 0x1 -threshold 10% \
@@ -518,6 +528,8 @@ Each screenshot pair gets exactly one verdict: **good**, assumed equal, not a fi
    ```
 
    The mean of the binarized mask IS the fraction of changed pixels. No manual division needed.
+
+   The inputs are the masked copies from step (i). On a route with nothing to mask, read `x/<route>.png` and `y/<route>.png` instead. Either way the inputs are never the files the report publishes.
 
 2. Cluster the mask. Gate on contiguous regions, not scattered counts:
 
@@ -540,14 +552,14 @@ Each screenshot pair gets exactly one verdict: **good**, assumed equal, not a fi
    - A red-highlight diff image. Note that `compare` writes its metric to stderr and exits 1 when images differ, which trips `set -e`, so guard it:
      ```bash
      magick compare -fuzz 10% -highlight-color red -lowlight-color white \
-       .visual-comparison/x/<route>.png .visual-comparison/y/<route>.png \
+       .visual-comparison/diff/<route>_masked-x.png .visual-comparison/diff/<route>_masked-y.png \
        .visual-comparison/diff/<route>.png 2>/dev/null || true
      ```
    - A **one-line diff summary**. Map the largest blob's bounding box back to the component under it, via the snapshot and the render path, and describe what changed: "FilterPanel apply-button row shifted ~4px down; button color changed". This summary is what appears in the verdict tables.
 
-5. Volatile regions: extend the masking from step (i) to known-volatile content, such as timestamps, relative times ("2 minutes ago"), avatars, live-updating charts, and animation frames, by compositing white over those areas on **both** images before step 1. List every masked region in the report so reviewers know what was excluded.
+5. Volatile regions: extend the masking from step (i) to known-volatile content, such as timestamps, relative times ("2 minutes ago"), avatars, live-updating charts, and animation frames, by adding those rectangles to the same `_masked-x` / `_masked-y` writes — one `magick` call per side carrying every rectangle, still never over the source. List every masked region in the report so reviewers know what was excluded.
 
-Full-page screenshots stay in `.visual-comparison/x/` and `.visual-comparison/y/`, masks and diff images in `.visual-comparison/diff/`.
+Full-page screenshots stay in `.visual-comparison/x/` and `.visual-comparison/y/`, masks and diff images in `.visual-comparison/diff/`. The report publishes the files in `x/` and `y/`, which is why nothing may overwrite them: `_masked-*` files exist only to feed the diff.
 
 ### 4. Development server error detection and resolution
 
@@ -683,6 +695,9 @@ All screenshots saved to `.visual-comparison/x/` and `.visual-comparison/y/`, di
 After producing the report, post the comparison as a PR comment. The upload, embed, and post mechanics belong to the **gh-image-upload** skill: tooling availability, session-token authentication including headless `GH_SESSION_TOKEN` handling and expiry recovery, `gh image` usage, and posting via `gh pr comment`. Use it for this step.
 
 Because of the setup-time preflight, a missing token at this point is not an expected state. If the upload nevertheless fails on auth, because the session was invalidated mid-run, follow gh-image-upload's expiry recovery: ask the user for a fresh token and retry, rather than silently downgrading to a text-only comment. Skip uploads only if the user declined them at preflight, or declines now. In that case keep the local `.visual-comparison/` artifacts and note in the report that the PR comment was posted without images, or not posted, and why.
+
+Mention nobody in the comment. No `@handle` in the prose, the table, or the image alt text:
+the PR already notifies its participants, and a mention pages people who are not on it.
 
 What is specific to this skill:
 
