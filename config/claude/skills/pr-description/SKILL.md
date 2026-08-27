@@ -17,6 +17,18 @@ code. A description that only summarises the diff has added nothing.
 The test for any passage: **if it would read oddly in `git log`, it belongs in a PR comment
 or nowhere.**
 
+The rules below are the kernel's patch-submission conventions applied to GitHub: state the
+problem, state the user-visible impact, write in the imperative, solve one problem per
+change, and keep out everything that is not permanent changelog material
+([submitting-patches, section 2](https://www.kernel.org/doc/html/v4.17/process/submitting-patches.html#describe-your-changes)).
+The kernel drops everything else below the `---` line, where the tooling strips it. Here
+that is a PR comment.
+
+**Solve one problem per PR, and let the length tell you when you have not.** A body that
+grows past a few short paragraphs is usually carrying two changes rather than one hard one.
+The fix is the diff, not the prose. Say the PR wants splitting rather than stretching a
+description to cover both changes.
+
 Apply this skill to every PR you open or touch, not only when asked.
 
 ## When to use
@@ -55,19 +67,23 @@ gh pr diff <number> --repo <owner>/<repo>
   "Addressed feedback", "Round 2", "Update:". Fold what those changes *do* into the section
   they belong to, then delete the heading. A commit message does not record who asked for a
   change or when it landed.
-- **Verification belongs in a comment, not the body.** Cut outright what CI already
-  guarantees: tests pass, clippy, rustfmt and biome clean, typechecks pass. Everything else
-  you ran is true of a moment in review, not of the change, and reads as noise from
-  `git blame`: the manual procedure, the environment you ran it against, the counts you
-  cross-checked, and what you could *not* verify yet. Move it to a PR comment. The one
-  exception is a measured result that is itself the point of the change, written as a claim
-  about the change rather than a test report. Leave no link back to the comment either. A
-  commit-message reader has no use for it.
-- **Keep what you tested against out of it**, including inside sentences that are otherwise
-  about the change. The project, tenant, sample payload or row count you happened to run
-  through is a fact about your verification. If the diff does not mention it, the body must
-  not either. A `git blame` reader spends time working out whether it is part of the feature,
-  and it is not.
+- **State the user-visible impact.** A fix says what the bug did to someone: the crash, the
+  wrong number, the request that hung, the rows that went missing. "Fixes a race in
+  `flush()`" is half a description; the half the reader came for is what the race cost them.
+  A bug caught in review and never shipped still needs the sentence. Write the impact it
+  would have had.
+- **Write the body in the imperative, as the title is.** "Refresh the token 60s before
+  expiry", not "This PR makes the token refresh" or "I changed the token refresh". The
+  subject of every sentence is the code, never the pull request and never you.
+- **Verification, and whatever you ran it against, belong in a comment.** Cut outright what
+  CI already guarantees: tests pass, clippy, rustfmt and biome clean, typechecks pass. The
+  rest is true of a moment in review, not of the change: the manual procedure, the
+  environment, the counts you cross-checked, what you could *not* verify yet, and the
+  project, tenant, sample payload or row count you happened to run through. Any of those
+  still has to go when it sits inside a sentence that is otherwise correct. A `git blame`
+  reader stops to work out whether it is part of the feature. It is not. Move it to a PR
+  comment and leave no link back. The one exception is a measured result that is itself the
+  point of the change, written as a claim about the change rather than a test report.
 - **Cut process noise:** rebases, conflict resolutions, resolved bot comments, which branch
   merged into which. Keep a stacking note only if it changes how today's diff reads.
 - **Never append a Claude Code session link or agent attribution.** It records who typed the
@@ -152,12 +168,20 @@ Reviewer time is the cost of every line, so length must earn its place. Aim for 
 shortest description that leaves a reader able to review the diff and, a year later, to see
 why it exists. When a line is between staying and going, cut it.
 
-- **Length is proportional to the change.** A typo fix needs a title and no body. A cutover,
-  a migration or a behavioural change needs the problem stated. Match the message to the
-  blast radius, not to the line count of the diff.
-- Hard-wrap prose at 72 columns. Markdown renders the joins as spaces, so the body reads the
-  same on GitHub and stays readable indented under `git log`. Leave fenced blocks, tables and
-  links unwrapped.
+- **Length is proportional to the change.** Match the message to the blast radius, not to
+  the line count of the diff.
+  - A typo or mechanical fix gets a title and no body.
+  - An ordinary fix or feature gets the problem and the change. Two to five sentences,
+    no headings.
+  - A cutover, migration or breaking change gets those sentences first, then only the
+    detail they cannot carry.
+- **Headings in a body are a smell.** One problem needs prose and at most a short bullet
+  list. Reaching for `## Background` / `## Changes` / `## Notes` usually means the body is
+  doing a comment's job, or that the PR holds two changes.
+- **Hard-wrap the body at 72 columns.** Markdown renders the joins as spaces, so the body
+  reads the same on GitHub and stays readable indented under `git log`. Leave fenced blocks,
+  tables and links unwrapped. The limit is for the commit message, so it binds the body and
+  the title only, never a comment.
 - Short, direct sentences, one idea each. Bullets over dense paragraphs.
 - Rewrite any sentence that stacks several subjects, an em-dash aside, an "i.e." and a
   nested parenthesis. If it takes two readings, split it.
@@ -205,6 +229,11 @@ sentence that survives with any noun substituted in says nothing.
 The right-hand column is not longer for its own sake. It is the only version a reviewer
 can act on.
 
+**An optimisation states its number and its cost.** "4.2s to 180ms on 5k devices" is the
+benefit. Name what was traded for it: the memory the batch holds, the staleness the cache
+allows, the error path that now retries. No benchmark reports the cost, so a reviewer cannot
+weigh the change without that sentence.
+
 Name things as the code names them. An environment, account, tenant or config target gets the
 identifier a reader can grep for, the entry it has in the module that declares it, not the
 display name it goes by in conversation.
@@ -228,6 +257,10 @@ Do not delete any of it. Move it into a comment on the PR, and link it from the 
 in one line only if a reader of the description would want it. This applies to PRs you open
 too. Longer context for the reviewer belongs in a comment on the PR you just created, never
 in the body.
+
+A comment never becomes a commit message, so none of the commit-message constraints apply to
+it. Do not hard-wrap it, and do not ration its length. Let GitHub reflow the prose, and give
+a walkthrough or a table the room it needs.
 
 The body says what the change does. The comment shows it.
 
@@ -297,7 +330,12 @@ rule is here and not left to judgement.
   ...", matching `git log` and every generated message around it.
 - **Keep the whole line under 72 characters**, the description after the prefix nearer 50.
   A title that needs more is usually two changes.
-- State what the change does now, not what it set out to do.
+- **Say what changes and, when it fits in 72 characters, why.** `fix(api): reject empty
+  device ids` gives the what. `fix(api): reject device ids that crashed sync` gives both,
+  and the title becomes searchable by the symptom as well as by the fix. State what the
+  change does now, not what it set out to do.
+- **No filenames.** `fix(sync): handle empty device ids`, not `fix(sync): update devices.rs`.
+  The diff already says where the change is. The title has to say what it does.
 - A title that names only a ticket (`JIRA-42`, `#125`) is not a title.
 - **No handle in the title.** It becomes the commit subject, and GitHub notifies on mentions
   in commit messages. Name the paths or the rule the change touches instead.
@@ -312,6 +350,9 @@ Act when a description:
 - omits a major change now present,
 - is organised by the PR's history,
 - buries a behavioural change, or leaves a breaking change to be inferred,
+- fixes a bug without saying what the bug did to anyone,
+- claims an optimisation with no number, or gives the number with no cost,
+- runs long, or sprouts headings, where the PR is really two changes,
 - never says what problem the change solves, while the issue, commits or session do say what
   it is. If nothing does, that is a line in the report, not a guess in the body,
 - restates the diff instead of describing the change,
