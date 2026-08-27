@@ -40,3 +40,11 @@ name a person in prose either: attribution is not description.
 When a handle is the subject matter, a CODEOWNERS line or a config value, keep it inside a
 code span or a fenced block, where GitHub renders it inert. Before posting any body, grep it
 with `grep -n "@[A-Za-z0-9]" <file>`: every hit must sit inside a code span or be gone.
+
+# GitHub: open PRs as draft
+
+Every PR you open is a draft: `gh pr create --draft`. Never promote one. `gh pr ready`, and
+the `--ready` and `draft: false` forms of it, belong to the user, however finished the change
+is and however green CI is. The draft flag is the handover, not a claim about the code: it
+keeps the PR out of review queues and reviewer notifications until the user promotes it.
+Likewise never flip a PR the other way. A ready PR stays ready, a draft stays draft.

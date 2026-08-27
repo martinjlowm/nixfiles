@@ -215,6 +215,9 @@ with `slack_search_channels` if the name does not take.
   note, not a wider diff.
 - Everything `pr-description` says about not naming people applies to comments too, and to
   any PR body this pass makes you edit.
+- Never change the PR's draft or ready status. Addressing every thread is not the same as the
+  work being handed over; a draft that now has all its feedback resolved is still a draft, and
+  `gh pr ready` stays the user's call.
 - If the review changed what the PR does, update the body with `pr-description`. Fold the
   change into the section it belongs to; a commit message has no "addressed feedback"
   section.

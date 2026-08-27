@@ -21,7 +21,9 @@ Apply this skill to every PR you open or touch, not only when asked.
 
 ## When to use
 
-- Opening a new PR (`gh pr create`). Write the title and body to these rules from the start.
+- Opening a new PR (`gh pr create --draft`). Write the title and body to these rules from the
+  start. **Every PR opens as a draft**, and only the user promotes it (see
+  [Draft until promoted](#draft-until-promoted)).
 - After pushing new commits to an open PR. Bring the description back in line with the diff.
 - On request: refine one PR, or sweep all open PRs authored by a user in a repo.
 
@@ -264,6 +266,25 @@ path: <comment link>", and only when a `git blame` reader would follow it.
 gh pr comment <number> --repo <owner>/<repo> --body-file <file>
 ```
 
+## Draft until promoted
+
+**Open every PR with `gh pr create --draft`, and never take it out of draft.** `gh pr ready`,
+and the `--ready` and `draft: false` forms of it, belong to the user. That holds however
+finished the change is, however green CI is, and however plainly the description reads as
+done. The draft flag is not a statement about the code, it is the handover: it keeps the PR
+out of review queues, off `gh pr list --search draft:false` sweeps, and away from reviewer
+notifications until the user says the work is theirs to look at.
+
+A description written to these rules makes a draft look finished, which is exactly why this
+rule is here and not left to judgement.
+
+- Opening a PR: `gh pr create --draft --base <base> --title <title> --body-file <file>`.
+- Refining an existing PR: change the title and body, nothing else. A ready PR stays ready, a
+  draft stays draft. Never flip one in either direction.
+- Asked to "open a PR" with no mention of draft: it is a draft. Say so in the line where you
+  return the URL, so the user knows the promotion is theirs.
+- The user asking to promote is the one case for `gh pr ready`. Promote only the PR they name.
+
 ## Titles
 
 `<type>(<scope>): <description>`
@@ -310,7 +331,8 @@ and say in the report that the PR would read better split.
 
 - **Verify every claim against the current diff.** Never state a change you cannot see.
 - **Change titles and bodies only.** Never touch state, base branch, draft status, reviewers
-  or labels.
+  or labels. A sweep that promotes a draft has done something the user did not ask for and
+  cannot undo quietly: the review requests are already out.
 - When genuinely unsure, leave the PR alone and say so in the report.
 
 ```bash

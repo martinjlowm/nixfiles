@@ -41,11 +41,16 @@ When the user invokes `/resolve <problem reference>`, where the reference is an 
    git push -u origin <branch-name>
    ```
 
-6. **Open the PR.** Create a pull request against the base branch:
+6. **Open the PR as a draft.** Create a pull request against the base branch. Always `--draft`:
 
    ```bash
-   gh pr create --base master --fill
+   gh pr create --draft --base master --fill
    ```
+
+   **Never promote it.** `gh pr ready` is the user's call, not this skill's, however finished the
+   work looks and however green CI is. A draft is what says the change has not been handed
+   over yet: it keeps the PR out of review queues and off `gh pr list --search draft:false`
+   sweeps until the user decides it is ready.
 
    Write the title and body with the `pr-description` skill. The body is the squash-merge commit message, so it describes the change in its final form. Link the issue with `Closes #123` when that applies. Longer context for the reviewer goes in a comment on the PR, not the body. Return the PR URL to the user.
 
@@ -57,4 +62,6 @@ When the user invokes `/resolve <problem reference>`, where the reference is an 
 
 - Always branch off the base. Never commit directly to `origin/master`.
 - If the working directory has uncommitted changes, surface them before switching branches so nothing is lost.
+- Never change a PR's draft or ready status. A PR this skill opens stays draft until the user
+  promotes it; a PR that is already ready stays ready.
 - Keep the session focused on the referenced problem. If you find unrelated issues, note them rather than expanding scope.
