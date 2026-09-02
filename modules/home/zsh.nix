@@ -61,12 +61,30 @@ in {
         echo "''${BPM}_''${KEY}"
       }
 
-      c () {
-        (assume -c -r eu-west-1 "$1")
+      # Pick one of the account/role pairs aws-sso has synced down and print
+      # its ARN. Field 1 is the ARN and stays hidden: fzf shows and matches on
+      # the account number, alias and role name only. Refresh the list with
+      # `aws-sso login`, or `aws-sso cache` once a role appears or disappears.
+      _aws_sso_pick () {
+        ${pkgs.aws-sso-cli}/bin/aws-sso list --csv Arn AccountIdPad AccountAlias RoleName 2>/dev/null \
+          | ${pkgs.fzf}/bin/fzf --delimiter=, --with-nth=2.. --nth=2.. \
+              --prompt="$1 " --query="$2" --select-1 --exit-0 \
+              --height=40% --reverse --no-multi \
+          | cut -d, -f1
       }
 
       a () {
-        assume -r eu-west-1 "$1"
+        local arn
+        arn=$(_aws_sso_pick 'assume>' "''${1:-}")
+        [[ -n "$arn" ]] || return 1
+        eval "$(${pkgs.aws-sso-cli}/bin/aws-sso eval --arn "$arn")"
+      }
+
+      c () {
+        local arn
+        arn=$(_aws_sso_pick 'console>' "''${1:-}")
+        [[ -n "$arn" ]] || return 1
+        ${pkgs.aws-sso-cli}/bin/aws-sso console --arn "$arn"
       }
 
       killPort () {

@@ -1,9 +1,5 @@
 # Common home-manager programs
-{
-  pkgs,
-  nextPkgs,
-  ...
-}: {
+{pkgs, ...}: {
   programs.starship = {
     enable = true;
     settings = {
@@ -32,11 +28,11 @@
     enableZshIntegration = true;
   };
 
-  programs.granted = {
-    enable = true;
-    enableZshIntegration = true;
-    package = nextPkgs.granted;
-  };
+  # home-manager ships no module for aws-sso-cli, so the `a` and `c` functions
+  # in zsh.nix are the shell integration. The package sits here for the
+  # commands they do not wrap: `aws-sso login`, `aws-sso cache`, and the zsh
+  # completions the derivation installs.
+  home.packages = [pkgs.aws-sso-cli];
 
   programs.vscode = {
     enable = true;
