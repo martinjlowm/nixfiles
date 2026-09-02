@@ -1,13 +1,14 @@
 ---
 name: pr-comments
-description: Address pull request review comments, then reply and resolve or report depending on who wrote them. Own comments (martinjlowm) get a reply linking the fix and the thread resolved; anyone else's get addressed and rolled into a comment-by-comment summary posted to #pr-reviews in Slack. Use when asked to "resolve PR comments", "address the review", "handle review feedback", or "go through the comments on PR #123".
+description: Address pull request review comments, then reply, resolve, or report depending on who wrote them. Own comments (martinjlowm) get a reply linking the fix and the thread resolved; bot reviews get the same reply and stay open; a colleague's comments get the fix and no reply, rolled into a comment-by-comment summary posted to #pr-reviews in Slack. Use when asked to "resolve PR comments", "address the review", "handle review feedback", or "go through the comments on PR #123".
 ---
 
-# PR comments: close every thread, resolve only your own
+# PR comments: fix every thread, write back to nobody but yourself and the bots
 
-A review thread is closed when a reader can see **what changed and where** without opening
-the diff. The reply carries that. The resolve state carries who is satisfied. They are not
-the same act, and only the thread's author decides the second one.
+Every thread gets the fix. Who hears about it depends on who opened it. A colleague reviewing
+this PR wants Martin to answer them, not a machine, so their thread gets the change and
+silence, and the answer they get is a human one, later, from him. A bot has nobody to talk to
+and the reply is the only record tying its finding to a commit, so it gets one.
 
 ```
 thread author?
@@ -16,13 +17,14 @@ thread author?
  │                                                       ▲
  │                                          only after the fix is pushed
  │
- └─ anyone else ──> fix ──> reply (what + permalink) ──> leave unresolved
-                             │                           ▲
-                             │              reviewer closes their own thread
-                             └──> entry in the #pr-reviews summary
+ ├─ any bot ─────> fix ──> reply (what + permalink) ──> leave unresolved
+ │
+ └─ any human ───> fix ──> no reply, no draft, no offer to write one
+                    │
+                    └──> entry in the #pr-reviews summary, for Martin to answer
 ```
 
-Both paths run in one pass. A PR usually has both.
+All three paths run in one pass. A PR usually has more than one of them.
 
 ## When to use
 
@@ -67,25 +69,32 @@ gh pr view <number> --json number,title,url,headRefOid,comments,reviews
 - Skip threads where `isResolved` is true.
 - Keep `isOutdated` threads in scope. The code moved, the point may not have.
 - The deciding author is `comments.nodes[0].author.login`.
-- Bots (`dependabot[bot]`, `coderabbitai[bot]`, `github-actions[bot]`, and the rest) count as
-  "anyone else". Address them, never resolve them, include them in the summary.
+- A login ending in `[bot]` is a bot: `claude[bot]`, `martinjlowm-s-botler[bot]`,
+  `dependabot[bot]`, `coderabbitai[bot]`, `github-actions[bot]`, and the rest. Reply to them,
+  never resolve them, leave them out of the Slack summary. Their thread holds its own record.
+- Every other login is a colleague. Fix, stay silent, summarise.
 
 ## Address each comment
 
-Every thread ends in one of four outcomes. Pick one. Silence is not an outcome.
+Every thread ends in one of four outcomes. Pick one. Ignoring a comment is not an outcome,
+and on a colleague's thread the outcome lands in the diff and the summary rather than in a
+reply.
 
 | Outcome | Action |
 | --- | --- |
 | Agree | Make the change. |
 | Already handled | Point at the commit or line that handles it. |
-| Disagree | Change nothing. Say why in the reply. A reasoned decline closes a thread. |
-| Needs the user | Leave open, do not reply on their behalf, list as pending. |
+| Disagree | Change nothing. Give the reason, in the reply on your own or a bot thread, in the summary entry on a colleague's. |
+| Needs the user | Leave open, decide nothing on their behalf, list as pending. |
 
 Verify the way the project expects, with its build, tests, and lint, then commit and push
-**before** replying. A reply linking a line must point at pushed code. One commit per coherent
-group of feedback, not one per comment.
+**before** replying or summarising. A line you link must point at pushed code. One commit per
+coherent group of feedback, not one per comment.
 
 ## Write the reply like a description, not a receipt
+
+This section governs the threads you post on, your own and the bots'. A colleague's thread
+gets no reply at all, so skip to the report for those.
 
 The same rules as `pr-description`, at one-comment scale: describe the end state, name the
 thing, cut the throat-clearing. Two lines is usually the whole reply.
@@ -139,6 +148,11 @@ one-line edit on the commented line needs no link.
 
 ### Post it on the thread
 
+Check the author one more time before this call. The body is posted only when the thread's
+first comment comes from `martinjlowm` or a `[bot]` login, and there is no version of this
+step that runs on a colleague's thread: not a shorter reply, not a reply the user approves in
+the session first, not an offer to write one. Post nothing and say nothing about posting.
+
 Reply to the thread's **first** comment `databaseId`. A new top-level comment loses the code
 context and cannot be resolved:
 
@@ -165,14 +179,18 @@ Resolve only when **all** of these hold:
 - the fix is pushed (or the outcome is a reasoned decline),
 - the reply is posted.
 
-Never resolve someone else's thread, however obvious the fix. Never resolve a thread left
-pending on the user. Never resolve silently. When genuinely unsure, leave the thread open and
-say so in the session.
+A bot thread stays open even though you replied to it. The reply is the record; closing the
+thread is the user's reading of whether the finding is dealt with. Never resolve a colleague's
+thread, however obvious the fix. Never resolve a thread left pending on the user. Never
+resolve silently. When genuinely unsure, leave the thread open and say so in the session.
 
 ## Report
 
-One Slack message per PR, to **#pr-reviews**, covering only threads authored by someone other
-than `martinjlowm`. Comment by comment, in thread order:
+One Slack message per PR, to **#pr-reviews**, covering the threads nobody has answered: the
+ones a colleague opened. The user's own threads and the bot threads carry their reply on
+GitHub and stay out of it. This message is what the user reads before writing back to the
+reviewer, so it says what the reviewer asked and what the code now does, comment by comment,
+in thread order:
 
 ```
 *<repo>#<number>*: <PR title>
@@ -203,16 +221,20 @@ lives on the threads, and the summary exists to be skimmed.
 Post with `mcp__claude_ai_Slack__slack_send_message` to `#pr-reviews`. Resolve the channel
 with `slack_search_channels` if the name does not take.
 
-- Post nothing when every thread was the user's own. Note the quiet run in the session.
+- Post nothing when no colleague opened a thread. Note the quiet run in the session.
 - If Slack is unreachable, print the summary in the session and say the post could not be
   made.
 
 ## Notes
 
-- Top-level PR comments and review summaries cannot be resolved. Reply with `gh pr comment`
-  and include them in the summary when the author is not `martinjlowm`.
-- A comment asking for work outside the PR's scope gets a reply saying so and a follow-up
-  note, not a wider diff.
+- Top-level PR comments and review summaries cannot be resolved. Route them by author like
+  any other thread: `gh pr comment` for the user's own and for a bot, the Slack summary for a
+  colleague's.
+- A comment asking for work outside the PR's scope gets a follow-up note and no wider diff.
+  Say so in the reply, or in the summary entry when a colleague raised it.
+- Do not offer to reply to a colleague, in the session or anywhere else. Their unanswered
+  thread is the finished state, so it is not an open item and does not belong in a list of
+  what is left to do.
 - Everything `pr-description` says about not naming people applies to comments too, and to
   any PR body this pass makes you edit.
 - Never change the PR's draft or ready status. Addressing every thread is not the same as the

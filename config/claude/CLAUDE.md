@@ -49,6 +49,22 @@ is and however green CI is. The draft flag is the handover, not a claim about th
 keeps the PR out of review queues and reviewer notifications until the user promotes it.
 Likewise never flip a PR the other way. A ready PR stays ready, a draft stays draft.
 
+# GitHub: leave a colleague's thread for the user to answer
+
+A colleague who reviews a PR wants a person to answer them, not generated prose. So a review
+thread opened by any human other than `martinjlowm` gets the fix and nothing else, and you
+never offer to write it a reply. No "the review has no reply yet", no "want me to answer that
+thread", no draft reply held up for approval. The user answers their own reviewers.
+
+An unanswered human thread is the finished state, not a loose end, so keep it out of the list
+of what is still open. Name what you changed in response to it and stop there, or put it in
+the summary the skill in use asks for. Post on such a thread only when the user points at it
+and asks for a reply.
+
+Bots run the other way. The user's own threads and every bot review, `claude[bot]`,
+`martinjlowm-s-botler[bot]`, `dependabot[bot]`, `coderabbitai[bot]` and the rest, get a reply
+naming what changed, because that reply is the only thing tying the finding to the fix.
+
 # Documentation: four modes, kept apart
 
 Documentation committed to a repository follows the Diátaxis framework
