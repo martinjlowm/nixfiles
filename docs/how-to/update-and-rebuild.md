@@ -3,16 +3,19 @@
 ## Rebuild after a local change
 
 ```bash
-darwin-rebuild switch --flake .#wololobook -L
+sudo rebuild
 ```
 
-`-L` prints full build logs. The host is also reachable as `Martins-MacBook-Pro`, an alias
-for the same configuration.
+`rebuild` builds `darwinConfigurations.$(hostname -s)` from the repository the working
+directory sits in, with full build logs. Activation runs as root, so it needs `sudo`. The
+host is also reachable as `Martins-MacBook-Pro`, an alias for the same configuration.
+
+Run it from outside the repository and it falls back to `~/projects/nixfiles`.
 
 ## Check a change before switching
 
 ```bash
-darwin-rebuild build --flake .#wololobook
+rebuild build
 ```
 
 This builds without activating. To see what a switch would change, compare the result
@@ -26,7 +29,7 @@ nix store diff-closures /run/current-system ./result
 
 ```bash
 nix flake update
-darwin-rebuild switch --flake .#wololobook -L
+sudo rebuild
 ```
 
 ## Update one input

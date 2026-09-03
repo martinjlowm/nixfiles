@@ -195,6 +195,9 @@ in {
     in [
       scripts.worktree
       scripts.rmtree
+      # `sudo rebuild`: darwin-rebuild needs root, and root's PATH reaches
+      # /run/current-system/sw/bin rather than the home-manager profile.
+      scripts.rebuild
       scripts.loop
       scripts.dependabot
       scripts.project

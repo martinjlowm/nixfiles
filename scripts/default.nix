@@ -133,6 +133,12 @@ in {
     checkPhase = "";
     text = builtins.readFile ./worktree.sh;
   };
+  rebuild = pkgs.writeShellApplication {
+    name = "rebuild";
+    runtimeInputs = [pkgs.coreutils];
+    checkPhase = "";
+    text = builtins.readFile ./rebuild.sh;
+  };
   rmtree = pkgs.writeShellApplication {
     name = "rmtree";
     runtimeInputs = [

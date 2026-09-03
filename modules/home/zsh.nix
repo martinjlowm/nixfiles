@@ -23,7 +23,8 @@ in {
         just = "$HOME/.cargo/bin/just";
       }
       // lib.optionalAttrs isDarwin {
-        rebuild = "darwin-rebuild switch --flake ~/.config/nix-darwin -L";
+        # `rebuild` is a system package, not an alias: `sudo rebuild` resolves
+        # against root's PATH. See scripts/rebuild.sh.
         emacs = "${pkgs.emacs-macport}/Applications/Emacs.app/Contents/MacOS/Emacs";
       }
       // lib.optionalAttrs (!isDarwin) {

@@ -56,6 +56,7 @@ Listed in `modules/darwin/packages.nix` and absent from `flake.nix`, so they arr
 | `pr-pr` | none | Lists own open non-draft pull requests that have reviewers but no approval, grouped by assignee, suggesting further reviewers from recent authorship of the changed files. |
 | `pr-ready` | none | Lists own open non-draft pull requests that are approved and free of merge conflicts. |
 | `pr-ua` | none | Lists own open non-draft pull requests that are unapproved, not marked changes-requested, and whose reviewers need prompting. |
+| `rebuild` | `[<action>] [flags]` | Runs `darwin-rebuild <action> --flake <flake>#$(hostname -s) -L`, where `<action>` defaults to `switch` and `<flake>` is the first directory at or above `$PWD` holding both `flake.nix` and `hosts/`, falling back to `projects/nixfiles` under the home of `$SUDO_USER`. Prepends `/run/current-system/sw/bin` to `PATH`. |
 | `roadmap-sync` | none | Interactive roadmap sync session. |
 | `zendesk-ticket` | passthrough | Reads Zendesk tickets and their attachments. |
 
