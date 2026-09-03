@@ -31,7 +31,8 @@
   # home-manager ships no module for aws-sso-cli, so the `a` and `c` functions
   # in zsh.nix are the shell integration. The package sits here for the
   # commands they do not wrap: `aws-sso login`, `aws-sso cache`, and the zsh
-  # completions the derivation installs.
+  # completions the derivation installs. overlays/default.nix pins it past the
+  # ListAccounts page-size bug in the nixpkgs version.
   home.packages = [pkgs.aws-sso-cli];
 
   programs.vscode = {

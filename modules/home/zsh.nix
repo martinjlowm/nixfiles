@@ -62,28 +62,69 @@ in {
         echo "''${BPM}_''${KEY}"
       }
 
-      # Pick one of the account/role pairs aws-sso has synced down and print
-      # its ARN. Field 1 is the ARN and stays hidden: fzf shows and matches on
-      # the account number, alias and role name only. Refresh the list with
-      # `aws-sso login`, or `aws-sso cache` once a role appears or disappears.
+      # aws-sso hands out nothing once its SSO token has expired: `console` and
+      # `eval` print `FATAL Must run aws-sso login` and stop, and `list` serves
+      # a stale cache or none at all. Logging in first turns that dead end into
+      # a browser prompt. It costs one keyring read while the token is still
+      # good, and `-L error` drops the "You are already logged in" line without
+      # hiding the device code, which goes to stderr rather than the log.
+      _aws_sso_login () {
+        ${pkgs.aws-sso-cli}/bin/aws-sso login -L error
+      }
+
+      # One row per account/role pair, as `<account> (AccountId) » RoleName`
+      # followed by a tab and the ARN. aws-sso writes no CSV header, but it
+      # does end the CSV with a bare newline, so `NF >= 5` is what separates a
+      # role from that last empty line. AccountName is whatever
+      # ~/.config/aws-sso/config.yaml names the account and is empty until
+      # someone writes it down, so the account column falls back to the alias
+      # the SSO instance reports.
+      #
+      # Production accounts head the list: awk stamps each row with a rank that
+      # `sort` orders on and `cut` then drops, so ties fall back to the string
+      # fzf shows. `aws-sso list --sort` can do neither, since it orders one
+      # printed field and knows nothing of the account column assembled here.
+      _aws_sso_rows () {
+        ${pkgs.aws-sso-cli}/bin/aws-sso list --csv AccountName AccountAlias AccountIdPad RoleName Arn 2>/dev/null \
+          | ${pkgs.gawk}/bin/awk -F, 'NF >= 5 {
+              account = ($1 == "" ? $2 : $1)
+              rank = (tolower(account) ~ /production/) ? 0 : 1
+              printf "%d\t%s (%s) » %s\t%s\n", rank, account, $3, $4, $5
+            }' \
+          | sort \
+          | cut -f2-
+      }
+
+      # Pick one account/role pair and print its ARN. fzf shows and matches
+      # field 1 only; field 2 carries the ARN through to the caller. A role
+      # that appears or disappears without the token expiring needs an explicit
+      # `aws-sso cache`.
       _aws_sso_pick () {
-        ${pkgs.aws-sso-cli}/bin/aws-sso list --csv Arn AccountIdPad AccountAlias RoleName 2>/dev/null \
-          | ${pkgs.fzf}/bin/fzf --delimiter=, --with-nth=2.. --nth=2.. \
-              --prompt="$1 " --query="$2" --select-1 --exit-0 \
+        # Factbird's palette: purple 500 frames the list, magenta 600 marks the
+        # prompt and the cursor, blue 500 highlights what the query matched,
+        # and grey carries the counters. bg:-1 leaves the terminal's own
+        # background alone.
+        local colors='fg:#CCCCCC,fg+:#FFFFFF,bg:-1,bg+:#333333,hl:#6DD1F1,hl+:#8AE3FF,border:#6C45EE,prompt:#FF00CC,pointer:#FF00CC,marker:#4CAF50,info:#919191,spinner:#FFC01D,header:#919191'
+        _aws_sso_rows \
+          | ${pkgs.fzf}/bin/fzf --delimiter=$'\t' --with-nth=1 --nth=1 \
+              --prompt="$1 » " --query="''${2:-}" --select-1 --exit-0 \
               --height=40% --reverse --no-multi \
-          | cut -d, -f1
+              --border=thinblock --color="$colors" \
+          | cut -f2
       }
 
       a () {
         local arn
-        arn=$(_aws_sso_pick 'assume>' "''${1:-}")
+        _aws_sso_login || return 1
+        arn=$(_aws_sso_pick 'Assume' "''${1:-}")
         [[ -n "$arn" ]] || return 1
         eval "$(${pkgs.aws-sso-cli}/bin/aws-sso eval --arn "$arn")"
       }
 
       c () {
         local arn
-        arn=$(_aws_sso_pick 'console>' "''${1:-}")
+        _aws_sso_login || return 1
+        arn=$(_aws_sso_pick 'Console' "''${1:-}")
         [[ -n "$arn" ]] || return 1
         ${pkgs.aws-sso-cli}/bin/aws-sso console --arn "$arn"
       }

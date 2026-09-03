@@ -3,6 +3,7 @@
   home.packages = with pkgs; [tree];
 
   imports = [
+    ./aws-sso.nix
     ./claude-code.nix
     ./zsh.nix
     ./nushell.nix

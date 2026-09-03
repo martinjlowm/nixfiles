@@ -5,6 +5,49 @@
     vorbis-tools = prev.vorbis-tools.overrideAttrs (old: {
       postPatch = null;
     });
+    # nixpkgs 26.05 carries aws-sso-cli 2.1.0, which asks AWS SSO for more
+    # ListAccounts results per page than the API's 1-100 range allows. Every
+    # page comes back 400 InvalidRequestException, so `aws-sso login` fills no
+    # role cache and every later command dies on `FATAL Must run aws-sso
+    # login`. Upstream capped the page size at 100 in 2.2.0
+    # (synfinatic/aws-sso-cli#1342). The test setup below is the nixpkgs master
+    # expression for 2.3.2, whose suite wants a writable HOME and skips a wider
+    # set of console-URL cases than 2.1.0 did. Drop the override once the
+    # nixpkgs pin reaches 2.2.0 or newer.
+    aws-sso-cli = prev.aws-sso-cli.overrideAttrs (finalAttrs: {
+      version = "2.3.2";
+      src = final.fetchFromGitHub {
+        owner = "synfinatic";
+        repo = "aws-sso-cli";
+        rev = "v${finalAttrs.version}";
+        hash = "sha256-u9fgfLhsdpEQ9T1T8jbGWl87vu61bWX9SzELktihBg8=";
+      };
+      vendorHash = "sha256-lpp3Fji/EChMukRpypN98h9c5iN5z2S9RyrghFpxLbk=";
+
+      nativeCheckInputs = [
+        final.getent
+        final.writableTmpDirAsHomeHook
+      ];
+
+      preCheck = ''
+        mkdir -p "$HOME/.config/aws-sso"
+      '';
+
+      checkFlags = let
+        skippedTests =
+          [
+            "TestAWSFederatedUrl"
+            "TestAWSConsoleUrlChina"
+            "TestAWSConsoleUrlEU"
+            "TestAWSConsoleUrlUSEast"
+            "TestAWSConsoleUrlUSGov"
+            "TestGetScriptsAutoDetect"
+          ]
+          ++ final.lib.optionals final.stdenv.hostPlatform.isDarwin ["TestDetectShellBash"];
+      in ["-skip=^${builtins.concatStringsSep "$|^" skippedTests}$"];
+
+      __darwinAllowLocalNetworking = true;
+    });
     localproxy = prev.localproxy.overrideAttrs (old: {
       version = "3.2.0";
       src = final.fetchFromGitHub {
