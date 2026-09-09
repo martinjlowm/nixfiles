@@ -93,6 +93,18 @@ Do not cite the framework or link it from the documentation itself. Naming the s
 the four modes helps a reader navigate and is wanted; crediting the method that produced them
 helps nobody who came to read the docs.
 
+# Comments: the code as it stands, not the change that made it
+
+A comment states what the code does and what makes it correct, in the present tense, for a
+reader who has never seen the diff that introduced it. Anything that only parses next to
+that diff belongs in the commit message or the PR body: what the file held before, what the
+edit moved where, what incident prompted it, what a since-deleted line used to do.
+
+One sentence per fact. A safety claim needs the property that holds it up, stated once, not
+restated in three registers. Claim the general property rather than the arrangement that
+happens to satisfy it today, and name another file only when the reader must open it to
+understand this line.
+
 # Writing: run the unslop skill over it
 
 The `unslop` skill applies to everything you write, not only when asked: documentation, commit

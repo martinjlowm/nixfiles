@@ -59,7 +59,7 @@ When analyzing the source code and writing the spec, pay particular attention to
 
 - Use enums for finite state sets, not string matching.
 - Store data in standard, interoperable formats such as RFC standards, rather than proprietary serializations.
-- Name functions and types descriptively so the spec documents itself. Avoid specifying comments that restate what the code does.
+- Name functions and types descriptively so the spec documents itself. Specify a comment only where it names what makes the code correct, never where it restates the syntax.
 
 ### 8. Test quality (high risk)
 
