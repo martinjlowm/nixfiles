@@ -165,7 +165,8 @@ The single most common theme: do not reinvent what the codebase already provides
 - Use assertions and guards at service boundaries. Trust internal types within a module
 
 ### 7. Code quality and naming
-- Comments must explain **why**, not **what**. Remove comments that restate the code
+- Comments state what the code does and what makes it correct, in the present tense. Remove ones that only restate the syntax
+- Reject comments that narrate the change: what the file held before, what the edit moved where, what incident prompted it. That belongs in the commit message or the PR body
 - Use accurate, descriptive naming: `table_queries`, not `table_scans`, when querying a partition
 - Don't commit generated or stale files (`.devenv/`, `index.d.ts`)
 - Use `include_str!` in Rust for large embedded text such as prompts and templates, stored in separate files
