@@ -216,6 +216,15 @@
         (allow file-read* (literal "/run"))
       '';
 
+      # nix reads ~/.config/nix for user settings and the flake registry, and a
+      # denied stat there aborts the command instead of falling back. Read
+      # access suffices because nix never writes that directory. An appended
+      # profile grants it, because safehouse refuses to start when an
+      # --add-dirs-ro path is absent and this directory need not exist.
+      nixUserConfProfile = final.writeText "nix-user-conf.sb" ''
+        (allow file-read* (home-subpath "/.config/nix"))
+      '';
+
       opnix = final.opnix;
       coreutils = final.coreutils;
       opnixEnvConfig = final.writeText "claude-opnix-env.json" (builtins.toJSON {
@@ -387,6 +396,7 @@
         exec ${safehouse}/bin/safehouse \
           --add-dirs-ro="$ro_dirs" \
           --append-profile=${nixRunProfile} \
+          --append-profile=${nixUserConfProfile} \
           --append-profile=${denyGhConfig} \
           --enable agent-browser \
           --add-dirs="$rw_dirs" \
