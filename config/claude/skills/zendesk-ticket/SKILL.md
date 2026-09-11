@@ -192,6 +192,10 @@ GET /api/v2/tickets/{ticket_id}/comments.json?page[size]=100
 ```
 Returns all comments with cursor-based pagination. Each comment includes `plain_body`, `html_body`, `author_id`, `public` flag, `created_at`, and `attachments` array.
 
+Pass `-g` when you fetch this with curl, here and on the `links.next` URL that
+carries `page[after]`. curl reads an unescaped `[` as the start of a glob range,
+and it aborts with `CURLE_URL_MALFORMAT` before issuing the request.
+
 ### Show attachment
 ```
 GET /api/v2/attachments/{attachment_id}
