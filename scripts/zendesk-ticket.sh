@@ -99,8 +99,24 @@ fi
 BASE_URL="https://${ZENDESK_SUBDOMAIN}.zendesk.com"
 AUTH="${ZENDESK_EMAIL}/token:${ZENDESK_API_TOKEN}"
 
+# One GET against the Zendesk API, naming the status when it is not 200.
+#
+# -g because the cursor-pagination URLs carry page[size] and page[after]. curl
+# reads an unescaped [ as the start of a glob range, "size" is not a range, and
+# it aborts with CURLE_URL_MALFORMAT before issuing any request.
+zd_get() {
+  local url="$1" response status
+  response=$(curl -sS -g -u "$AUTH" -w "\n%{http_code}" "$url") || return 1
+  status=$(printf '%s' "$response" | tail -n 1)
+  if [ "$status" != "200" ]; then
+    echo "Error: ${url} returned HTTP ${status}" >&2
+    return 1
+  fi
+  printf '%s' "$response" | sed '$d'
+}
+
 # Fetch ticket details
-TICKET_JSON=$(curl -sf -u "$AUTH" "${BASE_URL}/api/v2/tickets/${TICKET_ID}.json") || {
+TICKET_JSON=$(zd_get "${BASE_URL}/api/v2/tickets/${TICKET_ID}.json") || {
   echo "Error: Failed to fetch ticket #${TICKET_ID}" >&2
   echo "Check your credentials and that the ticket exists." >&2
   exit 1
@@ -111,7 +127,7 @@ ALL_COMMENTS="[]"
 COMMENTS_URL="${BASE_URL}/api/v2/tickets/${TICKET_ID}/comments.json?page[size]=100"
 
 while [ -n "$COMMENTS_URL" ]; do
-  COMMENTS_PAGE=$(curl -sf -u "$AUTH" "$COMMENTS_URL") || {
+  COMMENTS_PAGE=$(zd_get "$COMMENTS_URL") || {
     echo "Error: Failed to fetch comments for ticket #${TICKET_ID}" >&2
     exit 1
   }
@@ -149,9 +165,6 @@ echo "$TICKET_JSON" | jq -r '
   "  Tags:      \((.tags // []) | join(", "))",
   ""
 '
-
-SHOW_INTERNAL_VAR="$SHOW_INTERNAL"
-export SHOW_INTERNAL_VAR
 
 echo "$ALL_COMMENTS" | jq -r --arg show_internal "$SHOW_INTERNAL" '
   .[] |
