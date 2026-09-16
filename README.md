@@ -56,9 +56,10 @@ handoff: an iteration can leave instructions that outrank the standard workflow 
 one. `dependabot`, `fix`, `github-issues`, `pr-maintenance`, `pr-review` and `project` are the
 same machinery with a fixed spec.
 
-🔀 **Pull request tools.** `pr-ua`, `pr-pr` and `pr-ready` sort your open pull requests by what
-they are waiting on: reviewers who need prompting, reviewers who need suggesting, and branches
-clear to merge.
+🔀 **Pull request tools.** `pr-ua`, `pr-pr`, `pr-ready` and `pr-attn` sort your open pull
+requests by what they are waiting on: reviewers who need prompting, reviewers who need
+suggesting, branches clear to merge, and colleagues who asked you something and have not heard
+back.
 
 📊 **Repository analytics.** Six git history reports covering churn, bug hotspots, commit
 velocity, firefighting, and contributor rankings all-time and recent.

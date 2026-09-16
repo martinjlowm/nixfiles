@@ -53,6 +53,7 @@ Listed in `modules/darwin/packages.nix` and absent from `flake.nix`, so they arr
 | `claude-dbg` | passthrough | Claude Code with the SignOZ MCP server. Reads a SigNoz API token from 1Password at startup and fails if it is absent. |
 | `claude-ops` | passthrough | Claude Code with the Sentry and Datadog MCP servers. |
 | `claude-pm` | passthrough | Claude Code with the Notion, Figma and Drata MCP servers. |
+| `pr-attn` | `[--this-repo] [--no-drafts]` | Lists own open pull requests waiting on the author, meaning an unresolved review thread whose last comment came from a human other than you, or a pull request whose newest comment, review or thread reply came from one. Every account GitHub types as a `Bot` is skipped on both counts. Spans all repositories unless `--this-repo` narrows it to the working directory. Reads the first 100 review threads and the last 20 comments and reviews per pull request. |
 | `pr-pr` | none | Lists own open non-draft pull requests that have reviewers but no approval, grouped by assignee, suggesting further reviewers from recent authorship of the changed files. |
 | `pr-ready` | none | Lists own open non-draft pull requests that are approved and free of merge conflicts. |
 | `pr-ua` | none | Lists own open non-draft pull requests that are unapproved, not marked changes-requested, and whose reviewers need prompting. |
