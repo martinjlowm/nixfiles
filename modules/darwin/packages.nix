@@ -207,6 +207,7 @@ in {
       scripts.github-issues
       scripts.pr-ua
       scripts.pr-pr
+      scripts.pr-attn
       scripts.pr-ready
       scripts.zendesk-ticket
       scripts.roadmap-sync

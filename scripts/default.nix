@@ -172,6 +172,17 @@ in {
     checkPhase = "";
     text = builtins.readFile ./pr-ua.sh;
   };
+  pr-attn = pkgs.writeShellApplication {
+    name = "pr-attn";
+    runtimeInputs = [
+      pkgs.gh
+      pkgs.jq
+      pkgs.fzf
+      pkgs.gnugrep
+    ];
+    checkPhase = "";
+    text = builtins.readFile ./pr-attn.sh;
+  };
   pr-pr = pkgs.writeShellApplication {
     name = "pr-pr";
     runtimeInputs = [
