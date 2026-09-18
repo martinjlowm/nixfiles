@@ -264,6 +264,35 @@ a walkthrough or a table the room it needs.
 
 The body says what the change does. The comment shows it.
 
+### Collapse the comment behind a summary
+
+A comment carrying a walkthrough, a diagram or a verification run is long by design, and an
+open block of it pushes the review conversation off the screen. Wrap every one of them in
+`<details>`, so the reviewer sees a single line and expands what they want.
+
+- **The `<summary>` is a call to action, not a label.** Name what expanding gives the
+  reviewer and why they want it: `Expand for the cutover sequence and the rollback path`,
+  `Expand for the verification run and the row counts it cross-checked`. `Details` and
+  `More info` tell them nothing to decide on, so they expand everything or nothing.
+- **Leave a blank line after the `</summary>` tag.** Without it GitHub renders the markdown
+  inside as literal text, headings, tables and fenced blocks alike.
+- **One `<details>` per topic.** A verification run, a worked example and a state diagram
+  are three things a reviewer reaches for separately. Three blocks with three summaries let
+  them open one; a single block makes them scroll past the other two.
+- **Put nothing outside the blocks.** A sentence left above the first `<details>` is the
+  part of the comment that was not worth collapsing, which means it belonged in the body.
+
+````markdown
+<details>
+<summary>Expand for the cutover sequence and the rollback path</summary>
+
+Writes land in both stores from this PR. Reads stay on the old store until the backfill
+job reports 100%, so reverting this PR alone restores the previous behaviour and leaves
+no data stranded.
+
+</details>
+````
+
 ### Diagram state, don't narrate it
 
 Prose is bad at state machines, migrations, cutovers, ordering and fan-out. When a change
