@@ -4,20 +4,22 @@
 # than you, or when the newest comment, review or thread reply on the pull
 # request came from such a human. Every account GitHub types as a Bot is skipped
 # on both counts, so botler, claude and datadog-official never list a pull
-# request on their own. Select one to open in the browser.
+# request on their own. The listing covers the repository of the working
+# directory; --all spans every repository instead. Select one to open in the
+# browser.
 
 set -euo pipefail
 
-scope="all"
+scope="repo"
 drafts="include"
 for arg in "$@"; do
   case "$arg" in
-    --this-repo) scope="repo" ;;
+    --all) scope="all" ;;
     --no-drafts) drafts="exclude" ;;
     -h|--help)
-      echo "Usage: pr-attn [--this-repo] [--no-drafts]"
-      echo "  (no flag)    Every open PR you authored, across all repositories"
-      echo "  --this-repo  Only the repository of the working directory"
+      echo "Usage: pr-attn [--all] [--no-drafts]"
+      echo "  (no flag)    Only the repository of the working directory"
+      echo "  --all        Every open PR you authored, across all repositories"
       echo "  --no-drafts  Skip draft pull requests"
       exit 0
       ;;
@@ -28,7 +30,13 @@ done
 me=$(gh api user --jq .login)
 query="is:open is:pr author:@me sort:updated-desc"
 if [[ "$scope" == "repo" ]]; then
-  query+=" repo:$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+  # gh resolves the repository from the git remotes of the working directory,
+  # and fails when there is no repository or no GitHub remote to resolve.
+  if ! repo=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null); then
+    echo "No GitHub repository here. Run pr-attn inside one, or pass --all." >&2
+    exit 1
+  fi
+  query+=" repo:$repo"
 fi
 
 pages=$(gh api graphql --paginate --slurp -f query='
@@ -52,7 +60,7 @@ query($q: String!, $endCursor: String) {
   }
 }' -f q="$query")
 
-rows=$(echo "$pages" | jq -r --arg me "$me" --arg drafts "$drafts" '
+rows=$(echo "$pages" | jq -r --arg me "$me" --arg drafts "$drafts" --arg scope "$scope" '
   # A human other than you, the only kind of author who can be owed a reply.
   # A deleted account reports a null author and counts as a bot.
   def theirs: (.author.__typename // "Bot") == "User" and .author.login != $me;
@@ -82,11 +90,13 @@ rows=$(echo "$pages" | jq -r --arg me "$me" --arg drafts "$drafts" '
          then ", \($waiting) thread\(if $waiting > 1 then "s" else "" end) on you"
          else "" end) as $threads
       | (if .isDraft then "draft  " else "" end) as $draft
+      # One repository throughout a scoped listing, so its name carries nothing.
+      | (if $scope == "repo" then "" else "\(.repository.nameWithOwner)  " end) as $where
       | {
           repo: .repository.nameWithOwner,
           number, url,
           at: $last.at,
-          line: "#\(.number)  \($draft)\(.repository.nameWithOwner)  \(.title)  [\($last.author.login // "ghost") \($last.at | ago) ago\($threads)]"
+          line: "#\(.number)  \($draft)\($where)\(.title)  [\($last.author.login // "ghost") \($last.at | ago) ago\($threads)]"
         }
     )
   | sort_by(.at) | reverse
@@ -94,7 +104,11 @@ rows=$(echo "$pages" | jq -r --arg me "$me" --arg drafts "$drafts" '
 ')
 
 if [[ -z "$rows" ]]; then
-  echo "No PRs waiting on you."
+  if [[ "$scope" == "repo" ]]; then
+    echo "No PRs waiting on you in $repo."
+  else
+    echo "No PRs waiting on you."
+  fi
   exit 0
 fi
 
