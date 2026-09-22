@@ -49,6 +49,12 @@ user prompts and session ids.
 `document-skills` from `anthropic-agent-skills`. `extraKnownMarketplaces` adds
 `pbakaus/impeccable`.
 
+The TypeSafe agent skill (`typesafe-ai/skills`) is not one of these: it is fetched in the
+`claude-code` overlay and passed to every session with a trailing `--plugin-dir`, the same way
+codegraph is passed `--mcp-config`, because `programs.claude-code.plugins` has the same
+positional-argument-swallowing wrapper bug already worked around for `mcpServers`. `TYPESAFE_API_KEY`
+is resolved from 1Password (`op://Developer/Jev/credential`) alongside `GH_TOKEN`.
+
 ## Hooks
 
 Two `PreToolUse` hooks match `Bash`.

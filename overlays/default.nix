@@ -233,8 +233,22 @@
             name = "GH_TOKEN";
             reference = "op://Developer/Claude Code GitHub/Section_hkqdyxymn2ko5dudp7hdld6cre/token";
           }
+          {
+            name = "TYPESAFE_API_KEY";
+            reference = "op://Developer/Jev/credential";
+          }
         ];
       });
+
+      # Jev/TypeSafe agent skill (https://docs.typesafe.ai). The marketplace
+      # manifest at .claude-plugin/marketplace.json declares its one plugin's
+      # source as the repo root, so --plugin-dir points there directly.
+      typesafePlugin = final.fetchFromGitHub {
+        owner = "typesafe-ai";
+        repo = "skills";
+        rev = "65a39f393687675ce170e6094757de20370365b9";
+        hash = "sha256-Lh2Y90TFv+njKqo/g5WXEHw0Rk1jQSH5POqKtrvy5kM=";
+      };
 
       denyGhConfig = final.writeText "deny-gh-config.sb" ''
         (deny file-read* file-write* (home-subpath "/.config/gh"))
@@ -272,6 +286,7 @@
         "NODE_OPTIONS" "PLAYWRIGHT_BROWSERS_PATH" "PUPPETEER_EXECUTABLE_PATH"
         "NIX_CC_WRAPPER_TARGET_HOST_${suffix}" "NIX_CC_WRAPPER_TARGET_BUILD_${suffix}"
         "SIGNOZ_API_KEY"
+        "TYPESAFE_API_KEY"
       ];
 
       envPassMacOS = builtins.concatStringsSep "," envVars;
@@ -367,14 +382,17 @@
           esac
         done
 
-        # Enable codegraph for every session. Trailing placement is load-bearing:
-        # --mcp-config is variadic, so ahead of the user args it swallows
-        # positional prompts as config paths. Subcommands (claude mcp list,
-        # claude doctor, ...) reject the flag outright, so skip those.
+        # Enable codegraph and the TypeSafe agent skill for every session.
+        # Trailing placement is load-bearing: --mcp-config and --plugin-dir
+        # are variadic, so ahead of the user args they swallow positional
+        # prompts as config paths. Subcommands (claude mcp list, claude
+        # doctor, ...) reject the flags outright, so skip those.
         mcp_args=(--mcp-config ${codegraphMcpConfig})
+        plugin_args=(--plugin-dir ${typesafePlugin})
         case "''${claude_args[0]:-}" in
           agents|auth|auto-mode|config|doctor|install|mcp|migrate-installer|plugin|plugins|project|setup-token|ultrareview|update|upgrade)
             mcp_args=()
+            plugin_args=()
             ;;
         esac
 
@@ -401,7 +419,7 @@
           --enable agent-browser \
           --add-dirs="$rw_dirs" \
           --env-pass=${envPassMacOS} \
-          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}" "''${mcp_args[@]}"
+          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}" "''${mcp_args[@]}" "''${plugin_args[@]}"
         '' else ''
         sandbox_args=()
 
@@ -432,7 +450,7 @@
         sandbox_args+=(--unshare-all --share-net)
 
         exec ${final.bubblewrap}/bin/bwrap "''${sandbox_args[@]}" \
-          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}" "''${mcp_args[@]}"
+          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}" "''${mcp_args[@]}" "''${plugin_args[@]}"
         ''}
       '';
     in
