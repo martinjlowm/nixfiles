@@ -1,17 +1,54 @@
-# aws-sso-cli configuration
-{pkgs, ...}: let
+# aws-sso-cli configuration and the shell wrappers that drive it
+{
+  pkgs,
+  lib,
+  ...
+}: let
   # aws-sso runs this command itself rather than handing the URL to `open`, so
   # on macOS it needs the executable inside the bundle. The bundle directory
   # does not work.
   firefox = "${pkgs.firefox}/Applications/Firefox.app/Contents/MacOS/firefox";
 
-  # Written out literally rather than generated from an attribute set, because
-  # every YAML generator in nixpkgs sorts the keys and reindents to two spaces,
-  # which would leave the file unrecognisable next to the one aws-sso's wizard
-  # wrote. Three settings differ from that file:
+  # Every Identity Center portal, in the order their roles reach the picker.
+  # `name` is what `aws-sso -S` answers to and what keys that portal's own
+  # token and role cache; `label` is what the picker prints. The two match
+  # today, and a portal whose `-S` name reads badly in a list can part them.
   #
-  #   AuthUrlAction   the login page belongs to no account, so it opens in the
-  #                   ordinary browser rather than a container named for a role
+  # Neither portal is named `Default`, the name aws-sso falls back to on its
+  # own, so DefaultSSO below is what a bare `aws-sso ...` follows to work.
+  instances = [
+    {
+      name = "Factbird";
+      label = "Factbird";
+      startUrl = "https://blackbird.awsapps.com/start";
+      region = "eu-west-1";
+    }
+    {
+      name = "martinjlowm";
+      label = "martinjlowm";
+      startUrl = "https://martinjlowm.awsapps.com/start";
+      region = "eu-west-1";
+    }
+  ];
+
+  # AuthUrlAction sits per instance: the login page belongs to no account, so
+  # it opens in the ordinary browser rather than a container named for a role.
+  ssoEntry = i:
+    "    ${i.name}:\n"
+    + "        SSORegion: ${i.region}\n"
+    + "        StartUrl: ${i.startUrl}\n"
+    + "        AuthUrlAction: open\n";
+
+  # `<instance name>:<picker label>` per portal, for the shell to split.
+  instanceList = lib.concatMapStringsSep " " (i: "${i.name}:${i.label}") instances;
+
+  # The file-level settings are pasted rather than generated from an attribute
+  # set, because every YAML generator in nixpkgs sorts the keys and reindents
+  # to two spaces, which would leave the file unrecognisable next to the one
+  # aws-sso's wizard wrote. ssoEntry concatenates the SSOConfig block by hand
+  # for the same reason. Three settings differ from the wizard's file:
+  #
+  #   AuthUrlAction   see ssoEntry above
   #   UrlAction       was `open`; each console URL is now rewritten into one the
   #                   Granted extension opens in a Firefox container named after
   #                   the profile, so two roles assumed at once never share a
@@ -28,8 +65,10 @@
   #
   # The account id is what makes the name unique, and a cache refresh refuses a
   # duplicate outright: `Applications / Factbird / Production` exists under
-  # both 051826724614 and 654654288373, and their leaves collide. AccountIdPad
-  # rather than AccountId, so an id starting in 0 keeps its digits.
+  # both 051826724614 and 654654288373, and their leaves collide. It also keeps
+  # a leaf shared by two portals apart, since no account id spans both.
+  # AccountIdPad rather than AccountId, so an id starting in 0 keeps its
+  # digits.
   #
   # `nospace` is not cosmetic. `aws-sso setup profiles` writes the name into
   # ~/.aws/config as `[profile <name>]` with no quoting, and botocore reads a
@@ -44,32 +83,124 @@
   # for single quotes regardless: the value starts with `{`.
   #
   # DefaultRegion sits at the file level, the most generic of the four it can
-  # be given at, below the SSO instance, the account and the role. Without it
-  # aws-sso falls back to us-east-1. It fills $AWS_REGION and
-  # $AWS_DEFAULT_REGION when assuming a role and never overwrites a value the
-  # shell already carries.
-  config = pkgs.writeText "aws-sso-config.yaml" ''
-    SSOConfig:
-        Default:
-            SSORegion: eu-west-1
-            StartUrl: https://blackbird.awsapps.com/start
-            AuthUrlAction: open
-    DefaultRegion: eu-west-1
-    ConsoleDuration: 720
-    CacheRefresh: 168
-    UrlAction: granted-containers
-    UrlExecCommand:
-        - ${firefox}
-        - "%s"
-    LogLevel: error
-    HistoryLimit: 10
-    HistoryMinutes: 1440
-    ProfileFormat: '{{ FirstItem .AccountName .AccountAlias | splitList "/" | last | trim | nospace }}:{{ .RoleName }}-{{ .AccountIdPad }}'
-    FullTextSearch: true
-  '';
+  # be given at, below the SSO instance, the account and the role. Both portals
+  # issue roles in eu-west-1, so neither needs its own. Without it aws-sso
+  # falls back to us-east-1. It fills $AWS_REGION and $AWS_DEFAULT_REGION when
+  # assuming a role and never overwrites a value the shell already carries.
+  config = pkgs.writeText "aws-sso-config.yaml" (
+    "SSOConfig:\n"
+    + lib.concatMapStrings ssoEntry instances
+    + ''
+      DefaultSSO: Factbird
+      DefaultRegion: eu-west-1
+      ConsoleDuration: 720
+      CacheRefresh: 168
+      UrlAction: granted-containers
+      UrlExecCommand:
+          - ${firefox}
+          - "%s"
+      LogLevel: error
+      HistoryLimit: 10
+      HistoryMinutes: 1440
+      ProfileFormat: '{{ FirstItem .AccountName .AccountAlias | splitList "/" | last | trim | nospace }}:{{ .RoleName }}-{{ .AccountIdPad }}'
+      FullTextSearch: true
+    ''
+  );
 in {
   # aws-sso reads ~/.config/aws-sso per the XDG spec, but prefers ~/.aws-sso
   # whenever that older directory exists. Deleting it is what moves the
   # configuration here.
   home.file.".config/aws-sso/config.yaml".source = config;
+
+  programs.zsh.envExtra = ''
+    _aws_sso_instances=(${instanceList})
+
+    # aws-sso hands out nothing once an SSO token has expired: `console` and
+    # `eval` print `FATAL Must run aws-sso login` and stop, and `list` serves
+    # a stale cache or none at all. Logging in first turns that dead end into
+    # a browser prompt. It costs one keyring read per portal while the tokens
+    # are still good, and `-L error` drops the "You are already logged in"
+    # line without hiding the device code, which goes to stderr rather than
+    # the log.
+    #
+    # A portal whose login fails costs its own roles and nothing else, so the
+    # remaining ones still reach the picker. Only losing every portal is an
+    # error.
+    _aws_sso_login () {
+      local entry failed
+      for entry in "''${_aws_sso_instances[@]}"; do
+        if ! ${pkgs.aws-sso-cli}/bin/aws-sso -S "''${entry%%:*}" login -L error; then
+          print -u2 "aws-sso: no session for ''${entry#*:}, its roles are left out"
+          failed=$((failed + 1))
+        fi
+      done
+      (( failed < ''${#_aws_sso_instances[@]} ))
+    }
+
+    # One row per account/role pair, as `<portal> » <account> (AccountId) »
+    # RoleName` followed by tabs, the ARN and the portal to assume it through.
+    # aws-sso lists one SSO instance at a time, so the ARN alone does not say
+    # which `-S` reaches it and the row has to carry that through. aws-sso
+    # writes no CSV header, but it does end the CSV with a bare newline, so
+    # `NF >= 5` is what separates a role from that last empty line.
+    # AccountName is whatever ~/.config/aws-sso/config.yaml names the account
+    # and is empty until someone writes it down, so the account column falls
+    # back to the alias the SSO instance reports.
+    #
+    # Rows sort by portal, in the order aws-sso.nix lists them, and production
+    # accounts head each portal's block: awk stamps each row with a rank that
+    # `sort` orders on and `cut` then drops, so ties fall back to the string
+    # fzf shows. `aws-sso list --sort` can do neither, since it orders one
+    # printed field, knows nothing of the account column assembled here, and
+    # sees a single portal per run.
+    _aws_sso_rows () {
+      local entry base=0
+      for entry in "''${_aws_sso_instances[@]}"; do
+        ${pkgs.aws-sso-cli}/bin/aws-sso -S "''${entry%%:*}" list --csv AccountName AccountAlias AccountIdPad RoleName Arn 2>/dev/null \
+          | ${pkgs.gawk}/bin/awk -F, -v sso="''${entry%%:*}" -v label="''${entry#*:}" -v base="$base" 'NF >= 5 {
+              account = ($1 == "" ? $2 : $1)
+              rank = base + ((tolower(account) ~ /production/) ? 0 : 1)
+              printf "%d\t%s » %s (%s) » %s\t%s\t%s\n", rank, label, account, $3, $4, $5, sso
+            }'
+        base=$((base + 2))
+      done \
+        | sort \
+        | cut -f2-
+    }
+
+    # Pick one account/role pair and print its ARN and portal, tab separated.
+    # fzf shows and matches field 1 only, which carries the portal label, so
+    # typing an organisation's name narrows the list to it. Fields 2 and 3
+    # pass through to the caller. A role that appears or disappears without
+    # the token expiring needs an explicit `aws-sso -S <portal> cache`.
+    _aws_sso_pick () {
+      # Factbird's palette: purple 500 frames the list, magenta 600 marks the
+      # prompt and the cursor, blue 500 highlights what the query matched,
+      # and grey carries the counters. bg:-1 leaves the terminal's own
+      # background alone.
+      local colors='fg:#CCCCCC,fg+:#FFFFFF,bg:-1,bg+:#333333,hl:#6DD1F1,hl+:#8AE3FF,border:#6C45EE,prompt:#FF00CC,pointer:#FF00CC,marker:#4CAF50,info:#919191,spinner:#FFC01D,header:#919191'
+      _aws_sso_rows \
+        | ${pkgs.fzf}/bin/fzf --delimiter=$'\t' --with-nth=1 --nth=1 \
+            --prompt="$1 » " --query="''${2:-}" --select-1 --exit-0 \
+            --height=40% --reverse --no-multi \
+            --border=thinblock --color="$colors" \
+        | cut -f2,3
+    }
+
+    a () {
+      local pick
+      _aws_sso_login || return 1
+      pick=$(_aws_sso_pick 'Assume' "''${1:-}")
+      [[ -n "$pick" ]] || return 1
+      eval "$(${pkgs.aws-sso-cli}/bin/aws-sso -S "''${pick##*$'\t'}" eval --arn "''${pick%%$'\t'*}")"
+    }
+
+    c () {
+      local pick
+      _aws_sso_login || return 1
+      pick=$(_aws_sso_pick 'Console' "''${1:-}")
+      [[ -n "$pick" ]] || return 1
+      ${pkgs.aws-sso-cli}/bin/aws-sso -S "''${pick##*$'\t'}" console --arn "''${pick%%$'\t'*}"
+    }
+  '';
 }
