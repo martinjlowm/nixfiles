@@ -7,7 +7,43 @@
   # aws-sso runs this command itself rather than handing the URL to `open`, so
   # on macOS it needs the executable inside the bundle. The bundle directory
   # does not work.
-  firefox = "${pkgs.firefox}/Applications/Firefox.app/Contents/MacOS/firefox";
+  brave = "${pkgs.brave}/Applications/Brave Browser.app/Contents/MacOS/Brave Browser";
+
+  # UrlExecCommand receives one argument, `%s`, so the profile a URL belongs to
+  # has to come out of the URL itself. UrlAction below rewrites every console
+  # URL into `ext+granted-containers:name=<profile>&url=<escaped>&color=<c>&icon=<i>`,
+  # whose `name` is the ProfileFormat string. AuthUrlAction hands over a bare
+  # https URL instead, and that login page, which no role owns, opens in
+  # Brave's own profile.
+  #
+  # ProfileFormat emits neither `&` nor `=`, so splitting on `&` and cutting at
+  # the first `=` recovers the profile whole. `url` arrives as Go's QueryEscape
+  # output, where `+` is a space and every character outside `[A-Za-z0-9-_.~]`
+  # is `%XX`, so the only backslash `printf %b` ever sees is the one this
+  # substitutes for `%`.
+  #
+  # Chromium creates a profile directory the first time it is named, so a role
+  # assumed for the first time gets a cookie jar of its own without anyone
+  # setting one up, and two roles held at once never share one.
+  openUrl = pkgs.writeShellScript "aws-sso-brave" ''
+    uri=$1
+    profile=Default
+    target=$uri
+
+    if [[ $uri == ext+granted-containers:* ]]; then
+      IFS='&' read -r -a fields <<< "''${uri#ext+granted-containers:}"
+      for field in "''${fields[@]}"; do
+        case $field in
+          name=*) profile=''${field#name=} ;;
+          url=*) target=''${field#url=} ;;
+        esac
+      done
+      target=''${target//+/ }
+      target=$(printf '%b' "''${target//%/\\x}")
+    fi
+
+    exec "${brave}" --profile-directory="$profile" "$target"
+  '';
 
   # Every Identity Center portal, in the order their roles reach the picker.
   # `name` is what `aws-sso -S` answers to and what keys that portal's own
@@ -31,13 +67,14 @@
     }
   ];
 
-  # AuthUrlAction sits per instance: the login page belongs to no account, so
-  # it opens in the ordinary browser rather than a container named for a role.
+  # AuthUrlAction sits per instance and runs the same command as UrlAction,
+  # minus the rewrite that names a profile, so the login page opens in Brave's
+  # own profile rather than one named for a role.
   ssoEntry = i:
     "    ${i.name}:\n"
     + "        SSORegion: ${i.region}\n"
     + "        StartUrl: ${i.startUrl}\n"
-    + "        AuthUrlAction: open\n";
+    + "        AuthUrlAction: exec\n";
 
   # `<instance name>:<picker label>` per portal, for the shell to split.
   instanceList = lib.concatMapStringsSep " " (i: "${i.name}:${i.label}") instances;
@@ -49,17 +86,17 @@
   # for the same reason. Three settings differ from the wizard's file:
   #
   #   AuthUrlAction   see ssoEntry above
-  #   UrlAction       was `open`; each console URL is now rewritten into one the
-  #                   Granted extension opens in a Firefox container named after
-  #                   the profile, so two roles assumed at once never share a
-  #                   cookie jar
-  #   UrlExecCommand  the browser that opens it, and the only reason any of this
+  #   UrlAction       was `open`; each console URL is now rewritten into one
+  #                   carrying the profile name, which UrlExecCommand turns into
+  #                   a Brave profile, so two roles assumed at once never share
+  #                   a cookie jar
+  #   UrlExecCommand  the command that opens it, and the only reason any of this
   #                   lives in a file: unlike `--url-action`, it has no flag
   #
-  # ProfileFormat names the container, and reads
+  # ProfileFormat names the Brave profile, and reads
   # `Production:AWSAdministratorAccess-051826724614`. AccountName arrives as a
   # breadcrumb (`Applications / Factbird / A / B / C`), which makes for a
-  # container label too long to read, so `splitList` and `last` keep the leaf
+  # profile label too long to read, so `splitList` and `last` keep the leaf
   # and `trim` drops the space the breadcrumb pads it with. An alias, which
   # carries no `/`, comes back from the split whole.
   #
@@ -97,7 +134,7 @@
       CacheRefresh: 168
       UrlAction: granted-containers
       UrlExecCommand:
-          - ${firefox}
+          - ${openUrl}
           - "%s"
       LogLevel: error
       HistoryLimit: 10
