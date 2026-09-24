@@ -173,6 +173,33 @@
         '';
         inherit (final.gh) meta;
       };
+    # Agent-facing GitHub CLI (https://github.com/kunchenguid/gh-axi): wraps
+    # `gh` with TOON output, pre-computed totals and next-step hints. Built
+    # from the npm tarball, which ships the compiled dist/; the lockfile pins
+    # its two runtime dependencies only, so postPatch drops the dev manifest
+    # to match. It resolves `gh` through PATH, so inside the sandbox it runs
+    # the ghWrapped shim below.
+    gh-axi = final.buildNpmPackage rec {
+      pname = "gh-axi";
+      version = "0.1.35";
+      src = final.fetchurl {
+        url = "https://registry.npmjs.org/gh-axi/-/gh-axi-${version}.tgz";
+        hash = "sha256-9yWr5EfJkqPWzA2aYyWGcj7RzxbHlRpAvODHPgkD5q4=";
+      };
+      postPatch = ''
+        ${final.lib.getExe final.jq} 'del(.devDependencies, .scripts)' package.json > package.json.tmp
+        mv package.json.tmp package.json
+        cp ${../lockfiles/gh-axi.json} package-lock.json
+      '';
+      npmDepsHash = "sha256-NHsvrHpb+dvOef2qN1HJlpg8OAcgie3UI8BdgF1HE0o=";
+      dontNpmBuild = true;
+      meta = {
+        description = "GitHub CLI for agents, wrapping gh with token-efficient output";
+        homepage = "https://github.com/kunchenguid/gh-axi";
+        license = final.lib.licenses.mit;
+        mainProgram = "gh-axi";
+      };
+    };
     # Canonical codegraph MCP entry, merged into every claude entry point:
     # the base wrapper below and each mkClaudeFlavor in scripts/default.nix.
     # Claude Code only reads server definitions from mutable state files
@@ -347,7 +374,7 @@
         fi
         '' else ""}
         export GH_CONFIG_DIR="${ghEmptyConfig}"
-        export PATH="${ghWrapped}/bin:$PATH"
+        export PATH="${ghWrapped}/bin:${final.gh-axi}/bin:$PATH"
 
         add_dirs="$PWD"
         if [[ -n "''${CARGO_TARGET_DIR:-}" ]]; then

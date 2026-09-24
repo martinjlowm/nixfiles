@@ -92,6 +92,7 @@
               claude-code = pkgs.claude-code;
               gh-image = pkgs.gh-image;
               gh-with-image = pkgs.gh-with-image;
+              gh-axi = pkgs.gh-axi;
             };
         })
         systems);

@@ -20,6 +20,7 @@ Runnable as `nix run github:martinjlowm/nixfiles#<name> -- [args]`. Declared by 
 | `fix` | `<pr-number>` | Agent loop that repairs CI on one pull request. |
 | `github-issues` | none | Agent loop over GitHub Issues. |
 | `github-project` | `<tech-spec.md> <project-url>` | Creates project items from a tech spec. Reads `ESTIMATION_TEMPLATE`, set by the derivation. |
+| `gh-axi` | passthrough | Agent-facing wrapper over `gh` with TOON output. Built from the npm tarball against `lockfiles/gh-axi.json`. |
 | `gh-image` | passthrough | `gh` extension that uploads images to GitHub user-attachments storage. |
 | `gh-with-image` | passthrough | `gh` with the `gh-image` extension already installed. |
 | `loop` | `<spec> [max-iterations]` | Generic spec-driven agent loop. Default 10 iterations. |

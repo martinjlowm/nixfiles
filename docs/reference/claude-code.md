@@ -23,7 +23,7 @@ suffix; skill names are the directory names.
 
 ## Skills
 
-`agent-browser`, `ffmpeg`, `frontend-design`, `image-upload`, `pr-comments`,
+`agent-browser`, `ffmpeg`, `frontend-design`, `gh-axi`, `image-upload`, `pr-comments`,
 `pr-description`, `prd`, `resolve`, `unslop`, `visual-comparison`, `zendesk-ticket`.
 
 `image-upload` stores files with the backend named in an `Image uploads` section of the
@@ -59,6 +59,18 @@ The TypeSafe agent skill (`typesafe-ai/skills`) is not one of these: it is fetch
 codegraph is passed `--mcp-config`, because `programs.claude-code.plugins` has the same
 positional-argument-swallowing wrapper bug already worked around for `mcpServers`. `TYPESAFE_API_KEY`
 is resolved from 1Password (`op://Developer/Jev/credential`) alongside `GH_TOKEN`.
+
+## Sandbox PATH
+
+The `claude-code` overlay wrapper prepends two directories to `PATH`.
+
+| Directory | Provides |
+| --- | --- |
+| `ghWrapped` | `gh`, built from `gh-with-image`, with `--admin` removed from every invocation. `GH_CONFIG_DIR` points at an empty store path, so auth comes from `GH_TOKEN`. |
+| `pkgs.gh-axi` | `gh-axi`, which runs `gh` by bare name and therefore goes through `ghWrapped`. |
+
+`gh-axi setup hooks` is not run. The `SessionStart` hook it would install prints `0 open`
+issues and pull requests outside a GitHub repository, rather than an explicit empty state.
 
 ## Hooks
 
