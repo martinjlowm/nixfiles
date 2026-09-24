@@ -135,8 +135,8 @@
         mainProgram = "rtk";
       };
     };
-    # gh extension for uploading attachments to GitHub; used by the
-    # gh-image-upload and visual-comparison Claude skills.
+    # gh extension for uploading attachments to GitHub; the github-session
+    # backend of the image-upload Claude skill.
     gh-image = final.buildGoModule rec {
       pname = "gh-image";
       version = "1.2.0";

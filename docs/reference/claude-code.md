@@ -23,8 +23,13 @@ suffix; skill names are the directory names.
 
 ## Skills
 
-`agent-browser`, `ffmpeg`, `frontend-design`, `gh-image-upload`, `pr-comments`,
+`agent-browser`, `ffmpeg`, `frontend-design`, `image-upload`, `pr-comments`,
 `pr-description`, `prd`, `resolve`, `unslop`, `visual-comparison`, `zendesk-ticket`.
+
+`image-upload` stores files with the backend named in an `Image uploads` section of the
+instructions in context. `config/claude/CLAUDE.md` declares `github-session`, documented in
+`config/claude/skills/image-upload/backends/github-session.md`. A project declaration
+overrides it.
 
 ## Commands and templates
 

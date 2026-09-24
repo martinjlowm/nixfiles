@@ -65,6 +65,12 @@ Bots run the other way. The user's own threads and every bot review, `claude[bot
 `martinjlowm-s-botler[bot]`, `dependabot[bot]`, `coderabbitai[bot]` and the rest, get a reply
 naming what changed, because that reply is the only thing tying the finding to the fix.
 
+# Image uploads
+
+Backend: `github-session`, documented in the `image-upload` skill's
+`backends/github-session.md`. Files go to GitHub user-attachments with `gh image`, against the
+repository the comment is posted to, and `GH_SESSION_TOKEN` carries the browser session.
+
 # Documentation: four modes, kept apart
 
 Documentation committed to a repository follows the Diátaxis framework

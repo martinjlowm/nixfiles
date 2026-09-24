@@ -18,19 +18,15 @@ When the user asks to compare two web applications: "compare localhost:3000 and 
 3. Pages and routes to navigate. The user may specify routes, and those are always included. Beyond that, the skill builds its own coverage plan: first the routes and states affected by the diff against `origin/master` (see "Build the coverage plan"), then Mixpanel-tracked critical paths, then generally discovered routes
 4. API key, if required. Passed as a `token=<api-key>` query parameter on all requests
 5. Screen size, optional. Viewport dimensions for screenshots (`1920x1080`, `1440x900`, `1280x720`). If the user does not specify one, **ask them before starting the comparison**. Do not assume a default. Different applications are designed for different viewports and the choice affects how accurate the comparison is.
-6. Diff thresholds, optional. The gate that decides whether a diff is **substantial**, a real change someone should look at, or the pair is assumed equal. Defaults: pixel sensitivity `10%` (a per-channel difference below this is not a changed pixel), largest contiguous changed region `1600 px` (roughly 40x40), total changed fraction `0.2%`. A pair is substantial if **either** the region or the fraction threshold is exceeded, otherwise it is marked good. Only substantial diffs are reported as findings, but every captured pair is uploaded to GitHub so a reviewer can check the verdict against the actual renders.
+6. Diff thresholds, optional. The gate that decides whether a diff is **substantial**, a real change someone should look at, or the pair is assumed equal. Defaults: pixel sensitivity `10%` (a per-channel difference below this is not a changed pixel), largest contiguous changed region `1600 px` (roughly 40x40), total changed fraction `0.2%`. A pair is substantial if **either** the region or the fraction threshold is exceeded, otherwise it is marked good. Only substantial diffs are reported as findings, but every captured pair is uploaded so a reviewer can check the verdict against the actual renders.
 
 ## Setup
 
-### GitHub upload preflight
+### Upload preflight
 
-The final step posts before and after images to the PR via the **gh-image-upload** skill, which authenticates with a GitHub `user_session` token. That is an interactive dependency and cannot be resolved mid-run in a headless session. Run its preflight **now**, before any capture work:
+The final step posts before and after images to the PR through the **image-upload** skill, which stores them with whatever backend the session declares under `Image uploads`. Backends usually need a credential the user supplies, which cannot be resolved mid-run in a headless session. Run the declared backend's preflight **now**, before any capture work.
 
-```bash
-gh image check-token
-```
-
-If it fails, follow gh-image-upload's authentication section to request the token from the user, at the same time as asking for the screen size, while they are present. Do not defer this to the upload step. A token discovered missing after the comparison finishes leaves the report without its images. If the user opts to run without uploads, record that decision and note it in the report. Otherwise a passing `check-token` is a precondition for starting the comparison. All token mechanics (extraction, validation, expiry recovery, handling) belong to gh-image-upload. Do not restate or improvise them here.
+If it fails, follow the backend's recovery step to get what it needs from the user, at the same time as asking for the screen size, while they are present. Do not defer this to the upload step. A credential discovered missing after the comparison finishes leaves the report without its images. If no backend is declared, or the user opts to run without uploads, record that and note it in the report. Otherwise a passing preflight is a precondition for starting the comparison. Backend mechanics (credentials, validation, expiry recovery) belong to image-upload and the backend's declaration. Do not restate or improvise them here.
 
 ### Screenshot output directories
 
@@ -692,9 +688,9 @@ All screenshots saved to `.visual-comparison/x/` and `.visual-comparison/y/`, di
 
 ### 7. Upload before and after comparisons to the PR
 
-After producing the report, post the comparison as a PR comment. The upload, embed, and post mechanics belong to the **gh-image-upload** skill: tooling availability, session-token authentication including headless `GH_SESSION_TOKEN` handling and expiry recovery, `gh image` usage, and posting via `gh pr comment`. Use it for this step.
+After producing the report, post the comparison as a PR comment. The upload, embed, and post mechanics belong to the **image-upload** skill: finding the declared backend, running its upload step, wrapping URLs as markdown, and posting via `gh pr comment`. Use it for this step.
 
-Because of the setup-time preflight, a missing token at this point is not an expected state. If the upload nevertheless fails on auth, because the session was invalidated mid-run, follow gh-image-upload's expiry recovery: ask the user for a fresh token and retry, rather than silently downgrading to a text-only comment. Skip uploads only if the user declined them at preflight, or declines now. In that case keep the local `.visual-comparison/` artifacts and note in the report that the PR comment was posted without images, or not posted, and why.
+Because of the setup-time preflight, a failing upload is not an expected state. If it nevertheless fails on auth, because a credential expired mid-run, follow the backend's recovery step: ask the user for what it needs and retry, rather than silently downgrading to a text-only comment. Skip uploads only if the user declined them at preflight, or declines now. In that case keep the local `.visual-comparison/` artifacts and note in the report that the PR comment was posted without images, or not posted, and why.
 
 Mention nobody in the comment. No `@handle` in the prose, the table, or the image alt text:
 the PR already notifies its participants, and a mention pages people who are not on it.
@@ -771,4 +767,4 @@ What is specific to this skill:
 
 ## Notes for PR reviewers
 
-The `.visual-comparison/` directory is ephemeral documentation. Screenshots give a quick visual diff for reviewers who want to verify UI changes without running both environments locally, and the before/after comment posted via `gh image` is the durable, PR-facing copy. The local directory can be cleaned up after the PR is merged. Do NOT commit it unless the user explicitly asks to.
+The `.visual-comparison/` directory is ephemeral documentation. Screenshots give a quick visual diff for reviewers who want to verify UI changes without running both environments locally, and the before/after comment posted through image-upload is the durable, PR-facing copy. The local directory can be cleaned up after the PR is merged. Do NOT commit it unless the user explicitly asks to.
