@@ -116,8 +116,18 @@
     checkPhase = "";
     text = builtins.readFile ./codegraph-pull.sh;
   };
+  # The PR-review subagents (config/claude/agents) read review endpoints through
+  # `gh-as-owner`, which in the mj-agents fleet swaps the bot's token for the
+  # owner's. Here it is the same gh-agent the Claude wrapper puts on PATH, which
+  # already acts as the owner. Defined in the `let` so agent-pr-digest can put
+  # it on its own PATH.
+  gh-as-owner = pkgs.writeShellApplication {
+    name = "gh-as-owner";
+    runtimeInputs = [pkgs.gh-agent];
+    text = ''exec gh "$@"'';
+  };
 in {
-  inherit claude-follow codegraph-pull;
+  inherit claude-follow codegraph-pull gh-as-owner;
   worktree = pkgs.writeShellApplication {
     name = "worktree";
     runtimeInputs = [
@@ -204,6 +214,13 @@ in {
     ];
     checkPhase = "";
     text = builtins.readFile ./pr-ready.sh;
+  };
+  # What pr-review-orchestrator runs before it fans out. mj-agents packages the
+  # same script with its own gh identities.
+  agent-pr-digest = pkgs.writeShellApplication {
+    name = "agent-pr-digest";
+    runtimeInputs = [pkgs.gh-agent gh-as-owner pkgs.jq pkgs.coreutils];
+    text = builtins.readFile ./pr-digest.sh;
   };
   zendesk-ticket = pkgs.writeShellApplication {
     name = "zendesk-ticket";

@@ -210,6 +210,8 @@ in {
       scripts.pr-attn
       scripts.pr-ready
       scripts.zendesk-ticket
+      scripts.gh-as-owner
+      scripts.agent-pr-digest
       scripts.roadmap-sync
       scripts.claude-pm
       scripts.claude-ops

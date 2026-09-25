@@ -173,12 +173,27 @@
         '';
         inherit (final.gh) meta;
       };
+    # The `gh` a Claude session gets: first on PATH in the claude-code wrapper
+    # below, and the `gh` every agent-facing script in scripts/default.nix
+    # runs. gh-with-image so `gh image` works in-sandbox; browser cookies are
+    # unreachable there, so auth comes from GH_SESSION_TOKEN (see envVars).
+    # --admin is dropped, so `gh pr merge --admin` cannot bypass branch protection.
+    gh-agent = final.writeShellScriptBin "gh" ''
+      args=()
+      for arg in "$@"; do
+        case "$arg" in
+          --admin) ;;
+          *) args+=("$arg") ;;
+        esac
+      done
+      exec ${final.gh-with-image}/bin/gh "''${args[@]}"
+    '';
     # Agent-facing GitHub CLI (https://github.com/kunchenguid/gh-axi): wraps
     # `gh` with TOON output, pre-computed totals and next-step hints. Built
     # from the npm tarball, which ships the compiled dist/; the lockfile pins
     # its two runtime dependencies only, so postPatch drops the dev manifest
     # to match. It resolves `gh` through PATH, so inside the sandbox it runs
-    # the ghWrapped shim below.
+    # the gh-agent shim above.
     gh-axi = final.buildNpmPackage rec {
       pname = "gh-axi";
       version = "0.1.35";
@@ -288,18 +303,6 @@
         mcpServers = final.codegraph-mcp-servers;
       });
 
-      # gh-with-image so `gh image` works in-sandbox; browser cookies are
-      # unreachable here, so auth comes from GH_SESSION_TOKEN (see envVars).
-      ghWrapped = final.writeShellScriptBin "gh" ''
-        args=()
-        for arg in "$@"; do
-          case "$arg" in
-            --admin) ;;
-            *) args+=("$arg") ;;
-          esac
-        done
-        exec ${final.gh-with-image}/bin/gh "''${args[@]}"
-      '';
 
       envVars = [
         "PATH" "HOME" "USER" "TERM"
@@ -374,7 +377,7 @@
         fi
         '' else ""}
         export GH_CONFIG_DIR="${ghEmptyConfig}"
-        export PATH="${ghWrapped}/bin:${final.gh-axi}/bin:$PATH"
+        export PATH="${final.gh-agent}/bin:${final.gh-axi}/bin:$PATH"
 
         add_dirs="$PWD"
         if [[ -n "''${CARGO_TARGET_DIR:-}" ]]; then
