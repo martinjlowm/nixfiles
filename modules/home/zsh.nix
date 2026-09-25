@@ -101,6 +101,22 @@ in {
         echo "» Changed context to $cloud ($AWS_ACCESS_KEY_ID)."
       }
 
+      # Prints the role and account of the current AWS credentials. An
+      # assumed-role ARN carries the role name as the segment after
+      # `assumed-role/`; any other principal prints its resource part.
+      awsami () {
+        local account arn role
+        read -r account arn <<< "$(aws sts get-caller-identity --query '[Account, Arn]' --output text)" || return
+        [[ -n $arn ]] || return 1
+        if [[ $arn == *:assumed-role/* ]]; then
+          role=''${''${arn#*:assumed-role/}%%/*}
+        else
+          role=''${arn##*:}
+        fi
+        echo "role:    $role"
+        echo "account: $account"
+      }
+
       replace () {
         ${pkgs.ripgrep}/bin/rg $1 --files-with-matches | xargs sed -i "s/$1/$2/g"
       }
