@@ -60,7 +60,8 @@ query($owner:String!, $repo:String!, $pr:Int!) {
 ```
 
 Top-level PR comments and review summary bodies are a separate stream with **no resolve
-action**:
+action** and no reply of their own. Read them for findings, then answer each finding in the
+inline thread that carries it (see Notes):
 
 ```bash
 gh pr view <number> --json number,title,url,headRefOid,comments,reviews
@@ -117,8 +118,8 @@ review", no "let me know if you'd like anything else".
 
 **No reply or comment you post names a person.** The thread already notifies everyone on it,
 so a `@handle` adds nothing but a second notification, and it pulls anyone else you name into
-a conversation they were not part of. This holds for inline replies, top-level comments,
-review summaries, and any body you edit.
+a conversation they were not part of. This holds for inline replies and
+any body you edit.
 
 - No "@reviewer good catch", no "as @someone suggested", no addressing the reviewer by name.
   Open on what changed.
@@ -227,9 +228,14 @@ with `slack_search_channels` if the name does not take.
 
 ## Notes
 
-- Top-level PR comments and review summaries cannot be resolved. Route them by author like
-  any other thread: `gh pr comment` for the user's own and for a bot, the Slack summary for a
-  colleague's.
+- Never post a top-level PR comment or submit a review. No `gh pr comment`, no
+  `issues/<n>/comments`, no review body. Everything posted on the PR is a reply to a chosen
+  inline thread.
+- A finding raised in a top-level comment or a review summary, `claude[bot]`'s "Review
+  summary" included, is answered in the inline thread that carries the same finding, under
+  that thread's author rules. A finding no thread carries gets the fix and an entry in the
+  report: the session's own report for the user's and a bot's, the Slack summary for a
+  colleague's. Nothing is posted on the PR for it.
 - A comment asking for work outside the PR's scope gets a follow-up note and no wider diff.
   Say so in the reply, or in the summary entry when a colleague raised it.
 - Do not offer to reply to a colleague, in the session or anywhere else. Their unanswered
