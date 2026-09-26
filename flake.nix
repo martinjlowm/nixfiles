@@ -15,6 +15,10 @@
 
     onepassword-secrets.url = "github:brizzbuzz/opnix";
     onepassword-secrets.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Factbird's shared Claude Code skills. Skill folders only, no flake.
+    agent-skills.url = "git+https://github.com/FactbirdHQ/agent-skills?ref=main";
+    agent-skills.flake = false;
   };
 
   outputs = inputs @ {
@@ -26,6 +30,7 @@
     nextNixpkgsClaude,
     nextNixpkgs,
     onepassword-secrets,
+    agent-skills,
   }: let
     # Import overlays
     overlays = import ./overlays;

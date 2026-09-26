@@ -3,10 +3,15 @@
   nextPkgsClaude,
   pkgs,
   lib,
+  inputs,
   ...
 }: let
   claudeDirectory = ../../config/claude;
   stripMdExt = name: lib.removeSuffix ".md" name;
+  # Skills taken from FactbirdHQ/agent-skills (the `agent-skills` flake input)
+  # rather than copied into config/claude/skills, so a `nix flake update
+  # agent-skills` picks up their changes.
+  sharedSkills = ["fleet-conversation"];
 in {
   # CLI on PATH for manual use (codegraph status/query/impact ...). The MCP
   # server itself is injected via pkgs.codegraph-mcp-servers: the claude-code
@@ -36,11 +41,13 @@ in {
         value = claudeDirectory + "/commands/${name}";
       })
       (builtins.attrNames (builtins.readDir "${claudeDirectory}/commands")));
-    skills = builtins.listToAttrs (builtins.map (name: {
-        inherit name;
-        value = claudeDirectory + "/skills/${name}";
-      })
-      (builtins.attrNames (builtins.readDir "${claudeDirectory}/skills")));
+    skills =
+      builtins.listToAttrs (builtins.map (name: {
+          inherit name;
+          value = claudeDirectory + "/skills/${name}";
+        })
+        (builtins.attrNames (builtins.readDir "${claudeDirectory}/skills")))
+      // lib.genAttrs sharedSkills (name: "${inputs.agent-skills}/${name}");
     settings = {
       model = "opus";
       # model = "fable";
