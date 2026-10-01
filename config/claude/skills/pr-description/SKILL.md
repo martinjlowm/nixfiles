@@ -146,17 +146,19 @@ that make up the rest of that body.
 
 ### Cite the report behind it
 
-Every PR references the report that motivates it: an issue, a support ticket, an incident,
-an alert, a review finding. The problem sentence says what was wrong, and the reference is
-the evidence that someone hit it, so a `git blame` reader can follow it back to the
-conversation and the people the change was for.
+Every PR references a GitHub issue for the problem it addresses. The problem sentence says
+what was wrong, and the issue is the evidence that someone hit it, so a `git blame` reader
+can follow it back to the conversation and the people the change was for. A support ticket,
+an incident, an alert or a review finding is where the problem surfaced, not the issue that
+tracks it, so it never stands in for one.
 
-- **Look before you write.** The issue or ticket in the prompt or the session, links in the
-  branch's commits, an issue that `gh issue list --repo <owner>/<repo> --state all --search
-  "<symptom>"` finds, the Zendesk ticket or alert that started the work.
+- **Look before you write.** The issue in the prompt or the session, links in the branch's
+  commits, an issue that `gh issue list --repo <owner>/<repo> --state all --search
+  "<symptom>"` finds. Note the Zendesk ticket, incident or alert that started the work as
+  well: the issue links it.
 - **A non-issue source goes inline** in the problem sentence, as a full URL: the Zendesk
-  ticket, the Dependabot alert, the incident, the review comment. A PR keyword cannot close
-  any of them.
+  ticket, the Dependabot alert, the incident, the review comment. It sits beside the issue
+  reference, never in place of it, and a PR keyword cannot close any of them.
 - **An issue the PR resolves goes in a trailer.** End the body with one `Closes` line per
   resolved issue, full URL, nothing after them:
 
@@ -168,13 +170,20 @@ conversation and the people the change was for.
   An issue the PR only advances, without resolving it, goes inline instead. A `Closes`
   line on it would close it on merge. A prompt that prescribes its own trailer form, such
   as `Closes #<task>` for a pipeline that matches on it, wins over this one.
-- **When nothing reports the problem, open the issue yourself** in the PR's repository,
-  FactbirdHQ/nest for nest work, before creating the PR. That holds whenever the search
-  above finds no issue and nothing else explicit motivates the work. Title it with the
-  problem, not the fix. The body states what is wrong, what it costs and where it shows,
-  taken from the session and the commits under the same rule as never inventing the
-  problem: if they do not settle it, ask rather than file a guess. Add no labels,
-  assignees or project, and no `@handle`. Then close it from the PR with a `Closes` line.
+- **When no issue exists, open one yourself** in the PR's repository, FactbirdHQ/nest for
+  nest work, before creating the PR. That holds whenever the search above finds no issue,
+  including when a support ticket, incident or alert already reports the problem; the
+  issue links that source. Title it with the problem, not the fix. The body states what is
+  wrong, what it costs and where it shows, taken from the session and the commits under the
+  same rule as never inventing the problem: if they do not settle it, ask rather than file
+  a guess. Add no labels, assignees or project, and no `@handle`. Then close it from the PR
+  with a `Closes` line.
+- **Every issue is triaged with a type.** This is the issue's Type, not one of the
+  organisation's custom issue fields such as Priority. An issue without its type set sits
+  outside the boards and queries that sort the work, so set it on every issue you file and
+  on any existing issue the PR cites that has none. The type is `Task` unless the issue
+  plainly is something else: `Bug` for an unexpected problem in shipped behaviour, `Feature`
+  for new functionality someone asked for. Leave a type someone already set alone.
 - **The issue proves its claim.** An issue states that something is wrong, so it carries the
   evidence a reader needs to believe that without reproducing it. One you file includes it
   from the start. An existing issue that states the problem without it gets the evidence
@@ -194,7 +203,8 @@ conversation and the people the change was for.
   and the conversation itself stay in Zendesk.
 
 ```bash
-gh issue create --repo <owner>/<repo> --title "<problem>" --body-file <file>
+gh issue create --repo <owner>/<repo> --title "<problem>" --body-file <file> --type Task
+gh issue edit <number> --repo <owner>/<repo> --type Task   # an existing issue with no type
 ```
 
 ## How it sounds
@@ -549,7 +559,7 @@ gh pr comment <number> --repo <owner>/<repo> --body-file <file>
 
 Act when a description is stale, stating a superseded approach, listing changes no longer
 in the diff or omitting a major change now present, or when it breaks any rule above. When
-it never says what problem the change solves, or cites no report, find or file the issue as
+it never says what problem the change solves, or cites no issue, find or file one as
 [Cite the report behind it](#cite-the-report-behind-it) describes. When nothing settles
 what the problem was, put that in the report rather than a guess in the body or an issue.
 
