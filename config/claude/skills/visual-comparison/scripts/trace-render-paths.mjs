@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// biome-ignore-all lint/suspicious/noConsole: a CLI prints its report on stdout.
 // trace-render-paths.mjs — static render-path tracer for the visual-comparison skill.
 //
 // Uses the TARGET project's own `typescript` package (resolved from the cwd) to build a
@@ -34,15 +35,25 @@ const targets = [];
   const argv = process.argv.slice(2);
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--project') opts.project = argv[++i];
-    else if (a === '--json') opts.json = true;
-    else if (a === '--max-paths') opts.maxPaths = Number(argv[++i]);
-    else if (a === '--max-depth') opts.maxDepth = Number(argv[++i]);
-    else if (a === '-h' || a === '--help') { console.log(USAGE); process.exit(0); }
-    else targets.push(a);
+    if (a === '--project') {
+      opts.project = argv[++i];
+    } else if (a === '--json') {
+      opts.json = true;
+    } else if (a === '--max-paths') {
+      opts.maxPaths = Number(argv[++i]);
+    } else if (a === '--max-depth') {
+      opts.maxDepth = Number(argv[++i]);
+    } else if (a === '-h' || a === '--help') {
+      console.log(USAGE);
+      process.exit(0);
+    } else {
+      targets.push(a);
+    }
   }
 }
-if (!targets.length) die(USAGE);
+if (!targets.length) {
+  die(USAGE);
+}
 
 // ---- Load the project's own TypeScript ----
 const projectRoot = process.cwd();
@@ -50,15 +61,21 @@ let ts;
 try {
   ts = createRequire(path.join(projectRoot, 'package.json'))('typescript');
 } catch {
-  die(`Could not resolve the project's own 'typescript' package from ${projectRoot} — run this from the target project root (after its dependencies are installed).`);
+  die(
+    `Could not resolve the project's own 'typescript' package from ${projectRoot} — run this from the target project root (after its dependencies are installed).`,
+  );
 }
 
 const configPath = opts.project
   ? path.resolve(opts.project)
   : ts.findConfigFile(projectRoot, ts.sys.fileExists, 'tsconfig.json');
-if (!configPath) die('No tsconfig.json found — pass --project <path>.');
+if (!configPath) {
+  die('No tsconfig.json found — pass --project <path>.');
+}
 const readResult = ts.readConfigFile(configPath, ts.sys.readFile);
-if (readResult.error) die(ts.flattenDiagnosticMessageText(readResult.error.messageText, '\n'));
+if (readResult.error) {
+  die(ts.flattenDiagnosticMessageText(readResult.error.messageText, '\n'));
+}
 const parsed = ts.parseJsonConfigFileContent(readResult.config, ts.sys, path.dirname(configPath));
 const program = ts.createProgram({ rootNames: parsed.fileNames, options: parsed.options });
 const checker = program.getTypeChecker();
@@ -73,7 +90,9 @@ const projectFiles = program
 const components = new Map(); // declaration node -> { name, file, node, parents: [{parent, reveal}] }
 
 function register(node, name, sf) {
-  if (!components.has(node)) components.set(node, { name, file: sf.fileName, node, parents: [] });
+  if (!components.has(node)) {
+    components.set(node, { name, file: sf.fileName, node, parents: [] });
+  }
 }
 
 function defaultName(sf) {
@@ -87,19 +106,23 @@ for (const sf of projectFiles) {
     if (ts.isFunctionDeclaration(node) && node.name && isPascal(node.name.text)) {
       register(node, node.name.text, sf);
     } else if (
-      ts.isFunctionDeclaration(node) && !node.name &&
+      ts.isFunctionDeclaration(node) &&
+      !node.name &&
       node.modifiers?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)
     ) {
       register(node, defaultName(sf), sf);
     } else if (
-      ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) &&
-      isPascal(node.name.text) && node.initializer
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      isPascal(node.name.text) &&
+      node.initializer
     ) {
       register(node, node.name.text, sf);
     } else if (ts.isClassDeclaration(node) && node.name && isPascal(node.name.text)) {
       register(node, node.name.text, sf);
     } else if (
-      ts.isExportAssignment(node) && !node.isExportEquals &&
+      ts.isExportAssignment(node) &&
+      !node.isExportEquals &&
       (ts.isArrowFunction(node.expression) || ts.isFunctionExpression(node.expression))
     ) {
       register(node, defaultName(sf), sf);
@@ -111,7 +134,9 @@ for (const sf of projectFiles) {
 
 function componentForDecl(d) {
   for (let cur = d, i = 0; cur && i < 4; cur = cur.parent, i++) {
-    if (components.has(cur)) return components.get(cur);
+    if (components.has(cur)) {
+      return components.get(cur);
+    }
   }
   return null;
 }
@@ -122,14 +147,20 @@ const GUARD_PROPS = ['open', 'isOpen', 'in', 'visible', 'show'];
 
 function findAttr(el, names) {
   for (const a of el.attributes?.properties ?? []) {
-    if (ts.isJsxAttribute(a) && names.includes(a.name.getText())) return a;
+    if (ts.isJsxAttribute(a) && names.includes(a.name.getText())) {
+      return a;
+    }
   }
   return null;
 }
 
 function attrExpression(attr) {
-  if (!attr?.initializer) return null;
-  if (ts.isJsxExpression(attr.initializer)) return attr.initializer.expression ?? null;
+  if (!attr?.initializer) {
+    return null;
+  }
+  if (ts.isJsxExpression(attr.initializer)) {
+    return attr.initializer.expression ?? null;
+  }
   return attr.initializer; // string literal
 }
 
@@ -140,11 +171,17 @@ function attrString(el, names) {
 
 function jsxTextOf(open) {
   const parent = open.parent;
-  if (!parent || !ts.isJsxElement(parent)) return null;
+  if (!parent || !ts.isJsxElement(parent)) {
+    return null;
+  }
   const txt = parent.children
     .map((ch) => {
-      if (ts.isJsxText(ch)) return ch.text;
-      if (ts.isJsxExpression(ch) && ch.expression && ts.isStringLiteralLike(ch.expression)) return ch.expression.text;
+      if (ts.isJsxText(ch)) {
+        return ch.text;
+      }
+      if (ts.isJsxExpression(ch) && ch.expression && ts.isStringLiteralLike(ch.expression)) {
+        return ch.expression.text;
+      }
       return '';
     })
     .join(' ')
@@ -154,7 +191,9 @@ function jsxTextOf(open) {
 }
 
 function describeJsxElement(el) {
-  if (!el || !el.tagName) return null;
+  if (!el || !el.tagName) {
+    return null;
+  }
   const label = attrString(el, ['aria-label', 'label', 'title', 'tooltip']) ?? jsxTextOf(el);
   return label ? `"${label}"` : `<${el.tagName.getText()}>`;
 }
@@ -164,17 +203,28 @@ function describeJsxElement(el) {
 function resolveTrigger(guard, comp) {
   let name = null;
   let expr = guard;
-  if (ts.isPrefixUnaryExpression(expr) && expr.operator === ts.SyntaxKind.ExclamationToken) expr = expr.operand;
-  if (ts.isIdentifier(expr)) name = expr.text;
-  else if (ts.isPropertyAccessExpression(expr)) name = expr.name.text;
-  if (!name) return null;
+  if (ts.isPrefixUnaryExpression(expr) && expr.operator === ts.SyntaxKind.ExclamationToken) {
+    expr = expr.operand;
+  }
+  if (ts.isIdentifier(expr)) {
+    name = expr.text;
+  } else if (ts.isPropertyAccessExpression(expr)) {
+    name = expr.name.text;
+  }
+  if (!name) {
+    return null;
+  }
   const setter = 'set' + name[0].toUpperCase() + name.slice(1);
 
   let trigger = null;
   const visit = (node) => {
-    if (trigger) return;
+    if (trigger) {
+      return;
+    }
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === setter) {
-      if (!isClearingCall(node) && !enclosingQueryCallback(node, comp)) trigger = describeHandlerSite(node, comp);
+      if (!isClearingCall(node) && !enclosingQueryCallback(node, comp)) {
+        trigger = describeHandlerSite(node, comp);
+      }
     }
     ts.forEachChild(node, visit);
   };
@@ -185,7 +235,9 @@ function resolveTrigger(guard, comp) {
 // setX(false) / setX(null) / setX(undefined) resets the state, it never reveals the child.
 function isClearingCall(callNode) {
   const arg = callNode.arguments[0];
-  if (!arg) return false;
+  if (!arg) {
+    return false;
+  }
   return (
     arg.kind === ts.SyntaxKind.FalseKeyword ||
     arg.kind === ts.SyntaxKind.NullKeyword ||
@@ -200,12 +252,20 @@ const QUERY_CALLBACKS = new Set(['onCompleted', 'onData', 'onSuccess', 'onResult
 // in a user-interaction handler? If so, the state is decided by the response, not by a click.
 function enclosingQueryCallback(node, comp) {
   for (let cur = node.parent; cur && cur !== comp.node; cur = cur.parent) {
-    if (!ts.isPropertyAssignment(cur) || !ts.isIdentifier(cur.name)) continue;
-    if (!QUERY_CALLBACKS.has(cur.name.text)) continue;
+    if (!ts.isPropertyAssignment(cur) || !ts.isIdentifier(cur.name)) {
+      continue;
+    }
+    if (!QUERY_CALLBACKS.has(cur.name.text)) {
+      continue;
+    }
     const call = cur.parent?.parent;
-    if (!call || !ts.isCallExpression(call)) continue;
+    if (!call || !ts.isCallExpression(call)) {
+      continue;
+    }
     const callee = ts.isPropertyAccessExpression(call.expression) ? call.expression.name : call.expression;
-    if (ts.isIdentifier(callee) && QUERY_HOOKS.test(callee.text)) return callee.text;
+    if (ts.isIdentifier(callee) && QUERY_HOOKS.test(callee.text)) {
+      return callee.text;
+    }
   }
   return null;
 }
@@ -215,9 +275,15 @@ function enclosingQueryCallback(node, comp) {
 //   const [x, setX] = useState(); useQuery({ onCompleted: (d) => setX(...) })
 function isDataDerived(guard, comp) {
   let expr = guard;
-  while (ts.isPrefixUnaryExpression(expr)) expr = expr.operand;
-  while (ts.isPropertyAccessExpression(expr) || ts.isNonNullExpression(expr)) expr = expr.expression;
-  if (!ts.isIdentifier(expr)) return false;
+  while (ts.isPrefixUnaryExpression(expr)) {
+    expr = expr.operand;
+  }
+  while (ts.isPropertyAccessExpression(expr) || ts.isNonNullExpression(expr)) {
+    expr = expr.expression;
+  }
+  if (!ts.isIdentifier(expr)) {
+    return false;
+  }
   const name = expr.text;
 
   // Bound straight off a query hook's result.
@@ -228,9 +294,13 @@ function isDataDerived(guard, comp) {
         const callee = ts.isPropertyAccessExpression(cur.initializer.expression)
           ? cur.initializer.expression.name
           : cur.initializer.expression;
-        if (ts.isIdentifier(callee) && QUERY_HOOKS.test(callee.text)) return true;
+        if (ts.isIdentifier(callee) && QUERY_HOOKS.test(callee.text)) {
+          return true;
+        }
       }
-      if (ts.isSourceFile(cur)) break;
+      if (ts.isSourceFile(cur)) {
+        break;
+      }
     }
   }
 
@@ -240,8 +310,11 @@ function isDataDerived(guard, comp) {
   let fromElsewhere = false;
   const visit = (n) => {
     if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === setter && !isClearingCall(n)) {
-      if (enclosingQueryCallback(n, comp)) fromQuery = true;
-      else fromElsewhere = true;
+      if (enclosingQueryCallback(n, comp)) {
+        fromQuery = true;
+      } else {
+        fromElsewhere = true;
+      }
     }
     ts.forEachChild(n, visit);
   };
@@ -258,10 +331,14 @@ function describeHandlerSite(callNode, comp) {
       const handlerName = cur.name.text;
       let desc = null;
       const scan = (n) => {
-        if (desc) return;
+        if (desc) {
+          return;
+        }
         if (
-          ts.isJsxAttribute(n) && n.name.getText().startsWith('on') &&
-          n.initializer && ts.isJsxExpression(n.initializer) &&
+          ts.isJsxAttribute(n) &&
+          n.name.getText().startsWith('on') &&
+          n.initializer &&
+          ts.isJsxExpression(n.initializer) &&
           n.initializer.expression?.getText().includes(handlerName)
         ) {
           desc = describeJsxElement(n.parent?.parent);
@@ -280,23 +357,40 @@ function describeHandlerSite(callNode, comp) {
 // so annotating it again here would only add noise.
 function isParentControlled(expr, comp) {
   let e = expr;
-  while (ts.isPrefixUnaryExpression(e)) e = e.operand;
-  if (ts.isPropertyAccessExpression(e)) e = e.expression;
-  if (!ts.isIdentifier(e)) return false;
+  while (ts.isPrefixUnaryExpression(e)) {
+    e = e.operand;
+  }
+  if (ts.isPropertyAccessExpression(e)) {
+    e = e.expression;
+  }
+  if (!ts.isIdentifier(e)) {
+    return false;
+  }
   const sym = checker.getSymbolAtLocation(e);
   for (const d of sym?.getDeclarations() ?? []) {
     let param = null;
     for (let cur = d; cur; cur = cur.parent) {
-      if (ts.isParameter(cur)) { param = cur; break; }
-      if (cur === comp.node || ts.isSourceFile(cur)) break;
+      if (ts.isParameter(cur)) {
+        param = cur;
+        break;
+      }
+      if (cur === comp.node || ts.isSourceFile(cur)) {
+        break;
+      }
     }
-    for (let cur = param; cur; cur = cur.parent) if (cur === comp.node) return true;
+    for (let cur = param; cur; cur = cur.parent) {
+      if (cur === comp.node) {
+        return true;
+      }
+    }
   }
   return false;
 }
 
 function guardNote(guard, comp, containerName) {
-  if (isParentControlled(guard, comp)) return null;
+  if (isParentControlled(guard, comp)) {
+    return null;
+  }
   // Tab pattern: value === 'x' → the panel selected by that value.
   if (
     ts.isBinaryExpression(guard) &&
@@ -304,13 +398,19 @@ function guardNote(guard, comp, containerName) {
       guard.operatorToken.kind === ts.SyntaxKind.EqualsEqualsToken)
   ) {
     const lit = [guard.left, guard.right].find((e) => ts.isStringLiteralLike(e));
-    if (lit) return `[tab "${lit.text}"]`;
+    if (lit) {
+      return `[tab "${lit.text}"]`;
+    }
   }
   const trigger = resolveTrigger(guard, comp);
-  if (trigger) return containerName ? `[click ${trigger} → opens ${containerName}]` : `[click ${trigger}]`;
+  if (trigger) {
+    return containerName ? `[click ${trigger} → opens ${containerName}]` : `[click ${trigger}]`;
+  }
   const text = guard.getText().replace(/\s+/g, ' ').slice(0, 48);
   // No trigger flips this — the response decides. Needs a fixture, not a click.
-  if (isDataDerived(guard, comp)) return `[data ${text} — needs fixture]`;
+  if (isDataDerived(guard, comp)) {
+    return `[data ${text} — needs fixture]`;
+  }
   return `[state ${text} — trigger?]`;
 }
 
@@ -319,7 +419,9 @@ function analyzeReveal(jsxNode, comp) {
   const notes = [];
   // The child's own JSX element may carry the guard prop: <ExportDialog open={showExport}/>
   const ownGuard = attrExpression(findAttr(jsxNode, GUARD_PROPS));
-  if (ownGuard && !ts.isStringLiteralLike(ownGuard)) notes.push(guardNote(ownGuard, comp, jsxNode.tagName.getText()));
+  if (ownGuard && !ts.isStringLiteralLike(ownGuard)) {
+    notes.push(guardNote(ownGuard, comp, jsxNode.tagName.getText()));
+  }
 
   let prev = jsxNode;
   for (let cur = jsxNode.parent; cur && cur !== comp.node; prev = cur, cur = cur.parent) {
@@ -338,9 +440,13 @@ function analyzeReveal(jsxNode, comp) {
       const tag = ts.isIdentifier(open.tagName) ? open.tagName.text : open.tagName.getText();
       if (CONTAINER_RE.test(tag)) {
         const guard = attrExpression(findAttr(open, [...GUARD_PROPS, 'value']));
-        if (guard && !ts.isStringLiteralLike(guard)) notes.push(guardNote(guard, comp, tag));
-        else if (guard && ts.isStringLiteralLike(guard) && tag.endsWith('TabPanel')) notes.push(`[tab "${guard.text}"]`);
-        else notes.push(`[inside <${tag}>]`);
+        if (guard && !ts.isStringLiteralLike(guard)) {
+          notes.push(guardNote(guard, comp, tag));
+        } else if (guard && ts.isStringLiteralLike(guard) && tag.endsWith('TabPanel')) {
+          notes.push(`[tab "${guard.text}"]`);
+        } else {
+          notes.push(`[inside <${tag}>]`);
+        }
       }
     }
   }
@@ -350,14 +456,21 @@ function analyzeReveal(jsxNode, comp) {
 // ---- Pass 2: edges (reverse render graph) ----
 for (const comp of components.values()) {
   const walk = (node) => {
-    if (node !== comp.node && components.has(node)) return; // nested component boundary
+    if (node !== comp.node && components.has(node)) {
+      return; // nested component boundary
+    }
     if (
       (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
-      ts.isIdentifier(node.tagName) && isPascal(node.tagName.text)
+      ts.isIdentifier(node.tagName) &&
+      isPascal(node.tagName.text)
     ) {
       let sym = checker.getSymbolAtLocation(node.tagName);
       if (sym && sym.flags & ts.SymbolFlags.Alias) {
-        try { sym = checker.getAliasedSymbol(sym); } catch { /* keep original */ }
+        try {
+          sym = checker.getAliasedSymbol(sym);
+        } catch {
+          /* keep original */
+        }
       }
       for (const d of sym?.getDeclarations() ?? []) {
         const child = componentForDecl(d);
@@ -388,7 +501,8 @@ function routeForFile(file) {
 }
 
 // ---- BFS from target up to routed roots ----
-const edgeScore = (e) => (e.reveal.some((n) => n.startsWith('[click') || n.startsWith('[tab')) ? 2 : e.reveal.length ? 1 : 0);
+const edgeScore = (e) =>
+  e.reveal.some((n) => n.startsWith('[click') || n.startsWith('[tab')) ? 2 : e.reveal.length ? 1 : 0;
 
 function tracePaths(target) {
   const results = [];
@@ -397,16 +511,28 @@ function tracePaths(target) {
     const p = queue.shift();
     const head = p[p.length - 1];
     const route = routeForFile(head.comp.file);
-    if (route !== null) { results.push({ route, path: p }); continue; }
-    if (p.length >= opts.maxDepth) continue;
-    if (!head.comp.parents.length) { results.push({ route: null, path: p }); continue; }
+    if (route !== null) {
+      results.push({ route, path: p });
+      continue;
+    }
+    if (p.length >= opts.maxDepth) {
+      continue;
+    }
+    if (!head.comp.parents.length) {
+      results.push({ route: null, path: p });
+      continue;
+    }
     const byParent = new Map(); // best-informed edge per distinct parent
     for (const e of head.comp.parents) {
       const prevBest = byParent.get(e.parent);
-      if (!prevBest || edgeScore(e) > edgeScore(prevBest)) byParent.set(e.parent, e);
+      if (!prevBest || edgeScore(e) > edgeScore(prevBest)) {
+        byParent.set(e.parent, e);
+      }
     }
     for (const e of byParent.values()) {
-      if (p.some((s) => s.comp === e.parent)) continue; // cycle
+      if (p.some((s) => s.comp === e.parent)) {
+        continue; // cycle
+      }
       queue.push([...p.slice(0, -1), { comp: head.comp, reveal: e.reveal }, { comp: e.parent, reveal: [] }]);
     }
   }
@@ -416,10 +542,8 @@ function tracePaths(target) {
 
 function breadcrumb(r) {
   const steps = [...r.path].reverse(); // root-first
-  const prefix = r.route !== null ? `(${r.route}) ` : `(unrouted: ${rel(steps[0].comp.file)}) `;
-  return prefix + steps
-    .map((s) => (s.reveal.length ? s.reveal.join(' ') + ' ' : '') + s.comp.name)
-    .join(' ▸ ');
+  const prefix = r.route === null ? `(unrouted: ${rel(steps[0].comp.file)}) ` : `(${r.route}) `;
+  return prefix + steps.map((s) => (s.reveal.length ? s.reveal.join(' ') + ' ' : '') + s.comp.name).join(' ▸ ');
 }
 
 // ---- Resolve targets and emit ----
@@ -427,19 +551,31 @@ const targetComps = [];
 for (const t of targets) {
   if (t.includes('/') || /\.(t|j)sx?$/.test(t)) {
     const abs = path.resolve(projectRoot, t);
-    for (const c of components.values()) if (path.resolve(c.file) === abs) targetComps.push(c);
+    for (const c of components.values()) {
+      if (path.resolve(c.file) === abs) {
+        targetComps.push(c);
+      }
+    }
   } else {
-    for (const c of components.values()) if (c.name === t) targetComps.push(c);
+    for (const c of components.values()) {
+      if (c.name === t) {
+        targetComps.push(c);
+      }
+    }
   }
 }
-if (!targetComps.length) die(`No components matched: ${targets.join(', ')} (targets are PascalCase names or project file paths).`);
+if (!targetComps.length) {
+  die(`No components matched: ${targets.join(', ')} (targets are PascalCase names or project file paths).`);
+}
 
 const output = targetComps.map((c) => {
   const paths = tracePaths(c);
   const seen = new Set();
   const unique = paths.filter((r) => {
     const b = breadcrumb(r);
-    if (seen.has(b)) return false;
+    if (seen.has(b)) {
+      return false;
+    }
     seen.add(b);
     return true;
   });
@@ -459,13 +595,25 @@ if (opts.json) {
 } else {
   for (const t of output) {
     console.log(`== ${t.target} — ${t.file} ==`);
-    if (!t.paths.length) console.log('  (no render path found — dead code, dynamic dispatch, or unmodeled router)');
-    for (const p of t.paths) console.log('  ' + p.breadcrumb);
+    if (!t.paths.length) {
+      console.log('  (no render path found — dead code, dynamic dispatch, or unmodeled router)');
+    }
+    for (const p of t.paths) {
+      console.log('  ' + p.breadcrumb);
+    }
     console.log('');
   }
   const all = output.flatMap((t) => t.paths);
   const unresolved = all.filter((p) => p.breadcrumb.includes('trigger?')).length;
-  if (unresolved) console.error(`note: ${unresolved} path(s) contain unresolved triggers ([state … — trigger?]) — resolve those manually before traversal.`);
+  if (unresolved) {
+    console.error(
+      `note: ${unresolved} path(s) contain unresolved triggers ([state … — trigger?]) — resolve those manually before traversal.`,
+    );
+  }
   const gated = all.filter((p) => p.breadcrumb.includes('needs fixture')).length;
-  if (gated) console.error(`note: ${gated} path(s) are data-gated ([data … — needs fixture]) — pick an entity whose data satisfies the guard before capture.`);
+  if (gated) {
+    console.error(
+      `note: ${gated} path(s) are data-gated ([data … — needs fixture]) — pick an entity whose data satisfies the guard before capture.`,
+    );
+  }
 }
