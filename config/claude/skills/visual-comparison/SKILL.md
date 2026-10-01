@@ -24,9 +24,7 @@ When the user asks to compare two web applications: "compare localhost:3000 and 
 
 ### Upload preflight
 
-The final step posts before and after images to the PR through the **image-upload** skill, which stores them with whatever backend the session declares under `Image uploads`. Backends usually need a credential the user supplies, which cannot be resolved mid-run in a headless session. Run the declared backend's preflight **now**, before any capture work.
-
-If it fails, follow the backend's recovery step to get what it needs from the user, at the same time as asking for the screen size, while they are present. Do not defer this to the upload step. A credential discovered missing after the comparison finishes leaves the report without its images. If no backend is declared, or the user opts to run without uploads, record that and note it in the report. Otherwise a passing preflight is a precondition for starting the comparison. Backend mechanics (credentials, validation, expiry recovery) belong to image-upload and the backend's declaration. Do not restate or improvise them here.
+The final step posts before and after images to the PR through the **image-upload** skill. This skill is one of the long-running callers its "Preflight for long-running callers" section covers, so run that preflight **now**, before any capture work, and ask for any recovery input in the same exchange as the screen size. A passing preflight, or the user's recorded choice to run without uploads, is a precondition for starting the comparison.
 
 ### Screenshot output directories
 
@@ -691,9 +689,6 @@ All screenshots saved to `.visual-comparison/x/` and `.visual-comparison/y/`, di
 After producing the report, post the comparison as a PR comment. The upload, embed, and post mechanics belong to the **image-upload** skill: finding the declared backend, running its upload step, wrapping URLs as markdown, and posting via `gh pr comment`. Use it for this step.
 
 Because of the setup-time preflight, a failing upload is not an expected state. If it nevertheless fails on auth, because a credential expired mid-run, follow the backend's recovery step: ask the user for what it needs and retry, rather than silently downgrading to a text-only comment. Skip uploads only if the user declined them at preflight, or declines now. In that case keep the local `.visual-comparison/` artifacts and note in the report that the PR comment was posted without images, or not posted, and why.
-
-Mention nobody in the comment. No `@handle` in the prose, the table, or the image alt text:
-the PR already notifies its participants, and a mention pages people who are not on it.
 
 What is specific to this skill:
 

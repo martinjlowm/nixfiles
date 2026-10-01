@@ -1,6 +1,6 @@
 ---
 name: pr-description
-description: Write and refine pull request titles and descriptions so they read as the final squash-merge commit message. Use when opening a PR, updating a PR body after new commits, or sweeping open PRs for stale descriptions ("refine my PRs", "fix the PR description", "document this contribution"). Also covers moving reviewer-only detail into a PR comment.
+description: Write and refine pull request titles and descriptions so they read as the final squash-merge commit message. Use when opening a PR, updating a PR body after new commits, or sweeping open PRs for stale descriptions ("refine my PRs", "fix the PR description", "document this contribution"). Also covers the reviewer comment that opens on the merge danger and carries the evidence and reviewer-only detail.
 ---
 
 # PR description: write the commit message, not the changelog of the PR
@@ -31,15 +31,14 @@ because the merged history predates them. Follow the rules, not the corpus:
 
 - **Titles are lowercase after the scope.** Older subjects capitalise (`fix(ingress/data-rollup):
   Use aws:PrincipalArn for Lambda role`). That is superseded.
-- **Bodies carry no `@handle`.** Older ones do. Bare names are fine and always were, see
-  [Never tag a person](#never-tag-a-person); the `@` is the part that was retired.
+- **Bodies carry no `@handle`.** Older ones do. Bare names are fine and always were; the
+  `@` is the part that was retired.
 
 Everything else about how the merged bodies read is worth imitating.
 
 ## When to use
 
-Opening a PR (`gh pr create --draft`, see [Draft until promoted](#draft-until-promoted)),
-after pushing new commits to an open one, or on request.
+Opening a PR, after pushing new commits to an open one, or on request.
 
 Two modes. **Single PR** is the default: the one you just opened, or the one the user named.
 **Sweep** is when the user asks to scan a set, "all open PRs authored by martinjlowm in
@@ -74,8 +73,9 @@ gh pr diff <number> --repo <owner>/<repo>
 - **Write the change in the imperative.** "Refresh the token 60s before expiry", not "This PR
   makes the token refresh". For that sentence the subject is the code, never the pull
   request. The surrounding sentences are not bound by it, see [How it sounds](#how-it-sounds).
-- **Verification belongs in a comment**, along with whatever you ran it against. Cut outright
-  what CI guarantees: tests pass, clippy, rustfmt and biome clean, typechecks pass. The rest
+- **Evidence and verification belong in the comment.** Cut outright what CI guarantees:
+  tests pass, clippy, rustfmt and biome clean, typechecks pass. A named test that failed
+  before and passes now is evidence, not a CI claim, and goes in the comment. The rest
   is true of a moment in review, not of the change, so a `git blame` reader stops to work out
   whether it is part of the feature. It is not. Move it and leave no link back. The one
   exception is a measured result that is itself the point of the change, written as a claim
@@ -96,39 +96,24 @@ gh pr diff <number> --repo <owner>/<repo>
 
 ## Never tag a person
 
-**Never write an `@handle` outside a code span.** It is a notification: it pages that account
-on the PR, on every edit, and again on the squash-merge commit that carries it into `git log`
-forever.
+The global "mention nobody" rule binds titles, bodies and comments. Naming a person in prose is
+often the clearest way to say what happened. "Rune reminded me that our stops windows actually
+uses SQS FIFO" is a better sentence than any circumlocution around it.
 
-Naming a person in prose is fine, and often the clearest way to say what happened. "Rune
-reminded me that our stops windows actually uses SQS FIFO" is a better sentence than any
-circumlocution around it. The `@` is what does the damage, not the name.
-
-`FactbirdHQ/nest#20951` is the case this rule exists for. The title read
+`FactbirdHQ/nest#20951` is the case the rule exists for. The title read
 `chore(codeowners): narrow @martinjlowm to platform and InfluxDB paths`, the body carried two
 handles, and a comment listed six more to state that their ownership was unchanged. Nine
 notifications, and the one thing every recipient learned was that the PR did not concern them.
 
-- **When a handle is the data, quote it as data.** A CODEOWNERS line, a team reference or a
-  config value belongs in a code span or a fenced block, where GitHub renders it inert. A
-  handle in backticks notifies no one. Never write one in running prose.
 - **Never roll-call the unaffected.** Listing everyone a change does *not* touch is the worst
   form of this: every handle is a notification whose payload is "ignore me". Without the
   handles it is merely noise, so cut it there too.
 - **Strip handles from every body you touch**, including PRs you opened earlier. Rewrite the
   sentence around the handle rather than deleting the sentence.
 
-This binds PR comments and review replies too. Before posting, grep it: every hit must sit
-inside a code span or be gone.
-
-```bash
-grep -n "@[A-Za-z0-9]" <file>
-```
-
 ## Open on the problem
 
-The diff shows what changed. It cannot show what was wrong, so the description must. That
-sentence is the one a `git blame` reader came for, so lead with it.
+Lead with what was wrong. It is the sentence a `git blame` reader came for.
 
 - **One or two sentences of problem, before the change.** What broke, what was missing, what
   the old behaviour cost. Written as a fact about the code, not as a story about the week.
@@ -208,12 +193,10 @@ why it exists. When a line is between staying and going, cut it.
   Markdown renders the joins as spaces, so the body reads the same on GitHub and stays
   readable indented under `git log`. Leave fenced blocks, tables and links unwrapped. The
   limit is for the commit message, so it binds the body and the title only, never a comment.
-- Short, direct sentences, one idea each. Bullets over dense paragraphs.
-- Rewrite any sentence that stacks several subjects, an em-dash aside, an "i.e." and a
-  nested parenthesis. If it takes two readings, split it.
+- Bullets over dense paragraphs.
 - Explain a term rather than coining one. "The cutoff dance" tells a reader nothing.
-- Delete throat-clearing: "This PR", "In order to", "It is worth noting that", "Various
-  improvements were made to".
+- Delete "This PR" and "Various improvements were made to". `unslop` covers the rest of the
+  sentence-level cuts.
 
 ### Stop at what it does
 
@@ -237,8 +220,7 @@ without helping anyone.
 
 ### Be concrete
 
-Every claim names the thing it is about: a symbol, a file, a number, a threshold. A
-sentence that survives with any noun substituted in says nothing.
+Every claim names the thing it is about: a symbol, a file, a number, a threshold.
 
 | Instead of | Write |
 | --- | --- |
@@ -264,9 +246,65 @@ display name it goes by in conversation. Dates are absolute, `2026-07-28`, never
 or "last month": `git log` is read years later and a relative date silently rebases onto the
 reader's present.
 
-## Additional detail goes in a PR comment
+## Show the shape, don't narrate it
 
-Some material is worth keeping but does not belong in a commit message:
+Prose is bad at shape: which call now runs before which, which file took over which
+responsibility, which field a contract gained, which component now owns the state. A
+paragraph that walks through it makes the reviewer rebuild the picture in their head. Read
+the `show-me` skill (`~/.claude/skills/show-me/SKILL.md`) and draw the picture with its
+views instead: pseudocode, a call tree, a component tree, a shallow file tree, a type, a
+table or an endpoint contract.
+
+- **A view replaces a paragraph. It never sits beside one.** When the body carries a view,
+  cut the sentences it makes redundant. The problem and the change sentence still come
+  first, because no view can say why.
+- **One view, two at most, and only where the change has a shape.** A typo or an ordinary
+  fix gets none, per [the length rule](#write-it-to-be-read-less-is-more). A change that
+  reroutes a call path, moves responsibilities between files or changes a contract gets the
+  one view that makes that visible.
+- **Prefer `diff` against the existing shape.** The `+` and `-` lines are the change, the
+  context lines show where it lands. Show the whole block instead when most of it is new, or
+  when the diff markers would hide ownership or order.
+- **Keep only what the change touches or depends on.** A file tree of every touched file is
+  the diff summary in another font, see [Stop at what it does](#stop-at-what-it-does). Keep
+  the calls, files, props, states and boundaries a reviewer needs and drop the rest.
+- **Lead into each view with one short sentence**, never a heading. The sentence says what
+  the view shows; the view shows it.
+- **Text views go in the body, rendered views in a comment.** A fenced call tree or file
+  tree reads the same in `git log` as on GitHub. Mermaid renders only on GitHub, and an HTML
+  page or a screenshot not at all in `git log`, so those go in a
+  [comment](#merge-danger-and-detail-go-in-a-pr-comment). Upload screenshots and pages with the
+  `image-upload` skill.
+
+````markdown
+The shared cloud ran out of memory during ingest bursts, because every
+cache miss in `get_device` inserted into the device cache however full
+it was.
+
+Now, skip the insert while the cache sits above `HIGH_WATER_MARK`. Mind
+that misses past the mark go to DynamoDB every time until the cache
+drains.
+
+```diff
+ get_device(id)
+   if cache has id
+     return cached
+   device = dynamo.get(id)
+-  cache.insert(id, device)
++  if cache.len() < HIGH_WATER_MARK
++    cache.insert(id, device)
+   return device
+```
+````
+
+The two prose paragraphs carry the problem, the change and the cost. The diff shows where
+the guard sits, which would otherwise take a third paragraph.
+
+## Merge danger and detail go in a PR comment
+
+Every PR gets one reviewer comment, posted right after the PR is opened. It opens on the
+[merge danger](#open-the-comment-on-merge-danger), and below that it carries material that
+is worth keeping but does not belong in a commit message:
 
 - how the approach changed mid-flight, and what a review round found,
 - merge and conflict notes,
@@ -274,10 +312,14 @@ Some material is worth keeping but does not belong in a commit message:
   depth. The reason the change exists and the constraint that shaped it stay in the body
   however long they take to state. The survey of options, the benchmark that settled a
   choice, and the reply to a reviewer's objection go here,
-- **verification**: what you ran, against which environment or fixture, the numbers you
-  cross-checked, and what is still unverified,
+- **evidence**: a before and after that shows the change works. A screenshot is the
+  strongest when the change is visual and the environment can render it; upload it with the
+  `image-upload` skill. Otherwise show execution, the exact test that failed before and
+  passes now, or the command output that changed. Then what you ran it against, the numbers
+  you cross-checked, and what is still unverified,
 - **worked examples**, walkthroughs and sample payloads,
-- **diagrams** of state, flow or layout.
+- **diagrams** too large for the body: state machines, cutovers, Mermaid, HTML pages and
+  screenshots, and any `show-me` view past the one or two the body carries.
 
 Misplaced depth is the problem, not depth. Never delete any of it, relocate it, and link it
 from the description in one line only if a reader of the description would want it. This
@@ -288,7 +330,60 @@ A comment never becomes a commit message, so none of the commit-message constrai
 it. Do not hard-wrap it, and do not ration its length. Let GitHub reflow the prose, and give
 a walkthrough or a table the room it needs.
 
-The body says what the change does. The comment shows it.
+The body says what the change does and, in a view or two, its shape. The comment says what
+merging risks and shows the rest.
+
+Keep that one comment current. When new commits change the diff, edit it in place rather
+than posting another, so the merge danger a reviewer reads always describes the diff they
+are about to merge.
+
+```bash
+gh api repos/<owner>/<repo>/issues/<number>/comments \
+  --jq '.[] | select(.body | startswith("## Merge danger")) | .id'
+gh api --method PATCH repos/<owner>/<repo>/issues/comments/<id> -F body=@<file>
+```
+
+### Open the comment on merge danger
+
+A reviewer deciding whether to merge needs two answers before anything else: can this be
+walked back, and what breaks if it is wrong. The comment answers both in its first lines,
+under a `## Merge danger` heading, so the reviewer can weigh the risk without expanding
+anything.
+
+```markdown
+## Merge danger
+
+**Door:** two-way. Reverting the PR restores the old insert path, and nothing it writes
+outlives the revert.
+
+**Blast radius:** service. Every `get_device` caller in `ingest` sees cache misses past
+`HIGH_WATER_MARK` go to DynamoDB, so read capacity on `devices` rises during bursts.
+```
+
+- **The door is one-way when a revert cannot undo the merge.** Dropped or rewritten stored
+  data, a schema migration, a deleted or replaced cloud resource, a published release or API
+  version that consumers pick up, a message sent to customers, a rotated credential. Name
+  the step that makes it one-way, and what has to happen before merging if anything does:
+  the backup, the deploy order, the consumer that must move first. Everything else is a
+  two-way door, and the line says what a revert restores.
+- **The blast radius is one word, then what it reaches.** The word sizes it: `none`,
+  `local`, `service`, `cross-service`, `tenant`, `customer-facing`. The sentence after
+  it names what a wrong merge would hit, as the code names it: the consumers, the
+  environments, the tenants, the devices, the layout. Consider every path the change
+  reaches, not only the one it was written for. Layout shift, a consumer of a changed
+  contract, a mobile breakpoint and a cold cache are all blast radius.
+- **Rate it from the diff, not from the intent.** A `cdk diff` that shows a replacement, a
+  migration file, a changed response field settle the door and the radius. Read them out of
+  the branch rather than guessing, and say so plainly when the door is one-way or the radius
+  is wide. Inflating a two-way door into a scare is as wrong as hiding a one-way one.
+- **It rates the risk; it does not replace the body.** A breaking change or a cost is still
+  stated in the body, where `git log` keeps it. The merge danger is a judgement about this
+  merge, true only until it lands, which is why it lives in the comment.
+- **A trivial change still gets it.** A typo fix is two lines, `two-way` and `none`, and
+  the reviewer learns that in a glance rather than by reading the diff to find out.
+
+The idea comes from the `pr` skill in
+[mattpocock/skills](https://github.com/mattpocock/skills/blob/main/skills/engineering/pr/SKILL.md).
 
 ### Collapse the comment behind a summary
 
@@ -302,19 +397,26 @@ open block of it pushes the review conversation off the screen. Wrap every one o
   `More info` tell them nothing to decide on, so they expand everything or nothing.
 - **Leave a blank line after the `</summary>` tag.** Without it GitHub renders the markdown
   inside as literal text, headings, tables and fenced blocks alike.
-- **One `<details>` per topic.** A verification run, a worked example and a state diagram
+- **One `<details>` per topic.** The evidence, a worked example and a state diagram
   are three things a reviewer reaches for separately. Three blocks with three summaries let
   them open one; a single block makes them scroll past the other two.
-- **Put nothing outside the blocks.** A sentence left above the first `<details>` is the
-  part of the comment that was not worth collapsing, which means it belonged in the body.
+- **Put nothing outside the blocks but the merge danger.** It stays open because it is the
+  reason the reviewer opened the comment. Any other sentence left outside a `<details>` is
+  the part of the comment that was not worth collapsing, which means it belonged in the body.
 
 ````markdown
-<details>
-<summary>Expand for the cutover sequence and the rollback path</summary>
+## Merge danger
 
-Writes land in both stores from this PR. Reads stay on the old store until the backfill
-job reports 100%, so reverting this PR alone restores the previous behaviour and leaves
-no data stranded.
+**Door:** two-way. Writes land in both stores from this PR and reads stay on the old one,
+so reverting this PR alone restores the previous behaviour and leaves no data stranded.
+
+**Blast radius:** service. A dual-write failure fails the request in `ingest`, where it
+used to succeed against the old store alone.
+
+<details>
+<summary>Expand for the cutover sequence and the backfill check</summary>
+
+Reads stay on the old store until the backfill job reports 100%.
 
 </details>
 ````
@@ -334,11 +436,13 @@ An in-flight strikethrough is the opposite case and stays: `~Now, we also termin
 a hardware -> software mapping doesn't exist~ gave up on this because of failing tests` tells
 a reviewer something true about the diff in front of them.
 
-### Diagram state, don't narrate it
+### Diagram what the body cannot carry
 
-Prose is bad at state machines, migrations, cutovers, ordering and fan-out. When a change
-is state-heavy, an ASCII diagram in a fenced block replaces a paragraph the reviewer has to
-hold in their head.
+State machines, migrations, cutovers, ordering and fan-out rarely fit in a single
+[`show-me` view](#show-the-shape-dont-narrate-it). When a change is state-heavy, a diagram
+in the comment replaces a paragraph the reviewer has to hold in their head. An ASCII diagram
+in a fenced block works everywhere. A Mermaid `sequenceDiagram` or `stateDiagram` suits a
+flow with many actors, because GitHub renders it in a comment.
 
 Guide the diagram: label the arrows with *why*, mark what this PR changes, and keep it to
 the smallest picture that carries the idea.
@@ -355,12 +459,9 @@ app                app                       app
                                  backfill job reports 100%
 ```
 
-Rules of thumb:
-
-- One diagram per concept, next to the passage it explains.
-- Annotate, don't decorate. An arrow without a label is a line.
-- If the diagram needs a paragraph to interpret, it has failed. Redraw it smaller.
-- Skip it entirely when the change is linear. A diagram of a two-step flow is noise.
+The rules for [body views](#show-the-shape-dont-narrate-it) hold here too. Beyond them,
+annotate rather than decorate: an arrow without a label is a line, and a diagram that needs a
+paragraph to interpret has failed, so redraw it smaller.
 
 The description keeps at most one line pointing at it, "Cutover sequencing and rollback
 path: <comment link>", and only when a `git blame` reader would follow it.
@@ -368,22 +469,6 @@ path: <comment link>", and only when a `git blame` reader would follow it.
 ```bash
 gh pr comment <number> --repo <owner>/<repo> --body-file <file>
 ```
-
-## Draft until promoted
-
-**Open every PR with `gh pr create --draft`, and never take it out of draft.** `gh pr ready`,
-and the `--ready` and `draft: false` forms of it, belong to the user. That holds however
-finished the change is, however green CI is, and however plainly the description reads as
-done. The draft flag is not a statement about the code, it is the handover: it keeps the PR
-out of review queues, off `gh pr list --search draft:false` sweeps, and away from reviewer
-notifications until the user says the work is theirs to look at. A description written to
-these rules makes a draft look finished, which is exactly why this rule is here and not left
-to judgement.
-
-Refining an existing PR changes the title and body, nothing else: a ready PR stays ready, a
-draft stays draft, and you never flip one in either direction. Asked to "open a PR" with no
-mention of draft, it is still a draft, so say so in the line where you return the URL. The
-user asking to promote is the one case for `gh pr ready`, and then only the PR they name.
 
 ## Titles
 
@@ -394,8 +479,8 @@ user asking to promote is the one case for `gh pr ready`, and then only the PR t
   `chore(*): ...` for many.
 - **Imperative mood, lowercase, no trailing period.** `fix(api): reject empty device ids`,
   not `fixed empty device ids` or `rejects empty device ids`. It completes "this change will
-  ...", matching `git log` and every generated message around it. The merged history
-  capitalises here; that is superseded, and a refine pass never restores it.
+  ...", matching `git log` and every generated message around it. A refine pass never
+  restores the capitals of the older history.
 - **Keep the whole line under 72 characters**, the description after the prefix nearer 50.
   A title that needs more is usually two changes.
 - **Say what changes and, when it fits in 72 characters, why.** `fix(api): reject empty
@@ -404,28 +489,14 @@ user asking to promote is the one case for `gh pr ready`, and then only the PR t
   change does now, not what it set out to do.
 - **No filenames.** `fix(sync): handle empty device ids`, not `fix(sync): update devices.rs`.
   The diff already says where the change is. The title has to say what it does.
-- **No ticket alone** (`JIRA-42`, `#125`), and **no handle**: the title becomes the commit
-  subject, and GitHub notifies on mentions in commit messages.
 - On an existing PR, keep the current type and scope unless the diff shows they are wrong.
 
 ## Restraint
 
-Act when a description:
-
-- states a superseded approach, lists changes no longer in the diff, or omits a major change
-  now present,
-- is organised by the PR's history, or keeps a record of the prose's own revisions,
-- buries a behavioural change, or leaves a breaking change to be inferred,
-- fixes a bug without saying what the bug did to anyone,
-- claims an optimisation with no number, or makes any change without naming what it costs,
-- runs long, or sprouts headings, where the PR is really two changes,
-- never says what problem the change solves, while the issue, commits or session do say what
-  it is. If nothing does, that is a line in the report, not a guess in the body,
-- restates the diff instead of describing the change, or stands on a ticket reference alone,
-- carries an `@handle` outside a code span, or CI-verified and process noise,
-- reports verification, or the fixture it ran against, or
-- explains mechanism, defends a choice, or enumerates behaviour past the point the reader
-  needs.
+Act when a description is stale, stating a superseded approach, listing changes no longer
+in the diff or omitting a major change now present, or when it breaks any rule above. When
+it never says what problem the change solves and no issue, commit or session says either,
+put that in the report rather than a guess in the body.
 
 Reorder an accurate but hard-to-read description only when doing so surfaces something
 buried.
@@ -438,9 +509,9 @@ and say in the report that the PR would read better split.
   not settle it. A body may name a default, a metric or an environment variable the diff only
   touches indirectly; read it out of the branch head rather than trusting the draft. Never
   state a change you cannot see.
-- **Change titles and bodies only.** Never touch state, base branch, draft status, reviewers
-  or labels. A sweep that promotes a draft has done something the user did not ask for and
-  cannot undo quietly: the review requests are already out.
+- **Change the title, the body and the merge-danger comment only.** Never touch state, base branch, draft status, reviewers
+  or labels. A body written to these rules makes a draft look finished, so a sweep is where
+  a promotion slips in, and the review requests it sends cannot be taken back.
 - When genuinely unsure, leave the PR alone and say so in the report.
 
 ```bash

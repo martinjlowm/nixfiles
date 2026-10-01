@@ -33,16 +33,15 @@ Refer to CLAUDE.md for full command reference.
 # GitHub: reach for gh-axi first
 
 Use `gh-axi` for GitHub work in a session: PR and issue views, CI runs and failed logs,
-reviews, comments, searches. It prints compact output with totals and next-step hints. Keep
-`gh` for GraphQL, output piped into another program, `gh image`, and any skill or script
-that already spells out a `gh` command. The `gh-axi` skill lists the boundary.
+reviews, comments, searches. It prints compact output with totals and next-step hints. The
+`gh-axi` skill lists the cases that stay on `gh`.
 
 # GitHub: mention nobody
 
 Never write an `@handle` in a PR title, PR description, PR comment, review reply, issue, or
 commit message. A mention notifies that account on the PR and again on the squash-merge
-commit, and the people it reaches are usually the ones the change does not concern. Do not
-name a person in prose either: attribution is not description.
+commit, and the people it reaches are usually the ones the change does not concern. A bare
+name in prose notifies nobody, so it is fine. The `@` is what does the damage.
 
 When a handle is the subject matter, a CODEOWNERS line or a config value, keep it inside a
 code span or a fenced block, where GitHub renders it inert. Before posting any body, grep it
@@ -54,8 +53,17 @@ Every PR you open is a draft: `gh-axi pr create --draft` or `gh pr create --draf
 promote one. `gh pr ready`, `gh-axi pr ready`, and the `--ready` and `draft: false` forms of
 them, belong to the user, however finished the change is and however green CI is. The draft
 flag is the handover, not a claim about the code: it keeps the PR out of review queues and
-reviewer notifications until the user promotes it.
+reviewer notifications until the user promotes it. Asked to "open a PR" with no mention of
+draft, open a draft anyway and say so in the line that returns the URL.
 Likewise never flip a PR the other way. A ready PR stays ready, a draft stays draft.
+
+# GitHub: every PR goes through pr-description
+
+Load the `pr-description` skill before any `pr create`, and before any `pr edit` that sets
+a title or body. That holds for a fork or subagent too, whatever its prompt says the body
+should contain. A prompt that delegates opening a PR names the skill and the facts the body
+needs, never an outline of the body, because an outline replaces the skill rather than
+feeding it.
 
 # GitHub: leave a colleague's thread for the user to answer
 
@@ -124,8 +132,3 @@ understand this line.
 The `unslop` skill applies to everything you write, not only when asked: documentation, commit
 messages, PR titles and bodies, review replies, Slack drafts, and prose in code comments. Run
 it before handing over anything you wrote, and again after any substantial rewrite.
-
-The rules it enforces that get broken most often here: no em dashes, no colon splicing two
-clauses together, active voice with the actor named, a concrete noun in every claim, sentence
-case in headings, and no decorative emoji. A sentence that would survive unchanged in another
-project's documentation says nothing about this one, so cut it.

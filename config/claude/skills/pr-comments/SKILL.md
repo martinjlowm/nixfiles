@@ -70,9 +70,8 @@ gh pr view <number> --json number,title,url,headRefOid,comments,reviews
 - Skip threads where `isResolved` is true.
 - Keep `isOutdated` threads in scope. The code moved, the point may not have.
 - The deciding author is `comments.nodes[0].author.login`.
-- A login ending in `[bot]` is a bot: `claude[bot]`, `martinjlowm-s-botler[bot]`,
-  `dependabot[bot]`, `coderabbitai[bot]`, `github-actions[bot]`, and the rest. Reply to them,
-  never resolve them, leave them out of the Slack summary. Their thread holds its own record.
+- A login ending in `[bot]` is a bot. Reply to it, never resolve it, and leave it out of
+  the Slack summary. Its thread holds its own record.
 - Every other login is a colleague. Fix, stay silent, summarise.
 
 ## Address each comment
@@ -97,11 +96,8 @@ coherent group of feedback, not one per comment.
 This section governs the threads you post on, your own and the bots'. A colleague's thread
 gets no reply at all, so skip to the report for those.
 
-The same rules as `pr-description`, at one-comment scale: describe the end state, name the
-thing, cut the throat-clearing. Two lines is usually the whole reply.
-
-**Every claim is verified against the diff.** Never state a change you cannot see in
-`git diff`. This is the one rule that makes resolving a thread safe.
+The same rules as `pr-description`, at one-comment scale. Two lines is usually the whole
+reply. Its rule to verify every claim against the diff is what makes resolving a thread safe.
 
 | Instead of | Write |
 | --- | --- |
@@ -114,24 +110,14 @@ thing, cut the throat-clearing. Two lines is usually the whole reply.
 Cut what the thread already knows. No restating the reviewer's comment, no "thanks for the
 review", no "let me know if you'd like anything else".
 
-### Never mention a person
+### Address nobody
 
-**No reply or comment you post names a person.** The thread already notifies everyone on it,
-so a `@handle` adds nothing but a second notification, and it pulls anyone else you name into
-a conversation they were not part of. This holds for inline replies and
-any body you edit.
+The global "mention nobody" rule binds every reply. Beyond it, a reply names no person at
+all, since the thread already reaches everyone on it.
 
-- No "@reviewer good catch", no "as @someone suggested", no addressing the reviewer by name.
-  Open on what changed.
+- No "good catch" to the reviewer, no "as someone suggested". Open on what changed.
 - Never name a third party to route the thread to them. If a thread needs someone else, say
   what is undecided and leave it in the report; the user pulls them in.
-- A handle that is part of the change itself, a CODEOWNERS line or a config value, goes in a
-  code span or a fenced block, never in running prose.
-- Before posting, grep the body: every `@` must sit inside a code span or be gone.
-
-```bash
-grep -n "@[A-Za-z0-9]" <file>
-```
 
 ### Link the location
 
@@ -150,9 +136,7 @@ one-line edit on the commented line needs no link.
 ### Post it on the thread
 
 Check the author one more time before this call. The body is posted only when the thread's
-first comment comes from `martinjlowm` or a `[bot]` login, and there is no version of this
-step that runs on a colleague's thread: not a shorter reply, not a reply the user approves in
-the session first, not an offer to write one. Post nothing and say nothing about posting.
+first comment comes from `martinjlowm` or a `[bot]` login.
 
 Reply to the thread's **first** comment `databaseId`. A new top-level comment loses the code
 context and cannot be resolved:
@@ -238,14 +222,6 @@ with `slack_search_channels` if the name does not take.
   colleague's. Nothing is posted on the PR for it.
 - A comment asking for work outside the PR's scope gets a follow-up note and no wider diff.
   Say so in the reply, or in the summary entry when a colleague raised it.
-- Do not offer to reply to a colleague, in the session or anywhere else. Their unanswered
-  thread is the finished state, so it is not an open item and does not belong in a list of
-  what is left to do.
-- Everything `pr-description` says about not naming people applies to comments too, and to
-  any PR body this pass makes you edit.
-- Never change the PR's draft or ready status. Addressing every thread is not the same as the
-  work being handed over; a draft that now has all its feedback resolved is still a draft, and
-  `gh pr ready` stays the user's call.
 - If the review changed what the PR does, update the body with `pr-description`. Fold the
   change into the section it belongs to; a commit message has no "addressed feedback"
   section.

@@ -5,7 +5,7 @@ description: Start a focused session to solve a referenced problem. Creates a ne
 
 # Resolve: branch, PR, and solve a referenced problem
 
-Create a PR and a new branch off of `origin/master` and use the current working directory to solve the referenced problem. Use `origin/master` as the base branch unless the user specifies otherwise.
+Create a PR and a new branch off the base and use the current working directory to solve the referenced problem.
 
 ## When to use
 
@@ -25,10 +25,10 @@ When the user invokes `/resolve <problem reference>`, where the reference is an 
    - For a ticket or external URL, fetch and read it.
    - For a free-text description, work from what the user gave you. Ask a clarifying question only if the problem is too ambiguous to start.
 
-3. **Create the branch.** Branch off the base (default `origin/master`, or the user-specified base) in the current working directory:
+3. **Create the branch.** Branch off the base in the current working directory:
 
    ```bash
-   git switch -c <branch-name> origin/master
+   git switch -c <branch-name> <base>
    ```
 
    Pick a short, descriptive kebab-case branch name from the problem, such as `fix-login-redirect` or `issue-123-timeout`. Do not work directly on the base branch.
@@ -41,27 +41,18 @@ When the user invokes `/resolve <problem reference>`, where the reference is an 
    git push -u origin <branch-name>
    ```
 
-6. **Open the PR as a draft.** Create a pull request against the base branch. Always `--draft`:
+6. **Open the PR.** Load the `pr-description` skill and write the title and the body file
+   with it before creating anything. `--fill` would open the PR on the commit message, and
+   a body rewritten afterwards is a step that gets skipped. Then open the draft against the
+   base and post the merge-danger comment the skill requires:
 
    ```bash
-   gh pr create --draft --base master --fill
+   gh pr create --draft --base <base> --title "<title>" --body-file <body-file>
    ```
 
-   **Never promote it.** `gh pr ready` is the user's call, not this skill's, however finished the
-   work looks and however green CI is. A draft is what says the change has not been handed
-   over yet: it keeps the PR out of review queues and off `gh pr list --search draft:false`
-   sweeps until the user decides it is ready.
-
-   Write the title and body with the `pr-description` skill. The body is the squash-merge commit message, so it describes the change in its final form. Link the issue with `Closes #123` when that applies. Longer context for the reviewer goes in a comment on the PR, not the body. Return the PR URL to the user.
-
-   **Mention nobody.** No `@handle` in the title, the body, or the comment, and no naming a
-   person in prose. `pr-description` has the rule and the reason; it applies to every PR this
-   skill opens.
+   Return the PR URL to the user.
 
 ## Notes
 
-- Always branch off the base. Never commit directly to `origin/master`.
 - If the working directory has uncommitted changes, surface them before switching branches so nothing is lost.
-- Never change a PR's draft or ready status. A PR this skill opens stays draft until the user
-  promotes it; a PR that is already ready stays ready.
 - Keep the session focused on the referenced problem. If you find unrelated issues, note them rather than expanding scope.

@@ -45,8 +45,3 @@ matters.
 - `gh image`, which the `image-upload` skill's `github-session` backend documents.
 - A script or skill that already spells out a `gh` pipeline. Run it as written.
 
-## Rules that still apply
-
-The global instructions on GitHub bind `gh-axi` exactly as they bind `gh`. PRs are created
-with `--draft`, and `gh-axi pr ready` is never run. Bodies are grepped for `@` mentions
-before they are posted.
