@@ -26,6 +26,18 @@ suffix; skill names are the directory names.
 `agent-browser`, `ffmpeg`, `frontend-design`, `gh-axi`, `image-upload`, `pr-comments`,
 `pr-description`, `prd`, `resolve`, `unslop`, `visual-comparison`, `zendesk-ticket`.
 
+Two flake inputs supply skills from outside `config/claude/skills/`. Both are
+`flake = false`.
+
+| Skill | Input | Path in the input |
+| --- | --- | --- |
+| `fleet-conversation` | `agent-skills` (FactbirdHQ/agent-skills) | `fleet-conversation` |
+| `show-me` | `humanlayer-skills` (humanlayer/skills) | `plugins/show-me/skills/show-me` |
+
+`show-me` sets `disable-model-invocation`, so only the user can invoke it as a skill.
+`pr-description` reads its `SKILL.md` from `~/.claude/skills/show-me/` for the views a PR
+body draws.
+
 `image-upload` stores files with the backend named in an `Image uploads` section of the
 instructions in context. `config/claude/CLAUDE.md` declares `github-session`, documented in
 `config/claude/skills/image-upload/backends/github-session.md`. A project declaration

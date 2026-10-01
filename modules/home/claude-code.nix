@@ -12,6 +12,9 @@
   # rather than copied into config/claude/skills, so a `nix flake update
   # agent-skills` picks up their changes.
   sharedSkills = ["fleet-conversation"];
+  # Skills taken from humanlayer/skills (the `humanlayer-skills` input), each
+  # under plugins/<name>/skills/<name>.
+  humanlayerSkills = ["show-me"];
 in {
   # CLI on PATH for manual use (codegraph status/query/impact ...). The MCP
   # server itself is injected via pkgs.codegraph-mcp-servers: the claude-code
@@ -47,7 +50,8 @@ in {
           value = claudeDirectory + "/skills/${name}";
         })
         (builtins.attrNames (builtins.readDir "${claudeDirectory}/skills")))
-      // lib.genAttrs sharedSkills (name: "${inputs.agent-skills}/${name}");
+      // lib.genAttrs sharedSkills (name: "${inputs.agent-skills}/${name}")
+      // lib.genAttrs humanlayerSkills (name: "${inputs.humanlayer-skills}/plugins/${name}/skills/${name}");
     settings = {
       model = "opus";
       # model = "fable";

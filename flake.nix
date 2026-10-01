@@ -19,6 +19,10 @@
     # Factbird's shared Claude Code skills. Skill folders only, no flake.
     agent-skills.url = "git+https://github.com/FactbirdHQ/agent-skills?ref=main";
     agent-skills.flake = false;
+
+    # HumanLayer's skills, for `show-me`. Skill folders only, no flake.
+    humanlayer-skills.url = "git+https://github.com/humanlayer/skills?ref=main";
+    humanlayer-skills.flake = false;
   };
 
   outputs = inputs @ {
@@ -31,6 +35,7 @@
     nextNixpkgs,
     onepassword-secrets,
     agent-skills,
+    humanlayer-skills,
   }: let
     # Import overlays
     overlays = import ./overlays;
