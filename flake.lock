@@ -56,6 +56,23 @@
         "type": "github"
       }
     },
+    "humanlayer-skills": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789646706,
+        "narHash": "sha256-BX9k5S3hwgik7AKxssUVm7VQRTjgjXVVcE2Jph88tS0=",
+        "ref": "main",
+        "rev": "ca7c8088db69e315a8b2deea43820270457f8f3c",
+        "revCount": 16,
+        "type": "git",
+        "url": "https://github.com/humanlayer/skills"
+      },
+      "original": {
+        "ref": "main",
+        "type": "git",
+        "url": "https://github.com/humanlayer/skills"
+      }
+    },
     "nextNixpkgs": {
       "locked": {
         "lastModified": 1767856126,
@@ -166,6 +183,7 @@
       "inputs": {
         "agent-skills": "agent-skills",
         "home-manager": "home-manager",
+        "humanlayer-skills": "humanlayer-skills",
         "nextNixpkgs": "nextNixpkgs",
         "nextNixpkgsClaude": "nextNixpkgsClaude",
         "nextNixpkgsDevenv": "nextNixpkgsDevenv",
