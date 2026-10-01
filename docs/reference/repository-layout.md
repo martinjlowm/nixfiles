@@ -4,7 +4,7 @@
 
 | Path | Contents |
 | --- | --- |
-| `flake.nix` | Inputs, host configurations, `packages` and `devShells` outputs. |
+| `flake.nix` | Inputs, host configurations, `packages`, `devShells` and `formatter` outputs. `formatter` runs Biome through treefmt and holds its configuration. |
 | `bootstrap.sh` | Installs Determinate Nix when absent, then runs one flake package. |
 | `lib/` | `mkPkgs`, `mkDarwinSystem`, `mkNixosSystem`, `nixpkgsConfig`. |
 | `overlays/` | Package overrides and additions, including the sandboxed `claude-code` wrapper. |
@@ -17,7 +17,6 @@
 | `.state/` | Loop working state. Gitignored. |
 | `lockfiles/` | Pinned dependency manifests used by overlays. |
 | `1password.nix` | opnix secret declarations. |
-| `biome.json` | Biome configuration. |
 
 ## lib
 

@@ -23,6 +23,9 @@
     # HumanLayer's skills, for `show-me`. Skill folders only, no flake.
     humanlayer-skills.url = "git+https://github.com/humanlayer/skills?ref=main";
     humanlayer-skills.flake = false;
+
+    treefmt-nix.url = "github:numtide/treefmt-nix";
+    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = inputs @ {
@@ -36,6 +39,7 @@
     onepassword-secrets,
     agent-skills,
     humanlayer-skills,
+    treefmt-nix,
   }: let
     # Import overlays
     overlays = import ./overlays;
@@ -123,5 +127,146 @@
           };
         })
         systems);
+
+    # `nix fmt`: Biome through treefmt, with Biome's configuration here and
+    # nowhere else. treefmt-nix renders it into the store and passes it with
+    # --config-path.
+    formatter = nixpkgs.lib.genAttrs ["aarch64-darwin" "x86_64-linux" "x86_64-darwin" "aarch64-linux"] (system: let
+      pkgs = nixpkgs.legacyPackages.${system};
+    in
+      (treefmt-nix.lib.evalModule pkgs {
+        projectRootFile = "flake.nix";
+        programs.biome = {
+          enable = true;
+          # treefmt-nix only knows the schemas of Biome 1.x and 2.3.x and falls
+          # back to 2.1.2 for anything else, which rejects options 2.4 accepts.
+          # The schema shipped in the Biome source always matches pkgs.biome.
+          validate.schema = "${pkgs.biome.src}/packages/@biomejs/biome/configuration_schema.json";
+          settings = {
+            assist = {
+              actions = {
+                source = {
+                  organizeImports = {
+                    level = "on";
+                    options.groups = [
+                      [":BUN:" ":NODE:"]
+                      ":BLANK_LINE:"
+                      ":PACKAGE:"
+                      ":BLANK_LINE:"
+                      "#~/**/*"
+                      ":BLANK_LINE:"
+                      "#@/**/*"
+                      ":BLANK_LINE:"
+                      ["#$/**/*" "#$$/**/*" "#%/**/*"]
+                    ];
+                  };
+                };
+              };
+            };
+            formatter = {
+              indentStyle = "space";
+              lineWidth = 120;
+            };
+            javascript = {formatter = {quoteStyle = "single";};};
+            linter = {
+              enabled = true;
+              rules = {
+                a11y = {
+                  noStaticElementInteractions = {level = "warn";};
+                  noSvgWithoutTitle = {level = "warn";};
+                  useAltText = {level = "warn";};
+                  useButtonType = {level = "warn";};
+                  useHtmlLang = {level = "warn";};
+                  useIframeTitle = {level = "warn";};
+                  useKeyWithClickEvents = {level = "warn";};
+                };
+                complexity = {
+                  noArguments = {level = "warn";};
+                  noBannedTypes = {level = "warn";};
+                  noCommaOperator = {level = "warn";};
+                  noExcessiveCognitiveComplexity = {level = "warn";};
+                  noForEach = {level = "off";};
+                  noStaticOnlyClass = {level = "warn";};
+                  noUselessCatch = {level = "warn";};
+                  noUselessFragments = {level = "warn";};
+                  noUselessTernary = {level = "error";};
+                  useSimplifiedLogicExpression = {level = "off";};
+                };
+                correctness = {
+                  noConstantCondition = {level = "warn";};
+                  noEmptyPattern = {level = "warn";};
+                  noInvalidUseBeforeDeclaration = {level = "warn";};
+                  noSelfAssign = {level = "warn";};
+                  noUnsafeOptionalChaining = {level = "warn";};
+                  noUnusedImports = {
+                    fix = "safe";
+                    level = "error";
+                  };
+                  noUnusedVariables = {level = "warn";};
+                  useExhaustiveDependencies = {level = "warn";};
+                  useHookAtTopLevel = {level = "error";};
+                  useJsxKeyInIterable = {level = "off";};
+                };
+                performance = {noAccumulatingSpread = {level = "warn";};};
+                recommended = true;
+                security = {noDangerouslySetInnerHtml = {level = "warn";};};
+                style = {
+                  noImplicitBoolean = {level = "off";};
+                  noNegationElse = {level = "error";};
+                  noNonNullAssertion = {level = "off";};
+                  noParameterAssign = {level = "warn";};
+                  noRestrictedImports = {
+                    level = "error";
+                    options = {
+                      paths = {
+                        "assert" = "Not permitted, see penalty at https://github.com/nodejs/node/issues/52677";
+                        "node:assert" = "Not permitted, see penalty at https://github.com/nodejs/node/issues/52677";
+                      };
+                    };
+                  };
+                  useBlockStatements = {level = "error";};
+                  useConsistentObjectDefinitions = {level = "error";};
+                  useConst = {level = "warn";};
+                  useDefaultParameterLast = {level = "off";};
+                  useFilenamingConvention = {
+                    level = "error";
+                    options = {filenameCases = ["kebab-case"];};
+                  };
+                };
+                suspicious = {
+                  noArrayIndexKey = {level = "warn";};
+                  noAssignInExpressions = {level = "warn";};
+                  noConfusingVoidType = {level = "off";};
+                  noConsole = {
+                    level = "error";
+                    options = {allow = ["assert" "debug" "error" "info" "time" "timeEnd" "trace" "warn"];};
+                  };
+                  noControlCharactersInRegex = {level = "warn";};
+                  noDuplicateCase = {level = "warn";};
+                  noExplicitAny = {level = "warn";};
+                  noFallthroughSwitchClause = {level = "warn";};
+                  noFocusedTests = {level = "error";};
+                  noImplicitAnyLet = {level = "warn";};
+                  noPrototypeBuiltins = {level = "warn";};
+                  noRedeclare = {level = "warn";};
+                  noShadowRestrictedNames = {level = "warn";};
+                  noSkippedTests = {level = "off";};
+                  noTsIgnore = {level = "off";};
+                  useDefaultSwitchClauseLast = {level = "warn";};
+                };
+              };
+            };
+            overrides = [
+              {
+                formatter = {lineWidth = 1;};
+                includes = ["**/package.json"];
+              }
+            ];
+          };
+        };
+      })
+      .config
+      .build
+      .wrapper);
   };
 }
