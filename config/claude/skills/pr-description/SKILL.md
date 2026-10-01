@@ -87,9 +87,8 @@ gh pr diff <number> --repo <owner>/<repo>
   bodies you touch, including PRs you open yourself.
 - **Keep** issue references, screenshots and release-note sections. A reference the reader
   should follow goes inline as a full URL, where GitHub renders the title and the state:
-  `https://github.com/FactbirdHQ/nest/pull/20189`, not `#20189`. Reserve the short form and
-  the trailer position for the machine-read ones, last, one per line: `Closes: #1234`,
-  `Fixes: AB#456`.
+  `https://github.com/FactbirdHQ/nest/pull/20189`, not `#20189`. The trailer position is
+  for the issues the PR resolves, see [Cite the report behind it](#cite-the-report-behind-it).
 - **A ticket reference is never the description.** `JIRA-42` or `Closes #125` as the body,
   or a title that only names the ticket, moves the explanation into a system the reader may
   not be able to open and that outlives no migration.
@@ -124,7 +123,9 @@ Lead with what was wrong. It is the sentence a `git blame` reader came for.
   "fix" the code back to it.
 - **Link the source** when the change follows from something outside the repo: a spec
   section, an upstream issue, a vendor doc. That link is the one piece of process a
-  commit-message reader does want, because they cannot reconstruct it.
+  commit-message reader does want, because they cannot reconstruct it. The report that
+  motivated the change is never optional, see
+  [Cite the report behind it](#cite-the-report-behind-it).
 - **Don't pre-argue.** Defending a decision nobody has questioned, or weighing the
   alternatives on their merits, belongs in review. The body states the reason; it does not
   litigate it.
@@ -142,6 +143,59 @@ Lead with what was wrong. It is the sentence a `git blame` reader came for.
 
 Problem, then change, in two sentences, before the diagram, the table and the mechanism
 that make up the rest of that body.
+
+### Cite the report behind it
+
+Every PR references the report that motivates it: an issue, a support ticket, an incident,
+an alert, a review finding. The problem sentence says what was wrong, and the reference is
+the evidence that someone hit it, so a `git blame` reader can follow it back to the
+conversation and the people the change was for.
+
+- **Look before you write.** The issue or ticket in the prompt or the session, links in the
+  branch's commits, an issue that `gh issue list --repo <owner>/<repo> --state all --search
+  "<symptom>"` finds, the Zendesk ticket or alert that started the work.
+- **A non-issue source goes inline** in the problem sentence, as a full URL: the Zendesk
+  ticket, the Dependabot alert, the incident, the review comment. A PR keyword cannot close
+  any of them.
+- **An issue the PR resolves goes in a trailer.** End the body with one `Closes` line per
+  resolved issue, full URL, nothing after them:
+
+  ```
+  Closes https://github.com/FactbirdHQ/nest/issues/21286
+  Closes https://github.com/FactbirdHQ/nest/issues/21290
+  ```
+
+  An issue the PR only advances, without resolving it, goes inline instead. A `Closes`
+  line on it would close it on merge. A prompt that prescribes its own trailer form, such
+  as `Closes #<task>` for a pipeline that matches on it, wins over this one.
+- **When nothing reports the problem, open the issue yourself** in the PR's repository,
+  FactbirdHQ/nest for nest work, before creating the PR. That holds whenever the search
+  above finds no issue and nothing else explicit motivates the work. Title it with the
+  problem, not the fix. The body states what is wrong, what it costs and where it shows,
+  taken from the session and the commits under the same rule as never inventing the
+  problem: if they do not settle it, ask rather than file a guess. Add no labels,
+  assignees or project, and no `@handle`. Then close it from the PR with a `Closes` line.
+- **The issue proves its claim.** An issue states that something is wrong, so it carries the
+  evidence a reader needs to believe that without reproducing it. One you file includes it
+  from the start. An existing issue that states the problem without it gets the evidence
+  as a comment from you before the PR cites it, and its body stays the author's.
+  - Draw the evidence with the [`show-me`](#show-the-shape-dont-narrate-it) views: a `diff`
+    of the expected against the actual output, the call tree that reaches the failure with
+    the `file:line` of each frame, pseudocode of the branch that goes wrong, a Mermaid
+    sequence of the race. An issue is not a commit message, so Mermaid and full-width
+    blocks are fine here.
+  - Back the view with the raw proof it summarises: the failing test and its output, the
+    log line, the query and its result, a screenshot uploaded with `image-upload`. A view
+    with nothing behind it is a claim drawn as a picture.
+  - Evidence from a support ticket is the product behaviour it shows, reproduced on our
+    side where possible. The customer's data stays in Zendesk.
+- **A support ticket stays in its system.** An issue filed from a Zendesk ticket links the
+  ticket and describes the problem in the product's terms. Customer names, contact details
+  and the conversation itself stay in Zendesk.
+
+```bash
+gh issue create --repo <owner>/<repo> --title "<problem>" --body-file <file>
+```
 
 ## How it sounds
 
@@ -495,8 +549,9 @@ gh pr comment <number> --repo <owner>/<repo> --body-file <file>
 
 Act when a description is stale, stating a superseded approach, listing changes no longer
 in the diff or omitting a major change now present, or when it breaks any rule above. When
-it never says what problem the change solves and no issue, commit or session says either,
-put that in the report rather than a guess in the body.
+it never says what problem the change solves, or cites no report, find or file the issue as
+[Cite the report behind it](#cite-the-report-behind-it) describes. When nothing settles
+what the problem was, put that in the report rather than a guess in the body or an issue.
 
 Reorder an accurate but hard-to-read description only when doing so surfaces something
 buried.

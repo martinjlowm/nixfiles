@@ -214,7 +214,8 @@ with `slack_search_channels` if the name does not take.
 
 - Never post a top-level PR comment or submit a review. No `gh pr comment`, no
   `issues/<n>/comments`, no review body. Everything posted on the PR is a reply to a chosen
-  inline thread.
+  inline thread. The one exception is the merge-danger comment `pr-description` keeps: when
+  the fixes change what merging risks, edit that comment in place, and never create one.
 - A finding raised in a top-level comment or a review summary, `claude[bot]`'s "Review
   summary" included, is answered in the inline thread that carries the same finding, under
   that thread's author rules. A finding no thread carries gets the fix and an entry in the
