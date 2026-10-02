@@ -214,13 +214,15 @@ in {
       # Factbird's palette: purple 500 frames the list, magenta 600 marks the
       # prompt and the cursor, blue 500 highlights what the query matched,
       # and grey carries the counters. bg:-1 leaves the terminal's own
-      # background alone.
+      # background alone. Ctrl+K kills the query from the cursor to the end
+      # of the line, as it does in the shell, in place of fzf's default of
+      # moving the cursor up.
       local colors='fg:#CCCCCC,fg+:#FFFFFF,bg:-1,bg+:#333333,hl:#6DD1F1,hl+:#8AE3FF,border:#6C45EE,prompt:#FF00CC,pointer:#FF00CC,marker:#4CAF50,info:#919191,spinner:#FFC01D,header:#919191'
       _aws_sso_rows \
         | ${pkgs.fzf}/bin/fzf --delimiter=$'\t' --with-nth=1 --nth=1 \
             --prompt="$1 » " --query="''${2:-}" --select-1 --exit-0 \
             --height=40% --reverse --no-multi \
-            --border=thinblock --color="$colors" \
+            --border=thinblock --color="$colors" --bind=ctrl-k:kill-line \
         | cut -f2,3
     }
 
