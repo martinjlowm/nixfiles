@@ -5,7 +5,7 @@
     ./packages.nix
     ./yabai.nix
     ./jankyborders.nix
-    ./linux-builder.nix
+    ./rosetta-builder.nix
     ./podman.nix
     ./signoz.nix
   ];

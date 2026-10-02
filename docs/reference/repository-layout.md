@@ -33,7 +33,7 @@
 
 | Path | Modules |
 | --- | --- |
-| `modules/darwin/` | `jankyborders`, `linux-builder`, `packages`, `podman`, `signoz`, `system`, `yabai` |
+| `modules/darwin/` | `jankyborders`, `packages`, `podman`, `rosetta-builder`, `signoz`, `system`, `yabai` |
 | `modules/home/` | `claude-code`, `emacs`, `git`, `kitty`, `nushell`, `programs`, `tmux`, `wezterm`, `zsh` |
 | `modules/nixos/` | `packages`, `system` |
 

@@ -13,6 +13,9 @@
     home-manager.url = "github:nix-community/home-manager/release-26.05";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
+    nix-rosetta-builder.url = "github:cpick/nix-rosetta-builder";
+    nix-rosetta-builder.inputs.nixpkgs.follows = "nixpkgs";
+
     onepassword-secrets.url = "github:brizzbuzz/opnix";
     onepassword-secrets.inputs.nixpkgs.follows = "nixpkgs";
 
@@ -36,6 +39,7 @@
     nextNixpkgsDevenv,
     nextNixpkgsClaude,
     nextNixpkgs,
+    nix-rosetta-builder,
     onepassword-secrets,
     agent-skills,
     humanlayer-skills,
