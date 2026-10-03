@@ -124,6 +124,7 @@ in {
       alejandra
 
       magic-wormhole
+      tuios
 
       # Development - Node.js
       nodejs_24
