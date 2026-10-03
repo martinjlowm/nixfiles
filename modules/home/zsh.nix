@@ -16,6 +16,8 @@ in {
         ls = "ls -Gal";
         sl = "ls";
         gs = "git status";
+        gc = "git checkout";
+        gr = "git reset --hard";
         extract-mp3 = "${pkgs.yt-dlp}/bin/yt-dlp --extract-audio --audio-format mp3 --audio-quality 0";
         keyfinder = "${pkgs.keyfinder-cli}/bin/keyfinder-cli";
         localhost = ''sed -E "s#(https://)([^/]+)#\\1localhost:3000#"'';
