@@ -212,6 +212,7 @@ in {
       scripts.zendesk-ticket
       scripts.gh-as-owner
       scripts.agent-pr-digest
+      scripts.agent-mono-items
       scripts.roadmap-sync
       scripts.claude-pm
       scripts.claude-ops
