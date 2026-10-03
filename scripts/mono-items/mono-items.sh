@@ -69,9 +69,11 @@ drv_paths() {
     "(import $nix_file { flake = \"path:$1\"; }).drvPaths"
 }
 
+# One build at a time: an affected service crate depends on other affected
+# crates, so two large compiles would otherwise share a review worker's memory.
 build() {
   local side=$1 dir=$2
-  if ! nix build --impure --print-out-paths --out-link "$out/$side" --expr \
+  if ! nix build --max-jobs 1 --impure --print-out-paths --out-link "$out/$side" --expr \
     "(import $nix_file { flake = \"path:$dir\"; roots = builtins.fromJSON (builtins.readFile $out/affected.json); }).report" \
     2>"$out/$side.log"; then
     status "failed: the $side build failed, see $out/$side.log"

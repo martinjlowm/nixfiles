@@ -54,13 +54,16 @@ nohup agent-mono-items <checkout> "$base" <head sha> "$out" >"$out/run.log" 2>&1
 revisions. A member whose derivation differs is affected, and that catches a
 feature flipped in the workspace `Cargo.toml` as surely as an edited `.rs`
 file. It builds the affected members and their local dependencies with
-`-Z print-mono-items=yes` and `-Z dump-mono-stats`, on the release profile,
-and compares the two sides. buildRustCrate calls rustc directly, so the flags
-reach it through a shim in the build rather than through `RUSTFLAGS`, and
-`RUSTC_BOOTSTRAP=1` unlocks them on a stable toolchain.
+`-Z print-mono-items=yes` and `-Z dump-mono-stats`, at opt-level 0 with
+`-Z share-generics=no` so generics are compiled per crate as in a release
+build, and compares the two sides. buildRustCrate calls rustc directly, so the
+flags reach it through a shim in the build rather than through `RUSTFLAGS`,
+and `RUSTC_BOOTSTRAP=1` unlocks them on a stable toolchain.
 
-A cold release build of a large service crate takes tens of minutes, so the command runs
-in the background. Poll it in waits shorter than your Bash timeout:
+The base side is usually prebuilt: a worker builds every member at each merge
+to master, and its outputs come from the binary cache. The PR's own affected
+crates still compile, so the command runs in the background. Poll it in
+waits shorter than your Bash timeout:
 
 ```bash
 timeout 540 bash -c 'until [ -f "$0/status" ]; do sleep 20; done' "$out"
@@ -143,7 +146,7 @@ body verbatim:
 <details>
 <summary><b>Duplicate monomorphization</b>: <one clause: N definitions newly compiled in more than one unit, or none></summary>
 
-<one or two sentences: what was compared (base sha, head sha, release profile, which members), and how many inline-only items were set aside>
+<one or two sentences: what was compared (base sha, head sha, opt-level 0 with share-generics off, which members), and how many inline-only items were set aside>
 
 <the tables from report.md, trimmed to what the sentences above make relevant>
 
