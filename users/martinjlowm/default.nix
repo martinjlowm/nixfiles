@@ -25,5 +25,16 @@ in {
       source = ../../config/sketchybar;
       recursive = true;
     };
+    # The 1Password SSH agent offers keys only from the vaults listed here.
+    ".config/1Password/ssh/agent.toml".text = ''
+      [[ssh-keys]]
+      vault = "Personal"
+
+      [[ssh-keys]]
+      vault = "Developer"
+
+      [[ssh-keys]]
+      vault = "Factbird"
+    '';
   };
 }
