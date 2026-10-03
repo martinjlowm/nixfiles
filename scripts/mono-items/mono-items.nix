@@ -17,9 +17,10 @@
   flake,
   # Workspace member names. null selects every member.
   roots ? null,
-  # `release` matches what ships: share-generics is off above opt-level 0,
-  # which is the setting under which a generic compiled in two crates is
-  # compiled twice. `dev` shares generics and hides most of that.
+  # The graph the instrumented crates' dependencies come from. `release` is
+  # the one CI and the fleet build anyway, so those dependencies substitute.
+  # The instrumented crates themselves compile with the shim's flags below
+  # whatever the profile says.
   profile ? "release",
   system ? builtins.currentSystem,
 }: let
@@ -57,6 +58,15 @@
   # rustc prints a unit's own items without their crate name, so the
   # comparison qualifies them itself. The `--extern` names are what tell it a
   # path's first segment is another crate rather than a local module.
+  #
+  # Nothing links against an instrumented crate, so its machine code is
+  # thrown away. The collector runs before LLVM, so the later flags win over
+  # the profile's and skip the optimisation that dominates the build's time
+  # and memory: a release `web-api` lib was OOM-killed at 16 GiB.
+  # share-generics defaults on at opt-level 0, and `no` keeps the release
+  # behaviour that compiles a generic again in each crate needing it. The item
+  # set still differs from a real release build where inlining depends on
+  # opt-level, identically on both sides of a comparison.
   shim = ''
     rustc() {
       local args=("$@") name="" kinds="" externs=() i
@@ -71,6 +81,7 @@
       mkdir -p "$NIX_BUILD_TOP/mono-items" "$NIX_BUILD_TOP/mono-externs" "$NIX_BUILD_TOP/mono-stats/$unit"
       printf '%s\n' "''${externs[@]}" >"$NIX_BUILD_TOP/mono-externs/$unit"
       RUSTC_BOOTSTRAP=1 command rustc "$@" \
+        -Copt-level=0 -Zshare-generics=no -Cdebuginfo=0 \
         -Zprint-mono-items=yes \
         -Zdump-mono-stats="$NIX_BUILD_TOP/mono-stats/$unit" \
         -Zdump-mono-stats-format=json |
