@@ -222,6 +222,17 @@ in {
     runtimeInputs = [pkgs.gh-agent gh-as-owner pkgs.jq pkgs.coreutils];
     text = builtins.readFile ./pr-digest.sh;
   };
+  # What review-rust-mono-items runs. mj-agents packages the same files with
+  # its own nix. Nix itself comes from PATH, so builds go through the daemon.
+  agent-mono-items = pkgs.writeShellApplication {
+    name = "agent-mono-items";
+    runtimeInputs = [pkgs.git pkgs.jq pkgs.gawk pkgs.coreutils pkgs.nodejs_24];
+    text = ''
+      export MONO_ITEMS_NIX=${./mono-items/mono-items.nix}
+      export MONO_ITEMS_DIFF=${./mono-items}/cli.ts
+      ${builtins.readFile ./mono-items/mono-items.sh}
+    '';
+  };
   zendesk-ticket = pkgs.writeShellApplication {
     name = "zendesk-ticket";
     runtimeInputs = [
