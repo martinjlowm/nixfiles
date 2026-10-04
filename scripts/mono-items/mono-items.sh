@@ -25,7 +25,8 @@
 #
 # MONO_ITEMS_NIX and MONO_ITEMS_DIFF name mono-items.nix and the comparison
 # CLI. The package sets both; run standalone they default to this checkout's
-# copies.
+# copies. MONO_ITEMS_MAX_JOBS and MONO_ITEMS_JOB_MIB tune build parallelism,
+# described at max_jobs() below.
 if [ "$#" -ne 4 ]; then
   echo "usage: agent-mono-items <checkout> <base-sha> <head-sha> <out-dir>" >&2
   exit 2
@@ -69,11 +70,34 @@ drv_paths() {
     "(import $nix_file { flake = \"path:$1\"; }).drvPaths"
 }
 
-# One build at a time: an affected service crate depends on other affected
-# crates, so two large compiles would otherwise share a review worker's memory.
+# Every crate is its own derivation and a rustc compile keeps about one core
+# busy, so the job count is what fills the CPU. Memory caps it: each job gets
+# MONO_ITEMS_JOB_MIB of the container's limit, which an opt-level 0 compile of
+# the largest service crate fits in. MONO_ITEMS_MAX_JOBS overrides the result.
+# The cgroup limit comes first because /proc/meminfo reports the host's memory
+# inside a container.
+max_jobs() {
+  local limit cpus jobs
+  limit=$(cat /sys/fs/cgroup/memory.max 2>/dev/null || true)
+  if ! [[ $limit =~ ^[0-9]+$ ]]; then
+    limit=$(awk '/^MemTotal:/ { print $2 * 1024 }' /proc/meminfo 2>/dev/null || true)
+  fi
+  cpus=$(nproc)
+  if [[ $limit =~ ^[0-9]+$ ]]; then
+    jobs=$((limit / (${MONO_ITEMS_JOB_MIB:-5120} * 1024 * 1024)))
+  else
+    jobs=$cpus
+  fi
+  ((jobs > cpus)) && jobs=$cpus
+  ((jobs < 1)) && jobs=1
+  echo "$jobs"
+}
+jobs=${MONO_ITEMS_MAX_JOBS:-$(max_jobs)}
+
 build() {
   local side=$1 dir=$2
-  if ! nix build --max-jobs 1 --impure --print-out-paths --out-link "$out/$side" --expr \
+  echo "agent-mono-items: building $side with --max-jobs $jobs" >&2
+  if ! nix build --max-jobs "$jobs" --impure --print-out-paths --out-link "$out/$side" --expr \
     "(import $nix_file { flake = \"path:$dir\"; roots = builtins.fromJSON (builtins.readFile $out/affected.json); }).report" \
     2>"$out/$side.log"; then
     status "failed: the $side build failed, see $out/$side.log"
