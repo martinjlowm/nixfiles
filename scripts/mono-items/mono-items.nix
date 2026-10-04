@@ -46,10 +46,13 @@
   selected = lib.unique (presentRoots ++ lib.concatMap (name: localDeps members.${name}) presentRoots);
 
   # buildRustCrate calls rustc directly rather than through cargo, so RUSTFLAGS
-  # never reaches it. The flags go on through this function instead, which
-  # shadows `rustc` for the lib and bin compiles in buildPhase. Build scripts
-  # compile in configurePhase, before preBuild defines it, and stay
-  # uninstrumented.
+  # never reaches it. The flags go on through this wrapper instead, which
+  # preBuild puts first on PATH for the lib and bin compiles in buildPhase.
+  # It has to be an executable rather than a shell function, because lib.sh
+  # runs rustc as `env ... rustc`, and `env` looks the name up on PATH. Build
+  # scripts compile in configurePhase, before preBuild changes PATH, and stay
+  # uninstrumented. A call without `--crate-name`, such as a version query,
+  # goes straight through.
   #
   # The collector prints MONO_ITEM lines to stdout and nothing else does, so
   # they are split off into one file per compilation unit. A unit is the crate
@@ -67,27 +70,34 @@
   # behaviour that compiles a generic again in each crate needing it. The item
   # set still differs from a real release build where inlining depends on
   # opt-level, identically on both sides of a comparison.
+  wrapper = pkgs.writeShellScriptBin "rustc" ''
+    args=("$@") name="" kinds="" externs=()
+    for ((i = 0; i < ''${#args[@]}; i++)); do
+      case "''${args[i]}" in
+        --crate-name) name=''${args[i + 1]} ;;
+        --crate-type) kinds=''${kinds:+$kinds,}''${args[i + 1]} ;;
+        --extern) externs+=("''${args[i + 1]%%=*}") ;;
+      esac
+    done
+    if [ -z "$name" ]; then
+      exec "$MONO_ITEMS_RUSTC" "$@"
+    fi
+    unit="$name.''${kinds:-lib}"
+    mkdir -p "$NIX_BUILD_TOP/mono-items" "$NIX_BUILD_TOP/mono-externs" "$NIX_BUILD_TOP/mono-stats/$unit"
+    printf '%s\n' "''${externs[@]}" >"$NIX_BUILD_TOP/mono-externs/$unit"
+    RUSTC_BOOTSTRAP=1 "$MONO_ITEMS_RUSTC" "$@" \
+      -Copt-level=0 -Zshare-generics=no -Cdebuginfo=0 \
+      -Zprint-mono-items=yes \
+      -Zdump-mono-stats="$NIX_BUILD_TOP/mono-stats/$unit" \
+      -Zdump-mono-stats-format=json |
+      ${pkgs.gawk}/bin/awk -v out="$NIX_BUILD_TOP/mono-items/$unit" '/^MONO_ITEM /{ print > out; next } { print }'
+    exit "''${PIPESTATUS[0]}"
+  '';
+
   shim = ''
-    rustc() {
-      local args=("$@") name="" kinds="" externs=() i
-      for ((i = 0; i < ''${#args[@]}; i++)); do
-        case "''${args[i]}" in
-          --crate-name) name=''${args[i + 1]} ;;
-          --crate-type) kinds=''${kinds:+$kinds,}''${args[i + 1]} ;;
-          --extern) externs+=("''${args[i + 1]%%=*}") ;;
-        esac
-      done
-      local unit="$name.''${kinds:-lib}"
-      mkdir -p "$NIX_BUILD_TOP/mono-items" "$NIX_BUILD_TOP/mono-externs" "$NIX_BUILD_TOP/mono-stats/$unit"
-      printf '%s\n' "''${externs[@]}" >"$NIX_BUILD_TOP/mono-externs/$unit"
-      RUSTC_BOOTSTRAP=1 command rustc "$@" \
-        -Copt-level=0 -Zshare-generics=no -Cdebuginfo=0 \
-        -Zprint-mono-items=yes \
-        -Zdump-mono-stats="$NIX_BUILD_TOP/mono-stats/$unit" \
-        -Zdump-mono-stats-format=json |
-        awk -v out="$NIX_BUILD_TOP/mono-items/$unit" '/^MONO_ITEM /{ print > out; next } { print }'
-      return "''${PIPESTATUS[0]}"
-    }
+    MONO_ITEMS_RUSTC=$(command -v rustc)
+    export MONO_ITEMS_RUSTC
+    export PATH="${wrapper}/bin:$PATH"
   '';
 
   collect = ''

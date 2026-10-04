@@ -132,6 +132,18 @@ fi
 build base "$base_dir"
 build head "$head_dir"
 
+# Every instrumented compile writes a `.items` file, empty or not. A side with
+# members but no such file means the wrapper never ran, and comparing nothing
+# would report no duplicates. A side with no members at all is legitimate: the
+# affected crates are all new on head.
+for side in base head; do
+  if [ -n "$(find -L "$out/$side" -mindepth 1 -maxdepth 1 -print -quit)" ] &&
+    [ -z "$(find -L "$out/$side" -name '*.items' -print -quit)" ]; then
+    status "failed: the $side build captured no mono items, so the rustc wrapper never ran; see $out/$side.log"
+    exit 1
+  fi
+done
+
 if ! node --max-old-space-size=8192 "$diff_cli" "$out/base" "$out/head" "$out" 2>"$out/diff.log"; then
   status "failed: the comparison failed, see $out/diff.log"
   exit 1
