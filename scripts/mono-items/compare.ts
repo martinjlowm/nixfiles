@@ -362,10 +362,12 @@ export function groups(changes: Change[]): Group[] {
     .sort((a, b) => b.size - a.size || b.copies - a.copies || a.definition.localeCompare(b.definition));
 }
 
-/** How the comparison was produced, for the line that lets an author rerun it. */
+/** How the comparison was produced, for the section that lets an author rerun it. */
 export type Run = {
   command?: string;
   system?: string;
+  /** the flags every instrumented compile adds, from mono-items.nix */
+  rustcFlags?: string;
 };
 
 const number = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -374,12 +376,15 @@ const code = (s: string) => `\`${s.replaceAll('`', "'")}\``;
 const clip = (s: string, max = 120) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
 const unitList = (units: string[], max = 3) =>
   units.slice(0, max).map(code).join(', ') + (units.length > max ? `, +${units.length - max} more` : '');
+/** "top 10 of 528 definitions" when trimmed, "4 definitions" when not. */
+const shown = (total: number, top: number, noun: string, plural = `${noun}s`) =>
+  total > top ? `top ${number(top)} of ${number(total)} ${plural}` : `${number(total)} ${total === 1 ? noun : plural}`;
 
 function groupTable(title: string, column: string, list: Group[], top: number): string[] {
   if (list.length === 0) {
     return [];
   }
-  const lines = [`#### ${title}`, ''];
+  const lines = [`#### ${title}: ${shown(list.length, top, 'definition')}`, ''];
   lines.push(`| Definition | Copies | Size estimate | ${column} | Example |`);
   lines.push('| --- | ---: | ---: | --- | --- |');
   for (const g of list.slice(0, top)) {
@@ -387,68 +392,85 @@ function groupTable(title: string, column: string, list: Group[], top: number): 
       `| ${code(clip(g.definition, 90))} | ${number(g.copies)} | ${g.size > 0 ? number(g.size) : '–'} | ${unitList(g.units)} | ${code(clip(g.example))} |`,
     );
   }
-  if (list.length > top) {
-    lines.push('', `${number(list.length - top)} more definitions in regressions.json.`);
+  lines.push('');
+  return lines;
+}
+
+function balance(totals: Totals): string[] {
+  const lines = [
+    '**Duplicated codegen**',
+    '',
+    `- Added: ${signed(totals.addedCopies)} copies, size estimate ${signed(totals.addedSize)}`,
+    `- Removed: ${signed(-totals.removedCopies)} copies, size estimate ${signed(-totals.removedSize)}`,
+    `- Net: ${signed(totals.addedCopies - totals.removedCopies)} copies, size estimate ${signed(totals.addedSize - totals.removedSize)}`,
+  ];
+  if (totals.sized < 1) {
+    lines.push(`- Sized: ${Math.round(totals.sized * 100)}% of copies have a size estimate`);
   }
   lines.push('');
+  return lines;
+}
+
+function unitTable(units: UnitDelta[], top: number): string[] {
+  const delta = (u: UnitDelta) => Math.abs((u.headSize ?? 0) - (u.baseSize ?? 0));
+  const changed = units
+    .filter((u) => u.baseItems !== u.headItems || u.baseSize !== u.headSize)
+    .sort((a, b) => delta(b) - delta(a) || a.unit.localeCompare(b.unit));
+  if (changed.length === 0) {
+    return [];
+  }
+  const lines = [`#### Units: ${shown(changed.length, top, 'changed', 'changed')}`, ''];
+  lines.push('| Unit | Items | Δ items | Δ size estimate |');
+  lines.push('| --- | ---: | ---: | ---: |');
+  for (const u of changed.slice(0, top)) {
+    lines.push(
+      `| ${code(u.unit)} | ${number(u.headItems ?? u.baseItems ?? 0)} | ${signed((u.headItems ?? 0) - (u.baseItems ?? 0))} | ${signed((u.headSize ?? 0) - (u.baseSize ?? 0))} |`,
+    );
+  }
+  lines.push('');
+  return lines;
+}
+
+function reproduce(run: Run): string[] {
+  if (!run.command) {
+    return [];
+  }
+  const lines = [
+    '#### Reproduce',
+    '',
+    `From a checkout of the repository${run.system ? `, measured on \`${run.system}\`` : ''}:`,
+    '',
+    '```',
+    run.command,
+    '```',
+    '',
+  ];
+  if (run.rustcFlags) {
+    lines.push(
+      'Each affected crate and its workspace dependencies compiled with `RUSTC_BOOTSTRAP=1` and these rustc flags, which `cargo rustc -p <crate> --` takes to inspect one crate by hand:',
+      '',
+      '```',
+      `${run.rustcFlags} -Zdump-mono-stats=<dir>`,
+      '```',
+      '',
+    );
+  }
   return lines;
 }
 
 /**
  * The report: duplication added against duplication removed, what added the
  * most, what removed the most, the units that moved, and how to rerun it.
+ * Every trimmed table says so in its heading, because the reader has nothing
+ * but this text.
  */
 export function render(comparison: Comparison, run: Run = {}, top = 10): string {
   const { totals, regressions, resolutions, units } = comparison;
-  const lines: string[] = [];
-
-  const net = totals.addedCopies - totals.removedCopies;
-  const netSize = totals.addedSize - totals.removedSize;
-  lines.push(
-    `**Duplicated codegen:** ${signed(totals.addedCopies)} copies added, ` +
-      `${signed(-totals.removedCopies)} removed, net ${signed(net)}. ` +
-      `Size estimate ${signed(totals.addedSize)} / ${signed(-totals.removedSize)}, net ${signed(netSize)}` +
-      (totals.sized < 0.95 ? ` (${Math.round(totals.sized * 100)}% of copies sized)` : '') +
-      '.',
-    '',
-  );
-
-  lines.push(...groupTable('Added duplication', 'Now also compiled in', groups(regressions), top));
-  lines.push(...groupTable('Removed duplication', 'No longer compiled in', groups(resolutions), Math.min(top, 5)));
-
-  const changed = units
-    .filter((u) => u.baseItems !== u.headItems || u.baseSize !== u.headSize)
-    .sort(
-      (a, b) =>
-        Math.abs((b.headSize ?? 0) - (b.baseSize ?? 0)) - Math.abs((a.headSize ?? 0) - (a.baseSize ?? 0)) ||
-        a.unit.localeCompare(b.unit),
-    );
-  if (changed.length > 0) {
-    lines.push('#### Units', '');
-    lines.push('| Unit | Items | Δ items | Δ size estimate |');
-    lines.push('| --- | ---: | ---: | ---: |');
-    for (const u of changed.slice(0, top)) {
-      const items = u.headItems ?? u.baseItems ?? 0;
-      lines.push(
-        `| ${code(u.unit)} | ${number(items)} | ${signed((u.headItems ?? 0) - (u.baseItems ?? 0))} | ${signed((u.headSize ?? 0) - (u.baseSize ?? 0))} |`,
-      );
-    }
-    if (changed.length > top) {
-      lines.push('', `${number(changed.length - top)} more units changed.`);
-    }
-    lines.push('');
-  }
-
-  if (run.command) {
-    lines.push(
-      `Reproduce from a checkout of the repository${run.system ? ` (measured on \`${run.system}\`)` : ''}:`,
-      '',
-      '```',
-      run.command,
-      '```',
-      '',
-    );
-  }
-
-  return lines.join('\n');
+  return [
+    ...balance(totals),
+    ...groupTable('Added duplication', 'Now also compiled in', groups(regressions), top),
+    ...groupTable('Removed duplication', 'No longer compiled in', groups(resolutions), Math.min(top, 5)),
+    ...unitTable(units, top),
+    ...reproduce(run),
+  ].join('\n');
 }
