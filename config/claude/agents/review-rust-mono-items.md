@@ -57,7 +57,7 @@ file. It builds the affected members and their local dependencies with
 `-Z print-mono-items=yes` and `-Z dump-mono-stats`, at opt-level 0 with
 `-Z share-generics=no` so generics are compiled per crate as in a release
 build, and compares the two sides. buildRustCrate calls rustc directly, so the
-flags reach it through a shim in the build rather than through `RUSTFLAGS`,
+flags reach it through a `rustc` wrapper on the build's PATH rather than through `RUSTFLAGS`,
 and `RUSTC_BOOTSTRAP=1` unlocks them on a stable toolchain.
 
 The base side is usually prebuilt: a worker builds every member at each merge
@@ -84,9 +84,19 @@ The last line of `status` decides what follows:
 
 ## Phase 2: read the comparison
 
-`$out/report.md` holds the summary tables. `$out/regressions.json` holds every
-newly duplicated item in full: its signature, the units that compiled it on
-each side, and the units the PR added. A unit is `<member>/<crate>.<lib|bin>`.
+Duplication is counted in copies: an item compiled in three units carries two
+copies beyond the first. Copies the PR adds are the regression, copies it
+removes are the win, and the net of the two is the PR's effect.
+
+`$out/report.md` opens on that balance, with a size estimate beside each
+count, then lists the definitions that added and removed the most, the units
+that changed most, and the command that reproduces the run.
+`$out/regressions.json` holds it all unabridged: `totals`, then
+`regressions` (added copies) and `resolutions` (removed copies), each entry
+carrying the item's full signature, its `definition`, the units that compiled
+it on each side, the `units` that started or stopped, its `copies` and its
+`size` estimate (null where no stats row matched). A unit is
+`<member>/<crate>.<lib|bin>`.
 
 Only an identical signature counts as a duplicate. `block_on::<A>` in the lib
 and `block_on::<B>` in the bin are two instantiations, not one compiled twice,
@@ -100,9 +110,10 @@ Then sort the regressions into what the PR caused and what it only exposed:
    every crate that uses them by design. A PR that adds a dependency edge
    adds hundreds of these. They are not findings, however many there are. Say
    in the report how many you set aside on this ground.
-2. **Large families are the signal.** A definition whose instantiations arrive
-   by the dozen in a new unit, an async state machine, a resolver tree, a
-   builder chain or a serde impl family, is real compile work done twice.
+2. **Large families are the signal.** Rank by size estimate, not by count. A
+   definition whose instantiations arrive by the dozen in a new unit, an async
+   state machine, a resolver tree, a builder chain or a serde impl family, is
+   real compile work done twice.
 3. **Find the line that caused it.** For each family you keep, search the diff
    (`<digest>/diff.patch`) for the change that makes the added unit
    instantiate it: a new call site of a generic, a type that newly crosses a
@@ -114,8 +125,10 @@ Then sort the regressions into what the PR caused and what it only exposed:
    crossing crates wants type erasure, boxing or `dyn`. A plain generic called from a second crate with the same type
    arguments wants a non-generic wrapper in the owning crate.
 
-A resolved duplicate is good news. Name the biggest in the report so the
-author can cite it.
+Removed copies are good news. Name the biggest in the report so the author
+can cite it. A PR whose net is a removal, as boxing an async trait's futures
+is, still gets its added copies weighed on their own: a net win does not
+excuse a new duplicate the diff could avoid.
 
 ## Severity
 
@@ -127,7 +140,8 @@ it. Everything weaker is a nit or belongs in the report only.
 
 Findings are `measured`, because they turn on the comparison. Their `evidence`
 names the store paths of the two reports (`readlink $out/base`,
-`readlink $out/head`) and the item counts the finding rests on.
+`readlink $out/head`) and the copy counts and size estimates the finding
+rests on.
 
 ## Comment craft
 
@@ -144,17 +158,20 @@ body verbatim:
 
 ```markdown
 <details>
-<summary><b>Duplicate monomorphization</b>: <one clause: N definitions newly compiled in more than one unit, or none></summary>
+<summary><b>Duplicate monomorphization</b>: <one clause: +N copies added, −M removed, or none moved></summary>
 
 <one or two sentences: what was compared (base sha, head sha, opt-level 0 with share-generics off, which members), and how many inline-only items were set aside>
 
 <the tables from report.md, trimmed to what the sentences above make relevant>
 
+<the Reproduce block from report.md, verbatim>
+
 </details>
 ```
 
-Keep it under 60 table rows. The JSON stays in `$out` for anyone who wants
-the rest.
+Keep it under 40 table rows. Always keep the Reproduce block, so the author
+can rerun the comparison in their own checkout. The JSON stays in `$out` for
+anyone who wants the rest.
 
 ## Output
 
