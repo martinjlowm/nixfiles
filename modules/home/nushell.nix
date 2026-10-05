@@ -34,6 +34,7 @@ in {
       DEVENV_ENABLE_MCP_NOTION = "true";
       DEVENV_ENABLE_MCP_SERENA = "true";
       DEVENV_ENABLE_MCP_AWS_DIAGRAM = "true";
+      DEVENV_TUI = "false";
       DOCKER_HOST = "unix:///tmp/podman/podman-machine-default-api.sock";
       NIXPKGS_ALLOW_UNFREE = 1;
       ZENDESK_SUBDOMAIN = "factbird";
