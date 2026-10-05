@@ -17,7 +17,7 @@
 #   base/, head/         the two report store paths, as out-links
 #   base.log, head.log   nix's stderr for each build
 #   report.md            the comparison, rendered for a review body
-#   regressions.json     every newly duplicated item, unabridged
+#   regressions.json     every item whose duplication changed, unabridged
 #   status               compared | not_applicable | failed, last line written
 #
 # Exit codes: 0 compared or not_applicable; 1 a build or the comparison failed,
@@ -26,7 +26,9 @@
 # MONO_ITEMS_NIX and MONO_ITEMS_DIFF name mono-items.nix and the comparison
 # CLI. The package sets both; run standalone they default to this checkout's
 # copies. MONO_ITEMS_MAX_JOBS and MONO_ITEMS_JOB_MIB tune build parallelism,
-# described at max_jobs() below.
+# described at max_jobs() below. MONO_ITEMS_RUN is how report.md tells an
+# author to run this tool, defaulting to nixfiles' flake at master; a packager
+# pins it to the revision it built from.
 if [ "$#" -ne 4 ]; then
   echo "usage: agent-mono-items <checkout> <base-sha> <head-sha> <out-dir>" >&2
   exit 2
@@ -144,6 +146,11 @@ for side in base head; do
   fi
 done
 
+# The rerun line names the revisions, not this machine's paths, so an author
+# can paste it into their own checkout.
+MONO_ITEMS_RERUN="${MONO_ITEMS_RUN:-nix run github:martinjlowm/nixfiles#agent-mono-items --} . $base_sha $head_sha /tmp/mono-items"
+MONO_ITEMS_SYSTEM=$(nix eval --impure --raw --expr builtins.currentSystem 2>/dev/null || true)
+export MONO_ITEMS_RERUN MONO_ITEMS_SYSTEM
 if ! node --max-old-space-size=8192 "$diff_cli" "$out/base" "$out/head" "$out" 2>"$out/diff.log"; then
   status "failed: the comparison failed, see $out/diff.log"
   exit 1

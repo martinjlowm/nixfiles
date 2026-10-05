@@ -3,16 +3,19 @@
 //
 //   node cli.ts <base-report> <head-report> <out-dir>
 //
-// Run by `agent-mono-items` (mono-items.sh) after both builds.
+// Run by `agent-mono-items` (mono-items.sh) after both builds. MONO_ITEMS_RERUN
+// and MONO_ITEMS_SYSTEM, when set, put the command that reproduces the
+// comparison and the system it ran on at the foot of report.md.
 // Node strips the types itself, so this runs from the store with no build step.
 import { createReadStream } from 'node:fs';
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
-import { compare, Interner, itemOf, qualify, render, type Side, sizeOf } from './compare.ts';
+
+import { compare, definitionSizes, Interner, itemOf, qualify, render, type Side, sizeOf } from './compare.ts';
 
 async function readSide(dir: string, interner: Interner): Promise<Side> {
-  const side: Side = { units: new Map(), sizes: new Map() };
+  const side: Side = { units: new Map(), sizes: new Map(), definitions: new Map() };
   for (const member of (await readdir(dir)).sort()) {
     const memberDir = join(dir, member);
     // Members are symlinks into the store; stat follows them.
@@ -22,9 +25,7 @@ async function readSide(dir: string, interner: Interner): Promise<Side> {
       const name = file.slice(0, -'.items'.length);
       const unit = `${member}/${name}`;
       const externs = new Set<string>(
-        (await readFile(join(memberDir, `${name}.externs`), 'utf8').catch(() => ''))
-          .split('\n')
-          .filter(Boolean),
+        (await readFile(join(memberDir, `${name}.externs`), 'utf8').catch(() => '')).split('\n').filter(Boolean),
       );
       const items = new Set<number>();
       const lines = createInterface({ input: createReadStream(join(memberDir, file)) });
@@ -37,6 +38,10 @@ async function readSide(dir: string, interner: Interner): Promise<Side> {
         .then(JSON.parse)
         .catch(() => []);
       side.sizes.set(unit, sizeOf(stats));
+      side.definitions?.set(
+        unit,
+        definitionSizes(stats, (row) => qualify(row, name, externs)),
+      );
     }
   }
   return side;
@@ -53,8 +58,13 @@ const base = await readSide(baseDir, interner);
 const head = await readSide(headDir, interner);
 const comparison = compare(base, head, interner);
 
-await writeFile(join(outDir, 'report.md'), render(comparison));
-await writeFile(join(outDir, 'regressions.json'), `${JSON.stringify(comparison, null, 2)}\n`);
-console.log(
-  `${comparison.regressions.length} regressions, ${comparison.resolutions.length} resolutions, ${comparison.units.length} units`,
+await writeFile(
+  join(outDir, 'report.md'),
+  render(comparison, {
+    command: process.env.MONO_ITEMS_RERUN || undefined,
+    system: process.env.MONO_ITEMS_SYSTEM || undefined,
+  }),
 );
+await writeFile(join(outDir, 'regressions.json'), `${JSON.stringify(comparison, null, 2)}\n`);
+const { totals } = comparison;
+console.log(`+${totals.addedCopies} copies added, -${totals.removedCopies} removed, ${comparison.units.length} units`);

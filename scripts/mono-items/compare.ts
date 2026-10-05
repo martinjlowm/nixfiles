@@ -17,6 +17,8 @@ export type Side = {
   units: Map<string, Set<number>>;
   /** unit -> summed `total_estimate` from its stats table */
   sizes: Map<string, number>;
+  /** unit -> definition -> per-instantiation size estimate (see `definitionSizes`) */
+  definitions?: Map<string, Map<string, number>>;
 };
 
 /** Item signatures interned once across both sides. */
@@ -55,9 +57,7 @@ const PRIMITIVES = new Set([
 // Words rustc's item printer uses that are not paths: keywords, and the
 // labels of closures and async bodies (`{closure#0}`, `{async fn body of f()}`).
 const NOT_PATHS = new Set(
-  'as async block body closure const coroutine dyn extern fn for impl mut of static unsafe Self'.split(
-    ' ',
-  ),
+  'as async block body closure const coroutine dyn extern fn for impl mut of static unsafe Self'.split(' '),
 );
 
 /**
@@ -133,27 +133,66 @@ export function qualify(item: string, unit: string, externs: ReadonlySet<string>
 }
 
 /**
- * The item with every generic argument list collapsed, so the instantiations
- * of one definition group together in the report. Grouping only: identity is
- * always the full signature.
+ * The definition an item instantiates: every generic argument list collapsed
+ * to `<…>`, and the function's own trailing arguments dropped. A qualified
+ * self type stays, so `<std::boxed::Box<String> as Drop>::drop` becomes
+ * `<std::boxed::Box<…> as Drop>::drop` rather than `<…>::drop`.
+ *
+ * rustc's `-Z dump-mono-stats` names its rows the same way once normalized
+ * by this function, which is how an item finds its size estimate. Grouping
+ * and sizing only: identity is always the full signature.
  */
-export function familyOf(item: string): string {
+export function definitionOf(item: string): string {
+  const unprefixed = item.replace(/^(fn|static) /, '');
+  const shim = unprefixed.indexOf(' - shim');
+  const s = shim === -1 ? unprefixed : unprefixed.slice(0, shim);
   let out = '';
   let depth = 0;
-  let previous = '';
-  for (const ch of item) {
-    const arrow = previous === '-';
-    previous = ch;
-    if (ch === '<') {
-      if (depth === 0) out += '<…>';
-      depth++;
-    } else if (ch === '>' && !arrow && depth > 0) {
-      depth--;
-    } else if (depth === 0) {
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i] ?? '';
+    const prev = s[i - 1] ?? '';
+    if (depth > 0) {
+      depth += bracketStep(ch, prev);
+    } else if (ch === '<' && /[\w:]/.test(prev)) {
+      out += '<…>';
+      depth = 1;
+    } else {
       out += ch;
     }
   }
-  return out;
+  return out.replace(/::<…>$/, '');
+}
+
+/** How a character moves the bracket depth; the `>` of a `->` does not. */
+const bracketStep = (ch: string, prev: string) => {
+  if (ch === '<') {
+    return 1;
+  }
+  return ch === '>' && prev !== '-' ? -1 : 0;
+};
+
+/** Per-instantiation size estimates from one unit's stats table, by definition. */
+export function definitionSizes(stats: unknown, normalize: (name: string) => string) {
+  const sums = new Map<string, { total: number; count: number }>();
+  if (Array.isArray(stats)) {
+    for (const row of stats) {
+      if (typeof row?.name !== 'string') {
+        continue;
+      }
+      const key = definitionOf(normalize(row.name));
+      const sum = sums.get(key) ?? { total: 0, count: 0 };
+      sums.set(key, sum);
+      sum.total += Number(row.total_estimate) || 0;
+      sum.count += Number(row.instantiation_count) || 0;
+    }
+  }
+  const sizes = new Map<string, number>();
+  for (const [key, { total, count }] of sums) {
+    if (count > 0) {
+      sizes.set(key, total / count);
+    }
+  }
+  return sizes;
 }
 
 export function sizeOf(stats: unknown): number {
@@ -174,20 +213,21 @@ export function unitsByItem(side: Side): Map<number, Set<string>> {
   return byItem;
 }
 
-export type Regression = {
+/**
+ * One item whose duplication the change moved. Duplication is the copies
+ * beyond the first: an item compiled in three units carries two.
+ */
+export type Change = {
   item: string;
-  family: string;
-  /** `new` when the item was compiled in at most one unit on base */
-  kind: 'new' | 'grown';
+  definition: string;
   baseUnits: string[];
   headUnits: string[];
-  addedUnits: string[];
-};
-
-export type Resolution = {
-  item: string;
-  baseUnits: string[];
-  headUnits: string[];
+  /** units that started compiling it (a regression) or stopped (a resolution) */
+  units: string[];
+  /** duplicate copies added or removed, always positive */
+  copies: number;
+  /** copies times the item's size estimate, null when no stats row matched */
+  size: number | null;
 };
 
 export type UnitDelta = {
@@ -198,53 +238,83 @@ export type UnitDelta = {
   headSize: number | null;
 };
 
+export type Totals = {
+  addedCopies: number;
+  removedCopies: number;
+  addedSize: number;
+  removedSize: number;
+  /** share of added and removed copies whose size is known */
+  sized: number;
+};
+
 export type Comparison = {
-  regressions: Regression[];
-  resolutions: Resolution[];
+  totals: Totals;
+  regressions: Change[];
+  resolutions: Change[];
   units: UnitDelta[];
 };
 
 const sorted = (units: Iterable<string>) => [...units].sort();
+const extra = (units: number) => Math.max(units - 1, 0);
+
+function sizeIn(side: Side, definition: string, units: string[]): number | null {
+  const known = units
+    .map((unit) => side.definitions?.get(unit)?.get(definition))
+    .filter((size): size is number => size !== undefined);
+  if (known.length === 0) {
+    return null;
+  }
+  return known.reduce((a, b) => a + b, 0) / known.length;
+}
 
 export function compare(base: Side, head: Side, interner: Interner): Comparison {
   const baseByItem = unitsByItem(base);
   const headByItem = unitsByItem(head);
   const none = new Set<string>();
 
-  const regressions: Regression[] = [];
-  for (const [id, headUnits] of headByItem) {
-    if (headUnits.size < 2) continue;
+  const regressions: Change[] = [];
+  const resolutions: Change[] = [];
+  for (const id of new Set([...baseByItem.keys(), ...headByItem.keys()])) {
     const baseUnits = baseByItem.get(id) ?? none;
-    const added = [...headUnits].filter((unit) => !baseUnits.has(unit));
-    if (added.length === 0) continue;
-    const item = interner.names[id] ?? '';
-    regressions.push({
-      item,
-      family: familyOf(item),
-      kind: baseUnits.size < 2 ? 'new' : 'grown',
-      baseUnits: sorted(baseUnits),
-      headUnits: sorted(headUnits),
-      addedUnits: added.sort(),
-    });
-  }
-  regressions.sort(
-    (a, b) => b.headUnits.length - a.headUnits.length || a.item.localeCompare(b.item),
-  );
-
-  const resolutions: Resolution[] = [];
-  for (const [id, baseUnits] of baseByItem) {
-    if (baseUnits.size < 2) continue;
     const headUnits = headByItem.get(id) ?? none;
-    if (headUnits.size >= 2) continue;
-    resolutions.push({
-      item: interner.names[id] ?? '',
+    const moved = extra(headUnits.size) - extra(baseUnits.size);
+    if (moved === 0) {
+      continue;
+    }
+    const item = interner.names[id] ?? '';
+    const definition = definitionOf(item);
+    const added = moved > 0;
+    const units = added
+      ? [...headUnits].filter((unit) => !baseUnits.has(unit))
+      : [...baseUnits].filter((unit) => !headUnits.has(unit));
+    const each = sizeIn(added ? head : base, definition, units);
+    (added ? regressions : resolutions).push({
+      item,
+      definition,
       baseUnits: sorted(baseUnits),
       headUnits: sorted(headUnits),
+      units: units.sort(),
+      copies: Math.abs(moved),
+      size: each === null ? null : each * Math.abs(moved),
     });
   }
-  resolutions.sort(
-    (a, b) => b.baseUnits.length - a.baseUnits.length || a.item.localeCompare(b.item),
-  );
+  const bySize = (a: Change, b: Change) =>
+    (b.size ?? 0) - (a.size ?? 0) || b.copies - a.copies || a.item.localeCompare(b.item);
+  regressions.sort(bySize);
+  resolutions.sort(bySize);
+
+  const sum = (changes: Change[], f: (c: Change) => number) => changes.reduce((n, c) => n + f(c), 0);
+  const allCopies = sum(regressions, (c) => c.copies) + sum(resolutions, (c) => c.copies);
+  const sizedCopies =
+    sum(regressions, (c) => (c.size === null ? 0 : c.copies)) +
+    sum(resolutions, (c) => (c.size === null ? 0 : c.copies));
+  const totals: Totals = {
+    addedCopies: sum(regressions, (c) => c.copies),
+    removedCopies: sum(resolutions, (c) => c.copies),
+    addedSize: sum(regressions, (c) => c.size ?? 0),
+    removedSize: sum(resolutions, (c) => c.size ?? 0),
+    sized: allCopies === 0 ? 1 : sizedCopies / allCopies,
+  };
 
   const units = sorted(new Set([...base.units.keys(), ...head.units.keys()])).map((unit) => ({
     unit,
@@ -254,92 +324,130 @@ export function compare(base: Side, head: Side, interner: Interner): Comparison 
     headSize: head.sizes.get(unit) ?? null,
   }));
 
-  return { regressions, resolutions, units };
+  return { totals, regressions, resolutions, units };
 }
 
-export type Family = {
-  family: string;
+export type Group = {
+  definition: string;
   items: number;
-  addedUnits: string[];
+  copies: number;
+  size: number;
+  units: string[];
   example: string;
 };
 
-/** Regressions grouped by definition, largest group first. */
-export function families(regressions: Regression[]): Family[] {
-  const groups = new Map<string, { items: number; units: Set<string>; example: string }>();
-  for (const r of regressions) {
-    const group = groups.get(r.family) ?? { items: 0, units: new Set(), example: r.item };
-    groups.set(r.family, group);
-    group.items++;
-    for (const unit of r.addedUnits) group.units.add(unit);
+/** Changes grouped by definition, largest estimated size first. */
+export function groups(changes: Change[]): Group[] {
+  const byDefinition = new Map<string, Group & { unitSet: Set<string> }>();
+  for (const c of changes) {
+    const g = byDefinition.get(c.definition) ?? {
+      definition: c.definition,
+      items: 0,
+      copies: 0,
+      size: 0,
+      units: [],
+      unitSet: new Set<string>(),
+      example: c.item,
+    };
+    byDefinition.set(c.definition, g);
+    g.items++;
+    g.copies += c.copies;
+    g.size += c.size ?? 0;
+    for (const unit of c.units) {
+      g.unitSet.add(unit);
+    }
   }
-  return [...groups]
-    .map(([family, g]) => ({
-      family,
-      items: g.items,
-      addedUnits: sorted(g.units),
-      example: g.example,
-    }))
-    .sort((a, b) => b.items - a.items || a.family.localeCompare(b.family));
+  return [...byDefinition.values()]
+    .map(({ unitSet, ...g }) => ({ ...g, units: sorted(unitSet) }))
+    .sort((a, b) => b.size - a.size || b.copies - a.copies || a.definition.localeCompare(b.definition));
 }
 
-const count = (n: number | null) => (n === null ? '–' : n.toLocaleString('en-US'));
-const delta = (base: number | null, head: number | null) => {
-  if (base === null || head === null) return '–';
-  const d = head - base;
-  return d === 0 ? '0' : `${d > 0 ? '+' : ''}${d.toLocaleString('en-US')}`;
+/** How the comparison was produced, for the line that lets an author rerun it. */
+export type Run = {
+  command?: string;
+  system?: string;
 };
-const code = (s: string) => `\`${s.replaceAll('`', "'")}\``;
-const clip = (s: string, max = 160) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
 
-export function render(comparison: Comparison, top = 25): string {
-  const { regressions, resolutions, units } = comparison;
-  const groups = families(regressions);
+const number = (n: number) => Math.round(n).toLocaleString('en-US');
+const signed = (n: number) => (n > 0 ? `+${number(n)}` : n < 0 ? `−${number(-n)}` : '0');
+const code = (s: string) => `\`${s.replaceAll('`', "'")}\``;
+const clip = (s: string, max = 120) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+const unitList = (units: string[], max = 3) =>
+  units.slice(0, max).map(code).join(', ') + (units.length > max ? `, +${units.length - max} more` : '');
+
+function groupTable(title: string, column: string, list: Group[], top: number): string[] {
+  if (list.length === 0) {
+    return [];
+  }
+  const lines = [`#### ${title}`, ''];
+  lines.push(`| Definition | Copies | Size estimate | ${column} | Example |`);
+  lines.push('| --- | ---: | ---: | --- | --- |');
+  for (const g of list.slice(0, top)) {
+    lines.push(
+      `| ${code(clip(g.definition, 90))} | ${number(g.copies)} | ${g.size > 0 ? number(g.size) : '–'} | ${unitList(g.units)} | ${code(clip(g.example))} |`,
+    );
+  }
+  if (list.length > top) {
+    lines.push('', `${number(list.length - top)} more definitions in regressions.json.`);
+  }
+  lines.push('');
+  return lines;
+}
+
+/**
+ * The report: duplication added against duplication removed, what added the
+ * most, what removed the most, the units that moved, and how to rerun it.
+ */
+export function render(comparison: Comparison, run: Run = {}, top = 10): string {
+  const { totals, regressions, resolutions, units } = comparison;
   const lines: string[] = [];
 
+  const net = totals.addedCopies - totals.removedCopies;
+  const netSize = totals.addedSize - totals.removedSize;
   lines.push(
-    `${regressions.length.toLocaleString('en-US')} items newly compiled in more than one unit ` +
-      `(${groups.length.toLocaleString('en-US')} definitions), ` +
-      `${resolutions.length.toLocaleString('en-US')} duplicates resolved.`,
+    `**Duplicated codegen:** ${signed(totals.addedCopies)} copies added, ` +
+      `${signed(-totals.removedCopies)} removed, net ${signed(net)}. ` +
+      `Size estimate ${signed(totals.addedSize)} / ${signed(-totals.removedSize)}, net ${signed(netSize)}` +
+      (totals.sized < 0.95 ? ` (${Math.round(totals.sized * 100)}% of copies sized)` : '') +
+      '.',
     '',
   );
 
-  if (groups.length > 0) {
-    lines.push('#### Newly duplicated, by definition', '');
-    lines.push('| Definition | Items | Units it is now also compiled in | Example |');
-    lines.push('| --- | ---: | --- | --- |');
-    for (const g of groups.slice(0, top)) {
-      lines.push(
-        `| ${code(clip(g.family, 100))} | ${g.items} | ${g.addedUnits.map(code).join(', ')} | ${code(clip(g.example))} |`,
-      );
-    }
-    if (groups.length > top) lines.push('', `${groups.length - top} more in regressions.json.`);
-    lines.push('');
-  }
+  lines.push(...groupTable('Added duplication', 'Now also compiled in', groups(regressions), top));
+  lines.push(...groupTable('Removed duplication', 'No longer compiled in', groups(resolutions), Math.min(top, 5)));
 
-  if (resolutions.length > 0) {
-    lines.push('#### Resolved', '');
-    lines.push('| Item | Base units | Head units |');
-    lines.push('| --- | --- | --- |');
-    for (const r of resolutions.slice(0, Math.min(top, 10))) {
-      lines.push(
-        `| ${code(clip(r.item))} | ${r.baseUnits.map(code).join(', ')} | ${r.headUnits.map(code).join(', ') || '–'} |`,
-      );
-    }
-    lines.push('');
-  }
-
-  const changed = units.filter((u) => u.baseItems !== u.headItems || u.baseSize !== u.headSize);
+  const changed = units
+    .filter((u) => u.baseItems !== u.headItems || u.baseSize !== u.headSize)
+    .sort(
+      (a, b) =>
+        Math.abs((b.headSize ?? 0) - (b.baseSize ?? 0)) - Math.abs((a.headSize ?? 0) - (a.baseSize ?? 0)) ||
+        a.unit.localeCompare(b.unit),
+    );
   if (changed.length > 0) {
-    lines.push('#### Units whose collection changed', '');
-    lines.push('| Unit | Items, base | Items, head | Δ | Size estimate Δ |');
-    lines.push('| --- | ---: | ---: | ---: | ---: |');
-    for (const u of changed) {
+    lines.push('#### Units', '');
+    lines.push('| Unit | Items | Δ items | Δ size estimate |');
+    lines.push('| --- | ---: | ---: | ---: |');
+    for (const u of changed.slice(0, top)) {
+      const items = u.headItems ?? u.baseItems ?? 0;
       lines.push(
-        `| ${code(u.unit)} | ${count(u.baseItems)} | ${count(u.headItems)} | ${delta(u.baseItems, u.headItems)} | ${delta(u.baseSize, u.headSize)} |`,
+        `| ${code(u.unit)} | ${number(items)} | ${signed((u.headItems ?? 0) - (u.baseItems ?? 0))} | ${signed((u.headSize ?? 0) - (u.baseSize ?? 0))} |`,
       );
     }
+    if (changed.length > top) {
+      lines.push('', `${number(changed.length - top)} more units changed.`);
+    }
     lines.push('');
+  }
+
+  if (run.command) {
+    lines.push(
+      `Reproduce from a checkout of the repository${run.system ? ` (measured on \`${run.system}\`)` : ''}:`,
+      '',
+      '```',
+      run.command,
+      '```',
+      '',
+    );
   }
 
   return lines.join('\n');
