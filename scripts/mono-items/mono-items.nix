@@ -70,6 +70,17 @@
   # behaviour that compiles a generic again in each crate needing it. The item
   # set still differs from a real release build where inlining depends on
   # opt-level, identically on both sides of a comparison.
+  #
+  # Each compile also gets `-Zdump-mono-stats=<dir>` for its own unit, and
+  # runs with RUSTC_BOOTSTRAP=1 to allow the -Z flags on a stable toolchain.
+  rustcFlags = [
+    "-Copt-level=0"
+    "-Zshare-generics=no"
+    "-Cdebuginfo=0"
+    "-Zprint-mono-items=yes"
+    "-Zdump-mono-stats-format=json"
+  ];
+
   wrapper = pkgs.writeShellScriptBin "rustc" ''
     args=("$@") name="" kinds="" externs=()
     for ((i = 0; i < ''${#args[@]}; i++)); do
@@ -86,10 +97,8 @@
     mkdir -p "$NIX_BUILD_TOP/mono-items" "$NIX_BUILD_TOP/mono-externs" "$NIX_BUILD_TOP/mono-stats/$unit"
     printf '%s\n' "''${externs[@]}" >"$NIX_BUILD_TOP/mono-externs/$unit"
     RUSTC_BOOTSTRAP=1 "$MONO_ITEMS_RUSTC" "$@" \
-      -Copt-level=0 -Zshare-generics=no -Cdebuginfo=0 \
-      -Zprint-mono-items=yes \
-      -Zdump-mono-stats="$NIX_BUILD_TOP/mono-stats/$unit" \
-      -Zdump-mono-stats-format=json |
+      ${lib.escapeShellArgs rustcFlags} \
+      -Zdump-mono-stats="$NIX_BUILD_TOP/mono-stats/$unit" |
       ${pkgs.gawk}/bin/awk -v out="$NIX_BUILD_TOP/mono-items/$unit" '/^MONO_ITEM /{ print > out; next } { print }'
     exit "''${PIPESTATUS[0]}"
   '';
@@ -124,6 +133,10 @@
     });
 in {
   inherit selected;
+
+  # What the report quotes so an author can compile one crate the same way.
+  # Evaluating it never fetches the flake.
+  inherit rustcFlags;
 
   # Comparing these between two revisions names the members a change reaches:
   # a drvPath covers the crate's source, features and every dependency.

@@ -276,7 +276,7 @@ describe('compare', () => {
 });
 
 describe('render', () => {
-  test('leads with added against removed copies and groups by definition', () => {
+  test('puts added, removed and net on lines of their own and groups by definition', () => {
     const interner = new Interner();
     const base = side(interner, {
       'a/a.lib': ['fn g::<u8>', 'fn g::<u16>', 'fn h'],
@@ -290,29 +290,62 @@ describe('render', () => {
     });
 
     const markdown = render(compare(base, head, interner));
-    expect(markdown).toStartWith('**Duplicated codegen:** +2 copies added, −2 removed, net 0.');
-    expect(markdown).toContain('#### Added duplication');
+    expect(markdown).toStartWith(
+      [
+        '**Duplicated codegen**',
+        '',
+        '- Added: +2 copies, size estimate 0',
+        '- Removed: −2 copies, size estimate 0',
+        '- Net: 0 copies, size estimate 0',
+        '- Sized: 0% of copies have a size estimate',
+      ].join('\n'),
+    );
+    expect(markdown).toContain('#### Added duplication: 1 definition');
     expect(markdown).toContain('| `g` | 2 | – | `b/b.lib` |');
-    expect(markdown).toContain('#### Removed duplication');
+    expect(markdown).toContain('#### Removed duplication: 1 definition');
     expect(markdown).toContain('| `h` | 2 | – | `b/b.lib`, `c/c.lib` |');
   });
 
-  test('ends with the command that reproduces it', () => {
+  test('says how much a trimmed table leaves out, without pointing at files the reader lacks', () => {
+    const interner = new Interner();
+    const names = ['f1', 'f2', 'f3'];
+    const base = side(interner, { 'a/a.lib': names.map((n) => `fn ${n}`), 'b/b.lib': [] });
+    const head = side(interner, {
+      'a/a.lib': names.map((n) => `fn ${n}`),
+      'b/b.lib': names.map((n) => `fn ${n}`),
+    });
+
+    const markdown = render(compare(base, head, interner), {}, 2);
+    expect(markdown).toContain('#### Added duplication: top 2 of 3 definitions');
+    expect(markdown).not.toContain('regressions.json');
+  });
+
+  test('ends with the command, the system and the rustc flags that reproduce it', () => {
     const interner = new Interner();
     const units = { 'a/a.lib': ['fn f'] };
     const markdown = render(compare(side(interner, units), side(interner, units), interner), {
       command: 'nix run github:martinjlowm/nixfiles/abc#agent-mono-items -- . b1 h1 /tmp/mono-items',
       system: 'x86_64-linux',
+      rustcFlags: '-Copt-level=0 -Zshare-generics=no',
     });
-    expect(markdown).toContain('Reproduce from a checkout of the repository (measured on `x86_64-linux`):');
+    expect(markdown).toContain('#### Reproduce');
+    expect(markdown).toContain('From a checkout of the repository, measured on `x86_64-linux`:');
     expect(markdown).toContain('nix run github:martinjlowm/nixfiles/abc#agent-mono-items -- . b1 h1 /tmp/mono-items');
+    expect(markdown).toContain('-Copt-level=0 -Zshare-generics=no -Zdump-mono-stats=<dir>');
   });
 
   test('says nothing moved when nothing did', () => {
     const interner = new Interner();
     const units = { 'a/a.lib': ['fn f'] };
     expect(render(compare(side(interner, units), side(interner, units), interner))).toBe(
-      '**Duplicated codegen:** 0 copies added, 0 removed, net 0. Size estimate 0 / 0, net 0.\n',
+      [
+        '**Duplicated codegen**',
+        '',
+        '- Added: 0 copies, size estimate 0',
+        '- Removed: 0 copies, size estimate 0',
+        '- Net: 0 copies, size estimate 0',
+        '',
+      ].join('\n'),
     );
   });
 });

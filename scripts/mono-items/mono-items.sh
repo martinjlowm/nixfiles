@@ -150,7 +150,9 @@ done
 # can paste it into their own checkout.
 MONO_ITEMS_RERUN="${MONO_ITEMS_RUN:-nix run github:martinjlowm/nixfiles#agent-mono-items --} . $base_sha $head_sha /tmp/mono-items"
 MONO_ITEMS_SYSTEM=$(nix eval --impure --raw --expr builtins.currentSystem 2>/dev/null || true)
-export MONO_ITEMS_RERUN MONO_ITEMS_SYSTEM
+MONO_ITEMS_RUSTC_FLAGS=$(nix eval --impure --raw --expr \
+  "toString (import $nix_file { flake = \"path:$head_dir\"; }).rustcFlags" 2>/dev/null || true)
+export MONO_ITEMS_RERUN MONO_ITEMS_SYSTEM MONO_ITEMS_RUSTC_FLAGS
 if ! node --max-old-space-size=8192 "$diff_cli" "$out/base" "$out/head" "$out" 2>"$out/diff.log"; then
   status "failed: the comparison failed, see $out/diff.log"
   exit 1

@@ -3,9 +3,10 @@
 //
 //   node cli.ts <base-report> <head-report> <out-dir>
 //
-// Run by `agent-mono-items` (mono-items.sh) after both builds. MONO_ITEMS_RERUN
-// and MONO_ITEMS_SYSTEM, when set, put the command that reproduces the
-// comparison and the system it ran on at the foot of report.md.
+// Run by `agent-mono-items` (mono-items.sh) after both builds. MONO_ITEMS_RERUN,
+// MONO_ITEMS_SYSTEM and MONO_ITEMS_RUSTC_FLAGS, when set, put the command that
+// reproduces the comparison, the system it ran on and the rustc flags it
+// compiled with at the foot of report.md.
 // Node strips the types itself, so this runs from the store with no build step.
 import { createReadStream } from 'node:fs';
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
@@ -63,6 +64,7 @@ await writeFile(
   render(comparison, {
     command: process.env.MONO_ITEMS_RERUN || undefined,
     system: process.env.MONO_ITEMS_SYSTEM || undefined,
+    rustcFlags: process.env.MONO_ITEMS_RUSTC_FLAGS || undefined,
   }),
 );
 await writeFile(join(outDir, 'regressions.json'), `${JSON.stringify(comparison, null, 2)}\n`);
