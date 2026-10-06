@@ -56,6 +56,9 @@ Who opened a thread decides what you post on it.
 - **The user's own thread and every bot's** (`claude[bot]`, `martinjlowm-s-botler[bot]`,
   `dependabot[bot]` and the rest) get a reply naming what changed, because that reply is the
   only thing tying the finding to the fix.
+- **The user asks with `Botler`.** A comment of the user's is a request only when its body
+  starts with the word `Botler`. Any other comment of theirs explains the code to a reader:
+  no fix, no reply, no resolve.
 - **Answer what asks for something.** A note, an observation or praise that requests no
   change gets no reply and no change.
 

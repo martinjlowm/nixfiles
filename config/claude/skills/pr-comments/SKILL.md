@@ -12,15 +12,28 @@ resolve, and the summary the user reads before answering colleagues.
 ```
 thread author?
  |
- +- the user ---> fix -> reply (what + permalink) -> resolve, after the push
+ +- the user, `Botler ...` ---> fix -> reply (what + permalink) -> resolve, after the push
  |
- +- any bot ----> fix -> reply (what + permalink) -> leave open
+ +- the user, anything else --> nothing: no fix, no reply, no resolve
  |
- +- colleague --> fix -> no reply -> entry in the summary
+ +- any bot ------------------> fix -> reply (what + permalink) -> leave open
+ |
+ +- colleague ----------------> fix -> no reply -> entry in the summary
 ```
 
 "The user" is `martinjlowm`. In the fleet you post as `martinjlowm-s-botler[bot]`, so your
 own earlier replies carry that login and the user's threads still carry `martinjlowm`.
+
+The user's comments are opt-in. On their own PR they mostly explain the code to a reviewer,
+so a comment of theirs asks for something only when its body starts with the word `Botler`,
+matched literally at the start. That holds for a thread they open, a reply they add to any
+thread, a review body and a top-level comment. Any other comment of theirs is context for the
+threads you act on, never work of its own. A bot's or a colleague's comment needs no prefix.
+
+A top-level `Botler` comment on a PR is not yours to act on. GitHub delivers it as an issue
+comment, and the fleet's Botler routine runs a session for it that answers by editing the
+comment, so acting on it here does the work twice. Inline review comments reach no such
+routine, so a `Botler` comment inside a review thread is review feedback and lands here.
 
 ## When to use
 
@@ -62,6 +75,9 @@ gh pr view <number> --json number,title,url,headRefOid,comments,reviews
 - Skip resolved threads. Keep outdated ones; the code moved, the point may not have.
 - The deciding author is `comments.nodes[0].author.login`. A login ending in `[bot]` is a
   bot; any other login except the user's is a colleague.
+- **Skip the user's thread unless it asks.** A thread the user opened is in scope only when
+  a comment of theirs in it starts with `Botler`. Otherwise leave it exactly as it is,
+  resolution state included, and keep it out of the report.
 - **Skip a thread you already answered**: its last comment is your own reply and no reviewer
   comment came after it. Re-running the skill on the same PR posts nothing new there.
 
@@ -75,7 +91,7 @@ Every thread ends in one of five outcomes.
 | Already handled | Point at the commit or line that handles it. |
 | Disagree | Change nothing. Give the reason in the reply, or in the summary entry on a colleague's thread. |
 | Needs the user | Leave open, decide nothing, list as pending. |
-| Asks for nothing | A thread opening with `Note:`, an observation or praise. Post nothing and change nothing. On the user's own thread, resolve it. |
+| Asks for nothing | A thread opening with `Note:`, an observation or praise. Post nothing and change nothing. |
 
 Verify the way the project expects (build, tests, lint), then commit and push once for the
 whole pass, before any reply or summary. A line you link must point at pushed code. One commit
@@ -115,8 +131,9 @@ gh api --method POST \
 
 ## Resolve the user's threads only
 
-Resolve when the first author is the user, the fix is pushed (or the decline is reasoned) and
-the reply is posted, or when the thread asks for nothing. A bot thread stays open, and closing it
+Resolve when the user opened the thread, a `Botler` comment of theirs asked for something,
+the fix is pushed (or the decline is reasoned) and the reply is posted. A user thread with no
+`Botler` comment is theirs to close. A bot thread stays open, and closing it
 is the user's call. Never resolve a colleague's thread or one pending on the user. When
 unsure, leave it open and say so.
 
