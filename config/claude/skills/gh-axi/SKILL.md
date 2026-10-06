@@ -1,6 +1,6 @@
 ---
 name: gh-axi
-description: Operate GitHub through the gh-axi CLI. Use whenever a task reads or changes GitHub state from the shell - viewing or listing issues and PRs, checking CI runs and failed job logs, reading PR reviews and diffs, commenting, creating draft PRs, workflows, releases, labels, Projects, or REST API calls. Prefer it over raw `gh` except where this skill says otherwise.
+description: Operate GitHub through the gh-axi CLI. Use for any GitHub read or write from the shell, such as PRs, issues, reviews, CI logs and comments. Prefer it over raw `gh` except where this skill says otherwise.
 user-invocable: false
 ---
 

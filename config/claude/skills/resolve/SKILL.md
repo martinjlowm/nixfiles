@@ -1,58 +1,50 @@
 ---
 name: resolve
-description: Start a focused session to solve a referenced problem. Creates a new branch off a base (origin/master by default) and opens a PR, then works in the current working directory to resolve the problem. Use when the user invokes /resolve, or asks to "resolve", "fix", or "start a session on" a referenced problem, issue, ticket, or bug.
+description: Start a focused session on a referenced problem, from a new branch to a draft PR. Use for /resolve, or when asked to "resolve", "fix" or "start a session on" an issue, ticket or bug.
 ---
 
-# Resolve: branch, PR, and solve a referenced problem
+# Resolve: branch, solve, draft PR
 
-Create a PR and a new branch off the base and use the current working directory to solve the referenced problem.
+## Inputs
 
-## When to use
-
-When the user invokes `/resolve <problem reference>`, where the reference is an issue, ticket, PR, error, or free-text description of a problem to solve. The point is to name a problem and start a session dedicated to solving it.
-
-## Inputs from the user
-
-1. Problem reference, required. What to solve: a GitHub issue (`#123`), a URL, a ticket ID, an error message, or a plain-language description.
-2. Base branch, optional. Defaults to `origin/master`. Only override it when the user names a different base.
+1. **Problem reference**, required: a GitHub issue (`#123`), a URL, a ticket id, an error
+   message, or a plain description.
+2. **Base branch**, optional, default `origin/master`. Override it only when the user names
+   another.
 
 ## Steps
 
-1. **Fetch the latest base.** Run `git fetch origin` so the new branch starts from the current tip of the base branch.
+1. **Fetch the base.** `git fetch origin`. If the working tree has uncommitted changes, show
+   them to the user before switching branches.
+2. **Understand the problem.** `gh issue view <ref>` or `gh pr view <ref>` for GitHub
+   references; fetch and read a ticket or URL; work from a free-text description and ask
+   only if it is too ambiguous to start. Note the issue that tracks it, since the PR cites
+   one (`pr-description` files it when none exists).
+3. **Check shared ground.** List the open PRs touching the files you expect to change:
 
-2. **Understand the problem.** Resolve the reference into concrete context:
-   - For a GitHub issue or PR number or URL, run `gh issue view <ref>` or `gh pr view <ref>`.
-   - For a ticket or external URL, fetch and read it.
-   - For a free-text description, work from what the user gave you. Ask a clarifying question only if the problem is too ambiguous to start.
+   ```bash
+   gh pr list --state open --json number,author,headRefName,files
+   ```
 
-3. **Create the branch.** Branch off the base in the current working directory:
+   When a colleague's PR changes the same files, say so before going further.
+4. **Branch** in the current working directory, never on the base itself:
 
    ```bash
    git switch -c <branch-name> <base>
    ```
 
-   Pick a short, descriptive kebab-case branch name from the problem, such as `fix-login-redirect` or `issue-123-timeout`. Do not work directly on the base branch.
-
-4. **Solve the problem.** Work in the current working directory to implement the fix. Investigate, make the changes, and verify them with the project's build, tests, and lint.
-
-5. **Commit and push.** Commit with a clear message that references the problem, then push and set the upstream:
-
-   ```bash
-   git push -u origin <branch-name>
-   ```
-
-6. **Open the PR.** Load the `pr-description` skill and write the title and the body file
-   with it before creating anything. `--fill` would open the PR on the commit message, and
-   a body rewritten afterwards is a step that gets skipped. Then open the draft against the
-   base and post the merge-danger comment the skill requires:
+   A short kebab-case name from the problem, such as `fix-login-redirect` or
+   `issue-123-timeout`.
+5. **Solve it.** Investigate, change, and verify with the project's build, tests and lint.
+   Keep the diff to this one problem: no drive-by formatting, renames or unrelated fixes.
+   Name anything else you notice in your final message instead.
+6. **Commit and push.** A commit message that references the problem, then
+   `git push -u origin <branch-name>`.
+7. **Open the draft PR.** Load `pr-description`, write the title and body file with it, then:
 
    ```bash
    gh pr create --draft --base <base> --title "<title>" --body-file <body-file>
    ```
 
-   Return the PR URL to the user.
-
-## Notes
-
-- If the working directory has uncommitted changes, surface them before switching branches so nothing is lost.
-- Keep the session focused on the referenced problem. If you find unrelated issues, note them rather than expanding scope.
+   `--fill` would open the PR on the commit message instead. Post the merge-danger comment
+   the skill describes, and return the URL, saying the PR is a draft.
