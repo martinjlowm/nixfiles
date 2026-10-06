@@ -83,6 +83,48 @@ whose answer another actor can change while you work.
 If the command fails, record `digest` in `degraded_angles` and dispatch without the
 `Digest:` line. Every subagent fetches for itself when its prompt names no digest.
 
+## Collecting results: wait on files, never end the turn
+
+Every subagent you spawn runs in the background. Its completion notification reaches you only
+while your turn is open. End the turn while one is still running and the notification goes to
+the main thread instead, which cannot hand it back to you, and the review is lost. So each
+subagent writes its result to a file, and you wait on the files inside your turn.
+
+The results directory is `<checkout>/.pr-review/<number>-<sha>.results/`. At the start of
+phase 1, remove any directory an earlier run left there and create it empty. Every dispatch
+carries a `Result file:` line naming `<results dir>/<name>.json`, where the name is
+`tests-perf-security`, `patterns-types-errors`, `code-comments`, `cdk-infra`, `visual`,
+`mono-items`, or `verify-<n>` for the nth phase-2 verifier. Each subagent writes the object
+it returns there before it ends.
+
+After spawning a batch, wait in the same turn with this Bash call, setting the tool timeout to
+600000:
+
+```
+dir=<results dir>; names="<the names this batch spawned>"
+deadline=$((SECONDS + 540))
+while [ $SECONDS -lt $deadline ]; do
+  missing=""; for n in $names; do [ -f "$dir/$n.json" ] || missing="$missing $n"; done
+  [ -z "$missing" ] && break
+  sleep 15
+done
+echo "missing:${missing:- none}"
+```
+
+Repeat it, narrowing `names` to what is still missing, until nothing is missing or the batch's
+budget is spent. The budget is 30 minutes from the spawn, or 90 when the batch holds
+`review-rust-mono-items`, whose builds run long. Then read each file and parse it.
+
+- A notification that arrives while a file is still missing means that subagent skipped the
+  write. Take the object from the notification's `<result>` and stop waiting for that name.
+- A name still missing when the budget runs out is a subagent that died. Phase 3 says how to
+  record it.
+- Never end the turn to wait, and never send a message saying you will wait. That message is
+  your final one, and no notification will bring you back.
+- If the main thread resumes you after a turn ended early anyway, the files are where the
+  subagents left them. Do not recreate the directory or spawn again. Run the wait for the
+  batch you were on and carry on from there.
+
 ## Phase 1: fan out
 
 Spawn all four review subagents in a single message so they run concurrently, with
@@ -110,6 +152,7 @@ Title: <title>
 Local checkout: <path>
 Dependency manifest: <lockfile path>
 Digest: <dir>
+Result file: <results dir>/<name>.json
 
 Cite a checked source for every claim about documented behaviour. Return your findings
 as the JSON object your instructions specify.
@@ -174,6 +217,7 @@ Base ref: <base>
 Local checkout: <path>
 Settings parameter: <parameter from the block>
 Viewport: <viewport from the block>
+Result file: <results dir>/visual.json
 Changed UI files:
 <one path per line>
 
@@ -203,13 +247,14 @@ Head sha: <sha>
 Base ref: <base>
 Local checkout: <path>
 Digest: <dir>
+Result file: <results dir>/mono-items.json
 Changed Rust files:
 <one path per line>
 
 Return the JSON object your instructions specify.
 ```
 
-Its builds run for tens of minutes on a cold cache, so it finishes last. Wait for it.
+Its builds run for tens of minutes on a cold cache, so it finishes last. Wait for its file.
 
 It returns a status, a report path and comments. Its comments enter the aggregate like any
 reviewer's. They are `concern` or `nit` by its instructions, so they never reach a verifier,
@@ -237,6 +282,7 @@ same three fields, so apply their results identically.
 Verify one review claim against documentation and the code as it exists.
 Repository: <repo>  PR: <number>  Head sha: <sha>  Local checkout: <path>
 Digest: <dir>
+Result file: <results dir>/verify-<n>.json
 
 Claim: <body>
 Anchor: <path>:<line> (<side>)
@@ -256,6 +302,7 @@ Verify one review claim that rests on a measurement.
 Repository: <repo>  PR: <number>  Head sha: <sha>  Local checkout: <path>
 Digest: <dir>
 Base ref: <base>
+Result file: <results dir>/verify-<n>.json
 
 Claim: <body>
 Anchor: <path>:<line> (<side>)
@@ -273,6 +320,9 @@ The perf verifier needs the base ref, which the others do not and which the main
 not give you. Take it from the `Base:` line of `<digest>/pr.md`. The verifier resolves the
 merge-base from it, and without one it has nothing to measure the head against.
 
+Wait for the verifiers' files the same way as for the reviewers'. A verifier whose file never
+arrives leaves its claim `unverified`.
+
 Apply each result before aggregating. `confirmed` keeps the finding and replaces its
 `evidence` with the verifier's citation. `refuted` drops the finding. `unsupported` demotes it
 to `concern` and rewrites the body as a question.
@@ -285,8 +335,8 @@ keeps everything two layers below the main thread and inside the spawn-depth lim
 
 ## Phase 3: aggregate
 
-1. Parse each subagent's JSON. If one returns unparseable output or dies, record it in
-   `degraded_angles` and carry on. A lost angle degrades the review; it does not void it.
+1. Parse each subagent's result file. If one holds unparseable output, or never arrived
+   before its budget ran out, record that angle in `degraded_angles` and carry on. A lost angle degrades the review; it does not void it.
 2. Deduplicate. The same `path` and `line` describing the same underlying issue collapses to
    one comment. Keep the clearest body and the highest severity of the duplicates.
    Two findings at one anchor whose ```suggestion blocks disagree are not duplicates and must

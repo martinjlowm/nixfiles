@@ -184,6 +184,12 @@ The orchestrator ships your `body` to GitHub close to verbatim.
 
 ## Output: report comments back to the orchestrator
 
+When the prompt names a `Result file:`, write the object you return to that path before your
+final message, on every path that ends your run, an early stop included. Write it to
+`<path>.tmp` and `mv` it onto `<path>`, so nothing reads it half-written. The orchestrator
+waits on the file, not on your final message, and a run that skips the write may count as a
+lost angle even when its final message is right.
+
 Your final message is the return value. The orchestrator consumes it; no human reads it. Return
 a single JSON object and nothing else:
 
