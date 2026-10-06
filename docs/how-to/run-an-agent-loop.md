@@ -19,15 +19,16 @@ loop my-task 30
 
 If the spec file does not exist, the loop prints the path it expected and exits.
 
-## Run one of the fixed-spec loops
+## Repair CI on one of your pull requests
 
-`dependabot`, `fix`, `github-issues`, `pr-maintenance`, `pr-review` and `project` carry their
-own spec. Run them from inside the repository you want them to work on.
+Run `fix` from inside the repository, with a PR number or URL.
 
 ```bash
-fix 123          # repair CI on PR 123
-dependabot       # process open Dependabot PRs
+fix 123
+fix https://github.com/Org/Repo/pull/123
 ```
+
+`fix` refuses a pull request that neither you nor Dependabot opened.
 
 ## Watch a loop already running
 
@@ -41,26 +42,13 @@ instead, open `.state/my-task/loop.log`.
 
 ## Skip an iteration that has stalled
 
-Press Escape in the loop pane. The current Claude process is killed and the next iteration
-starts. The killed iteration is not scanned for control tokens, so a `<promise>` or `<next>`
-block it had already emitted is discarded.
-
-## Hand instructions to the next iteration
-
-Only `loop2` reads handoffs, and it is not currently installed by any package set. Run it
-from the source tree.
-
-```bash
-./scripts/loop2.sh my-task
-```
-
-Have the agent end an iteration with a `<next>` block. The text inside is injected at the top
-of the following iteration's prompt, above the standard workflow, and applies to that one
-iteration only. The consumed text is kept at `.state/my-task/next-instructions.last.md`.
+Press Escape in the `loop` pane. The current Claude process is killed and the next iteration
+starts. The killed iteration is not scanned for control tokens, so a `<promise>` it had
+already emitted is discarded. `fix` has no Escape handling.
 
 ## Stop a loop
 
-Close the WezTerm tab. Reaching the iteration limit does not end the loop: it waits for Enter
+Close the WezTerm tab. Reaching the iteration limit does not end `loop`: it waits for Enter
 and starts again from iteration 1.
 
 ## Clear loop state

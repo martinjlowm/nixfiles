@@ -21,4 +21,4 @@ if [ ! -f "$STATE_DIR/progress.txt" ]; then
 fi
 
 cd "$PM_DIR"
-exec claude-pm --append-system-prompt-file "$HOME/.claude/agents/roadmap-sync.md" "Begin the roadmap sync workflow."
+exec claude-pm --append-system-prompt-file "$ROADMAP_SYNC_PROMPT" "Begin the roadmap sync workflow."

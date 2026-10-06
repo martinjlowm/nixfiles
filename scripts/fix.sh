@@ -62,11 +62,13 @@ if [ "${1:-}" = "--run" ]; then
   echo "Log file: $LOG_FILE"
   echo ""
 
-  AGENT_PROMPT=$(sed -e "s/__PR__/$PR_NUMBER/g" -e "s|__REPO__|$PR_REPO|g" "$HOME/.claude/agents/fix.md")
+  AGENT_PROMPT=$(sed -e "s/__PR__/$PR_NUMBER/g" -e "s|__REPO__|$PR_REPO|g" "$LOOP_PROMPT")
 
   AGENT_PROMPT="$AGENT_PROMPT
 
-$(cat "$HOME/.claude/agents/project-sleep.md")"
+$(cat "$LOOP_CI_TRIAGE_PROMPT")
+
+$(cat "$LOOP_SLEEP_PROMPT")"
 
   SLEEP_COUNT=0
 
@@ -133,8 +135,15 @@ REPO_FLAG=""
 if [ -n "$PR_REPO" ]; then
   REPO_FLAG="--repo $PR_REPO"
 fi
-if ! gh pr view "$PR_NUMBER" $REPO_FLAG --json number >/dev/null 2>&1; then
+if ! PR_AUTHOR=$(gh pr view "$PR_NUMBER" $REPO_FLAG --json author --jq .author.login 2>/dev/null); then
   echo "Error: PR #$PR_NUMBER not found or not accessible"
+  exit 1
+fi
+
+# The loop pushes to the PR branch, so it only takes branches that are yours or
+# Dependabot's.
+if [ "$PR_AUTHOR" != "$(gh api user --jq .login)" ] && [ "$PR_AUTHOR" != "app/dependabot" ]; then
+  echo "Error: PR #$PR_NUMBER is authored by $PR_AUTHOR; fix only works on your own or Dependabot's PRs"
   exit 1
 fi
 

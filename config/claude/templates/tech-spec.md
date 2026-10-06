@@ -133,25 +133,25 @@ The `{FLAG_NAME}` feature flag guards the **{scope}**.
      Keep it high-level. Detail goes in the data model section. -->
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    {SYSTEM NAME}                          │
-│                    ({path})                               │
-├─────────────────────────────────────────────────────────┤
-│                                                           │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │                {Component A}                        │  │
-│  │  • {Responsibility 1}                              │  │
-│  │  • {Responsibility 2}                              │  │
-│  └───────────────────────────────────────────────────┘  │
-│                          │                                │
-│                          ▼                                │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │                {Component B}                        │  │
-│  │  • {Responsibility 1}                              │  │
-│  │  • {Responsibility 2}                              │  │
-│  └───────────────────────────────────────────────────┘  │
-│                                                           │
-└─────────────────────────────────────────────────────────┘
++-------------------------------------------------------+
+|                    {SYSTEM NAME}                      |
+|                    ({path})                           |
++-------------------------------------------------------+
+|                                                       |
+|  +-------------------------------------------------+  |
+|  |                {Component A}                    |  |
+|  |  - {Responsibility 1}                           |  |
+|  |  - {Responsibility 2}                           |  |
+|  +-------------------------------------------------+  |
+|                          |                            |
+|                          v                            |
+|  +-------------------------------------------------+  |
+|  |                {Component B}                    |  |
+|  |  - {Responsibility 1}                           |  |
+|  |  - {Responsibility 2}                           |  |
+|  +-------------------------------------------------+  |
+|                                                       |
++-------------------------------------------------------+
 ```
 
 ### {Domain-specific flow}
@@ -173,13 +173,13 @@ The `{FLAG_NAME}` feature flag guards the **{scope}**.
      Include types and cardinality. -->
 
 ```
-┌───────────────────┐       ┌───────────────────┐
-│     {Entity A}    │       │     {Entity B}    │
-├───────────────────┤       ├───────────────────┤
-│ id: UUID          │◄──────│ entityAId: UUID   │
-│ organizationId    │       │ field: Type        │
-│ name: String      │       │ ...               │
-└───────────────────┘       └───────────────────┘
++-------------------+       +-------------------+
+|    {Entity A}     |       |    {Entity B}     |
++-------------------+       +-------------------+
+| id: UUID          |<------| entityAId: UUID   |
+| organizationId    |       | field: Type       |
+| name: String      |       | ...               |
++-------------------+       +-------------------+
 ```
 
 <!-- Note: Detailed PostgreSQL schemas and API type definitions should be
@@ -270,19 +270,19 @@ As a **{Role}**, I want to {action} so that {benefit}.
 
 ```
 Phase 1: {Name} (Weeks {N}-{M})
-├── {Deliverable 1}
-├── {Deliverable 2}
-└── {Deliverable 3}
++-- {Deliverable 1}
++-- {Deliverable 2}
+`-- {Deliverable 3}
 
 Phase 2: {Name} (Weeks {N}-{M})
-├── {Deliverable 1}
-├── {Deliverable 2}
-└── {Deliverable 3}
++-- {Deliverable 1}
++-- {Deliverable 2}
+`-- {Deliverable 3}
 
 Phase N: legacy phase-out (Weeks {N}-{M})
-├── Dual-write period
-├── Migration tooling
-└── V1 deprecation and removal
++-- Dual-write period
++-- Migration tooling
+`-- V1 deprecation and removal
 ```
 
 ---

@@ -3,7 +3,7 @@
 #   tech-spec https://www.notion.so/... spec.md   - same, writing to a specific output file
 set -e
 
-# TECH_SPEC_TEMPLATE and TECH_SPEC_MCP_CONFIG are set by the Nix derivation
+# TECH_SPEC_PROMPT, TECH_SPEC_TEMPLATE and TECH_SPEC_MCP_CONFIG are set by the Nix derivation
 NOTION_URL="${1:-}"
 
 if [ -z "$NOTION_URL" ]; then
@@ -51,13 +51,7 @@ OUTPUT_PATH="${2:-$REPO/specs/tech-spec-$TIMESTAMP.md}"
 OUTPUT_DIR=$(dirname "$OUTPUT_PATH")
 mkdir -p "$OUTPUT_DIR"
 
-# Agent prompt is managed by home-manager at ~/.claude/agents/tech-spec.md
-AGENT_PATH="$HOME/.claude/agents/tech-spec.md"
-
-if [ ! -f "$AGENT_PATH" ]; then
-  echo "Error: Tech spec agent prompt not found at $AGENT_PATH"
-  exit 1
-fi
+AGENT_PATH="$TECH_SPEC_PROMPT"
 
 # Build the prompt from the agent template
 AGENT_PROMPT=$(sed \

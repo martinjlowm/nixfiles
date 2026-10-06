@@ -200,12 +200,7 @@ in {
       # /run/current-system/sw/bin rather than the home-manager profile.
       scripts.rebuild
       scripts.loop
-      scripts.dependabot
-      scripts.project
-      scripts.pr-maintenance
       scripts.fix
-      scripts.pr-review
-      scripts.github-issues
       scripts.pr-ua
       scripts.pr-pr
       scripts.pr-attn
