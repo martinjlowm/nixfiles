@@ -24,8 +24,8 @@ The one exception is a bot command such as `@dependabot rebase`, posted alone as
   with no edits mixed in, so a reviewer can verify it mechanically.
 - **Review requests and the merge queue belong to humans.** Never request or re-request a
   review, assign reviewers, approve, or add a PR to the merge queue, unless the prompt you
-  run names that as its job (Dependabot maintenance approves and auto-merges what passes its
-  audit). Never put a PR back in the queue after a person took it out.
+  run names that as its job, as Dependabot maintenance does for what passes its audit.
+  Never put a PR back in the queue after a person took it out.
 
 ## Shared ground
 
@@ -50,7 +50,7 @@ Who opened a thread decides what you post on it.
 - **A colleague's thread** (any human other than `martinjlowm`) gets the fix and nothing
   else. A colleague wants a person to answer them, so you never reply, never draft a reply,
   and never offer to write one. An unanswered colleague thread is the finished state, not a
-  loose end: name what you changed for it and leave it off any list of open items. Post on
+  loose end. Name what you changed for it and leave it off any list of open items. Post on
   one only when the user points at it and asks for a reply.
 - **The user's own thread and every bot's** (`claude[bot]`, `martinjlowm-s-botler[bot]`,
   `dependabot[bot]` and the rest) get a reply naming what changed, because that reply is the
@@ -66,7 +66,8 @@ question that is not already on the page.
 - **Read the PR before you post.** When a review, comment or reply from you already says
   it, for the same head commit, post nothing. When it says it wrongly, edit it in place;
   a second comment correcting the first makes the reader work out which one is current.
-- **A push posts nothing.** The commit message carries the reasoning, including any check
-  you could not run. Refresh the PR body when the push changed what the PR does.
+- **A push adds no top-level comment.** The commit message carries the reasoning, including
+  any check you could not run. Refresh the PR body when the push changed what the PR does.
+  The thread replies above still go out.
 - **An edit posts nothing.** Rewriting a PR body or a comment needs no comment announcing
   it or carrying what you cut. GitHub keeps the edit history.

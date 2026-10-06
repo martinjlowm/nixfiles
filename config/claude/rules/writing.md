@@ -39,8 +39,8 @@ reader who never saw the diff that introduced it.
 
 ```ts
 // The push endpoint rotates over a subscription's life, so it cannot key the
-// table; (userPool#userSub, deviceId) is stable and lets a rotation overwrite
-// the device's own row instead of orphaning it.
+// table. (userPool#userSub, deviceId) stays fixed, so a rotation overwrites the
+// device's own row instead of orphaning it.
 ```
 
 ## Diagrams that depend on alignment
