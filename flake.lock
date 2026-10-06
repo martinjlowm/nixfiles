@@ -73,6 +73,23 @@
         "url": "https://github.com/humanlayer/skills"
       }
     },
+    "mattpocock-skills": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791199038,
+        "narHash": "sha256-oN3OQPouK6wrrGzmgNdvdOVLsOJVGaK7cy3BZoE10AA=",
+        "ref": "main",
+        "rev": "4588b32ecab9ecc9fc8cc6b6c5e7d675b6004b0d",
+        "revCount": 503,
+        "type": "git",
+        "url": "https://github.com/mattpocock/skills"
+      },
+      "original": {
+        "ref": "main",
+        "type": "git",
+        "url": "https://github.com/mattpocock/skills"
+      }
+    },
     "nextNixpkgs": {
       "locked": {
         "lastModified": 1767856126,
@@ -204,6 +221,7 @@
         "agent-skills": "agent-skills",
         "home-manager": "home-manager",
         "humanlayer-skills": "humanlayer-skills",
+        "mattpocock-skills": "mattpocock-skills",
         "nextNixpkgs": "nextNixpkgs",
         "nextNixpkgsClaude": "nextNixpkgsClaude",
         "nextNixpkgsDevenv": "nextNixpkgsDevenv",
