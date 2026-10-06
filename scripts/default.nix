@@ -41,12 +41,21 @@
     text = builtins.readFile ./mux-spawn.sh;
   };
 
+  # Loop prompts are read from the store, not from ~/.claude, so the prompt a
+  # loop runs is the one built with its script.
+  loopPrompts = ../config/claude/loops;
+
   mkWeztermScript = name:
     pkgs.writeShellApplication {
       inherit name;
       runtimeInputs = [wezterm mux-spawn claude-follow claude-sleep];
       checkPhase = "";
-      text = builtins.readFile ./${name}.sh;
+      text = ''
+        export LOOP_PROMPT="${loopPrompts}/${name}.md"
+        export LOOP_CI_TRIAGE_PROMPT="${loopPrompts}/ci-triage.md"
+        export LOOP_SLEEP_PROMPT="${loopPrompts}/loop-sleep.md"
+        ${builtins.readFile ./${name}.sh}
+      '';
     };
 
   mkClaudeFlavor = {
@@ -159,18 +168,15 @@ in {
     text = builtins.readFile ./rmtree.sh;
   };
   loop = mkWeztermScript "loop";
-  loop2 = mkWeztermScript "loop2";
-  dependabot = mkWeztermScript "dependabot";
-  project = mkWeztermScript "project";
-  pr-maintenance = mkWeztermScript "pr-maintenance";
   fix = mkWeztermScript "fix";
-  pr-review = mkWeztermScript "pr-review";
-  github-issues = mkWeztermScript "github-issues";
   roadmap-sync = pkgs.writeShellApplication {
     name = "roadmap-sync";
     runtimeInputs = [wezterm pkgs.gh];
     checkPhase = "";
-    text = builtins.readFile ./roadmap-sync.sh;
+    text = ''
+      export ROADMAP_SYNC_PROMPT="${loopPrompts}/roadmap-sync.md"
+      ${builtins.readFile ./roadmap-sync.sh}
+    '';
   };
   pr-ua = pkgs.writeShellApplication {
     name = "pr-ua";
@@ -327,6 +333,7 @@ in {
       runtimeInputs = [pkgs.coreutils pkgs.git pkgs.gawk pkgs.gnugrep pkgs.gnused];
       checkPhase = "";
       text = ''
+        export TECH_SPEC_PROMPT="${loopPrompts}/tech-spec.md"
         export TECH_SPEC_TEMPLATE="${templatePath}"
         export TECH_SPEC_MCP_CONFIG="${mcpConfig}"
         ${builtins.readFile ./tech-spec.sh}
@@ -374,16 +381,4 @@ in {
     checkPhase = "";
     text = builtins.readFile ./playwright-at.sh;
   };
-  github-project = let
-    estimationPath = ../config/claude/templates/ESTIMATION.md;
-  in
-    pkgs.writeShellApplication {
-      name = "github-project";
-      runtimeInputs = [pkgs.coreutils pkgs.git pkgs.gh pkgs.gawk pkgs.gnugrep pkgs.gnused];
-      checkPhase = "";
-      text = ''
-        export ESTIMATION_TEMPLATE="${estimationPath}"
-        ${builtins.readFile ./github-project.sh}
-      '';
-    };
 }

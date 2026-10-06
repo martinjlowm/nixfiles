@@ -2,11 +2,12 @@
 
 Every runnable package this flake defines, where it is defined, and how it is exposed.
 
-Script sources live in `scripts/*.sh` and are wrapped by `scripts/default.nix`. Most are
-built with `mkWeztermScript`, which wraps the shell source in `pkgs.writeShellApplication`
-with `wezterm`, `mux-spawn`, `claude-follow` and `claude-sleep` on `PATH`. The wrapper
-supplies the interpreter and the executable bit, so the `.sh` sources carry no shebang and
-are mode 644.
+Script sources live in `scripts/*.sh` and are wrapped by `scripts/default.nix` in
+`pkgs.writeShellApplication`, which supplies the interpreter and the executable bit, so the
+`.sh` sources carry no shebang and are mode 644. `loop` and `fix` are built with
+`mkWeztermScript`, which puts `wezterm`, `mux-spawn`, `claude-follow` and `claude-sleep` on
+`PATH` and exports the store paths of the package's prompt, `ci-triage.md` and
+`loop-sleep.md` from `config/claude/loops/`.
 
 ## Exposed as flake packages
 
@@ -16,20 +17,14 @@ Runnable as `nix run github:martinjlowm/nixfiles#<name> -- [args]`. Declared by 
 | Package | Arguments | Description |
 | --- | --- | --- |
 | `claude-code` | passthrough | Claude Code under a sandbox. safehouse on macOS, bubblewrap on Linux. |
-| `dependabot` | none | Agent loop that processes open Dependabot pull requests. |
-| `fix` | `<pr-number>` | Agent loop that repairs CI on one pull request. |
-| `github-issues` | none | Agent loop over GitHub Issues. |
-| `github-project` | `<tech-spec.md> <project-url>` | Creates project items from a tech spec. Reads `ESTIMATION_TEMPLATE`, set by the derivation. |
+| `fix` | `<pr-number-or-url> [max-iterations]` | Agent loop that repairs CI on one pull request. Refuses a pull request whose author is neither the `gh` user nor `app/dependabot`. |
 | `gh-axi` | passthrough | Agent-facing wrapper over `gh` with TOON output. Built from the npm tarball against `lockfiles/gh-axi.json`. |
 | `gh-image` | passthrough | `gh` extension that uploads images to GitHub user-attachments storage. |
 | `gh-with-image` | passthrough | `gh` with the `gh-image` extension already installed. |
 | `loop` | `<spec> [max-iterations]` | Generic spec-driven agent loop. Default 10 iterations. |
 | `playwright-at` | `<chrome-major-version>` | Playwright pinned to a given Chrome major version. |
-| `pr-maintenance` | none | Agent loop over pull request health and review feedback. |
-| `pr-review` | none | Agent loop that reviews pull requests. |
-| `project` | none | Agent loop over a GitHub Project board. |
 | `rmtree` | `<path>` | Interactive recursive delete. Derived from llimllib's `rmtree`, unlicense. |
-| `tech-spec` | `<notion-url> [output-file]` | Fills a tech spec template from a Notion product spec. Reads `TECH_SPEC_TEMPLATE` and `TECH_SPEC_MCP_CONFIG`. |
+| `tech-spec` | `<notion-url> [output-file]` | Fills a tech spec template from a Notion product spec. Reads `TECH_SPEC_PROMPT`, `TECH_SPEC_TEMPLATE` and `TECH_SPEC_MCP_CONFIG`. |
 | `worktree` | `[-v] [-b <ref>] <branch>` | Creates a git worktree for `<branch>`, branching from `origin/master` or `origin/main` unless `-b` names another ref. Copies `.env`, `.envrc` and `.tool-versions` across, using copy-on-write where the filesystem supports it. |
 
 Six repository-analytics scripts are also exposed. Each reads the git history of the current
@@ -59,7 +54,7 @@ Listed in `modules/darwin/packages.nix` and absent from `flake.nix`, so they arr
 | `pr-ready` | none | Lists own open non-draft pull requests that are approved and free of merge conflicts. |
 | `pr-ua` | none | Lists own open non-draft pull requests that are unapproved, not marked changes-requested, and whose reviewers need prompting. |
 | `rebuild` | `[<action>] [flags]` | Runs `darwin-rebuild <action> --flake <flake>#$(hostname -s) -L`, where `<action>` defaults to `switch` and `<flake>` is the first directory at or above `$PWD` holding both `flake.nix` and `hosts/`, falling back to `projects/nixfiles` under the home of `$SUDO_USER`. Prepends `/run/current-system/sw/bin` to `PATH`. |
-| `roadmap-sync` | none | Interactive roadmap sync session. |
+| `roadmap-sync` | none | Interactive roadmap sync session in `~/projects/pm` through `claude-pm`. Reads `ROADMAP_SYNC_PROMPT`. |
 | `zendesk-ticket` | passthrough | Reads Zendesk tickets and their attachments. |
 
 The three `claude-*` flavours are built by `mkClaudeFlavor`, which writes an MCP config
@@ -74,7 +69,6 @@ Present in `scripts/default.nix` and referenced from no package set.
 | Package | Description |
 | --- | --- |
 | `codegraph-pull` | Downloads the published codegraph index for the current repository when a newer one exists. |
-| `loop2` | `loop` plus the handoff baton. See [agent loops](agent-loops.md). |
 
 ## Build helpers
 

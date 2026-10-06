@@ -10,11 +10,10 @@ Usage: curl -fsSL <url>/bootstrap.sh | bash -s -- <package> [args...]
 Installs Determinate Nix (if needed) and runs a flake package.
 
 Packages:
-  dependabot, fix, loop, project, pr-maintenance, pr-review,
-  github-issues, claude-code, worktree, rmtree, tech-spec, ...
+  fix, loop, claude-code, worktree, rmtree, tech-spec, ...
 
 Examples:
-  curl -fsSL <url>/bootstrap.sh | bash -s -- dependabot
+  curl -fsSL <url>/bootstrap.sh | bash -s -- loop my-task
   curl -fsSL <url>/bootstrap.sh | bash -s -- fix 123
   curl -fsSL <url>/bootstrap.sh | bash -s -- claude-code
 EOF

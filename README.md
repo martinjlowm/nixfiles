@@ -51,10 +51,8 @@ integrations for their own work: `claude-pm` for Notion, Figma and Drata, `claud
 Sentry and Datadog, `claude-dbg` for SignOZ.
 
 🔁 **Agent loops.** `loop` runs a Claude session against a spec file over and over, tracking
-progress on disk and reading control tokens out of each iteration's output. `loop2` adds a
-handoff: an iteration can leave instructions that outrank the standard workflow for the next
-one. `dependabot`, `fix`, `github-issues`, `pr-maintenance`, `pr-review` and `project` are the
-same machinery with a fixed spec.
+progress on disk and reading control tokens out of each iteration's output. `fix` is the
+same machinery with a fixed spec that repairs CI on one of your pull requests.
 
 🔀 **Pull request tools.** `pr-ua`, `pr-pr`, `pr-ready` and `pr-attn` sort your open pull
 requests by what they are waiting on: reviewers who need prompting, reviewers who need
@@ -64,15 +62,14 @@ back.
 📊 **Repository analytics.** Six git history reports covering churn, bug hotspots, commit
 velocity, firefighting, and contributor rankings all-time and recent.
 
-⚙️ **Claude Code configuration.** `config/claude/` holds the global instructions, twelve agents,
-eleven skills, and the commands and templates the `tech-spec` and `github-project` packages
-read. It is deployed by home-manager and enumerated from the directory, so adding a file and
-rebuilding is enough.
+⚙️ **Claude Code configuration.** `config/claude/` holds the global instructions, the shared
+rules files, subagents, skills and a command, which home-manager deploys by reading the
+directories, so adding a file and rebuilding is enough. It also holds the loop prompts and
+templates, which the loop and `tech-spec` packages read from the Nix store.
 
 🧰 **Everything else.** `worktree` creates git worktrees with copy-on-write for ignored
 directories, `rmtree` deletes interactively, `gh-image` uploads images to GitHub from the
-command line, `tech-spec` fills a spec template from Notion, and `github-project` turns that
-spec into project items.
+command line, and `tech-spec` fills a spec template from Notion.
 
 The complete list, including which packages are reachable through `nix run` and which arrive
 only with a rebuild, is in [packages](docs/reference/packages.md).

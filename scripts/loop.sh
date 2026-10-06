@@ -50,12 +50,14 @@ if [ "${1:-}" = "--run" ]; then
   echo "Log file: $LOG_FILE"
   echo ""
 
-  # Read and substitute __SPEC__ in loop.md
-  AGENT_PROMPT=$(sed "s/__SPEC__/$SPEC_NAME/g" "$HOME/.claude/agents/loop.md")
+  # Read and substitute __SPEC__ in the loop prompt
+  AGENT_PROMPT=$(sed "s/__SPEC__/$SPEC_NAME/g" "$LOOP_PROMPT")
 
   AGENT_PROMPT="$AGENT_PROMPT
 
-$(cat "$HOME/.claude/agents/project-sleep.md")"
+$(cat "$LOOP_CI_TRIAGE_PROMPT")
+
+$(cat "$LOOP_SLEEP_PROMPT")"
 
   SLEEP_COUNT=0
 

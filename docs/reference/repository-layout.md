@@ -12,7 +12,7 @@
 | `hosts/` | Per-machine configuration. |
 | `users/` | Per-user configuration. |
 | `scripts/` | Shell sources and the derivations that wrap them. |
-| `config/` | Files deployed verbatim into the home directory. |
+| `config/` | Files deployed verbatim into the home directory, plus the loop prompts and templates under `config/claude/` that packages read from the Nix store. |
 | `specs/` | Spec files driving the agent loops. Contents are not tracked. |
 | `.state/` | Loop working state. Gitignored. |
 | `lockfiles/` | Pinned dependency manifests used by overlays. |
