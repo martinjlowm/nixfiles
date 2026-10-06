@@ -23,7 +23,7 @@ repository root, and the loop exits with an error if that file is absent.
 
 ## Prompt
 
-Each iteration pipes one prompt into `claude`, built from three files in
+Each iteration pipes one prompt into `claude`, built from four files in
 `config/claude/loops/`, read from the Nix store through variables the derivation exports.
 
 | File | Variable | Part |
@@ -31,6 +31,7 @@ Each iteration pipes one prompt into `claude`, built from three files in
 | `loop.md` | `LOOP_PROMPT` | The workflow. `__SPEC__` is replaced with the spec name. |
 | `ci-triage.md` | `LOOP_CI_TRIAGE_PROMPT` | Appended. How to find the failing job in a CI run. |
 | `loop-sleep.md` | `LOOP_SLEEP_PROMPT` | Appended. When to emit `SLEEP`. |
+| `loop-disclosure.md` | `LOOP_DISCLOSURE_PROMPT` | Appended. The trailer and footer that mark the loop's commits, PR bodies and comments as agent work. |
 
 ## Paths
 

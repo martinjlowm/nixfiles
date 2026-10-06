@@ -88,6 +88,18 @@ in {
       ];
       hooks = {
         PreToolUse = [
+          # Connector tools that send under the user's name. A hook, not
+          # permissions.deny, because hooks run under
+          # --dangerously-skip-permissions. A session drafts and the user sends.
+          {
+            matcher = "mcp__claude_ai_Slack__slack_(send|schedule)_message|mcp__claude_ai_Microsoft_365__(outlook_(send_mail|send_draft|forward_mail)|teams_(send_chat_message|send_channel_message|reply_channel_message))";
+            hooks = [
+              {
+                type = "command";
+                command = "echo 'Blocked: a session never sends a message under the user name. Draft it with slack_send_message_draft or outlook_create_draft, or show the text, and the user sends it.' >&2; exit 2";
+              }
+            ];
+          }
           {
             matcher = "Bash";
             hooks = [

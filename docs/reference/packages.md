@@ -6,8 +6,8 @@ Script sources live in `scripts/*.sh` and are wrapped by `scripts/default.nix` i
 `pkgs.writeShellApplication`, which supplies the interpreter and the executable bit, so the
 `.sh` sources carry no shebang and are mode 644. `loop` and `fix` are built with
 `mkWeztermScript`, which puts `wezterm`, `mux-spawn`, `claude-follow` and `claude-sleep` on
-`PATH` and exports the store paths of the package's prompt, `ci-triage.md` and
-`loop-sleep.md` from `config/claude/loops/`.
+`PATH` and exports the store paths of the package's prompt, `ci-triage.md`,
+`loop-sleep.md` and `loop-disclosure.md` from `config/claude/loops/`.
 
 ## Exposed as flake packages
 

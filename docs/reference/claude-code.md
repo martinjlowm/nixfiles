@@ -63,6 +63,7 @@ variable.
 | `fix.md` | `fix` | `LOOP_PROMPT` |
 | `ci-triage.md` | `loop`, `fix` | `LOOP_CI_TRIAGE_PROMPT` |
 | `loop-sleep.md` | `loop`, `fix` | `LOOP_SLEEP_PROMPT` |
+| `loop-disclosure.md` | `loop`, `fix` | `LOOP_DISCLOSURE_PROMPT` |
 | `roadmap-sync.md` | `roadmap-sync`, as an appended system prompt | `ROADMAP_SYNC_PROMPT` |
 | `tech-spec.md` | `tech-spec` | `TECH_SPEC_PROMPT` |
 
@@ -131,8 +132,8 @@ The `claude-code` overlay wrapper prepends two directories to `PATH`.
 
 | Directory | Provides |
 | --- | --- |
-| `ghWrapped` | `gh`, built from `gh-with-image`, with `--admin` removed from every invocation. `GH_CONFIG_DIR` points at an empty store path, so auth comes from `GH_TOKEN`. |
-| `pkgs.gh-axi` | `gh-axi`, which runs `gh` by bare name and therefore goes through `ghWrapped`. |
+| `gh-agent` | `gh`, built from `gh-with-image`, with `--admin` removed from every invocation. Exits 1 without running `gh` on `pr merge`, `pr ready`, `pr review --approve` or `-a`, `pr create` without `--draft` or `-d`, and an `api` call whose arguments or `--input` file set an `APPROVE` event, target `pulls/<n>/merge`, or name `mergePullRequest`, `enablePullRequestAutoMerge` or `markPullRequestReadyForReview`. `GH_CONFIG_DIR` points at an empty store path, so auth comes from `GH_TOKEN`. |
+| `pkgs.gh-axi` | `gh-axi`, which runs `gh` by bare name and therefore goes through `gh-agent`. |
 
 `gh-axi setup hooks` is not run. The `SessionStart` hook it would install prints `0 open`
 issues and pull requests outside a GitHub repository, rather than an explicit empty state.
@@ -145,6 +146,8 @@ Two `PreToolUse` hooks match `Bash`.
 | --- | --- |
 | Interpreter guard | Fails the call with a message when the command contains `python3`. |
 | `rtk hook claude` | Rewrites commands to run under `rtk`, compressing output before it reaches the context. |
+
+One `PreToolUse` hook matches the connector tools that send under the user's name and fails every call: `slack_send_message`, `slack_schedule_message`, `outlook_send_mail`, `outlook_send_draft`, `outlook_forward_mail`, `teams_send_chat_message`, `teams_send_channel_message` and `teams_reply_channel_message`. It is a hook rather than a `permissions.deny` entry because hooks run under `--dangerously-skip-permissions`.
 
 The `rtk` hook command must read exactly `rtk hook claude`, and `rtk` must resolve by bare
 name, or rtk's self-check warns daily.

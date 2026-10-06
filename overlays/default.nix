@@ -178,7 +178,46 @@
     # runs. gh-with-image so `gh image` works in-sandbox; browser cookies are
     # unreachable there, so auth comes from GH_SESSION_TOKEN (see envVars).
     # --admin is dropped, so `gh pr merge --admin` cannot bypass branch protection.
+    # Merging, marking ready, approving and opening a non-draft PR are refused,
+    # through the CLI and through `gh api` (REST and GraphQL), because they
+    # finish work under the user's name. gh-axi resolves `gh` to this script.
     gh-agent = final.writeShellScriptBin "gh" ''
+      refuse() {
+        echo "gh: refused $1 in an agent session. Merging, marking ready and approving are the user's to do." >&2
+        exit 1
+      }
+      case "''${1:-} ''${2:-}" in
+        "pr merge") refuse "gh pr merge" ;;
+        "pr ready") refuse "gh pr ready" ;;
+        "pr review")
+          for arg in "$@"; do
+            case "$arg" in --approve | -a) refuse "an approving review" ;; esac
+          done
+          ;;
+        "pr create")
+          draft=""
+          for arg in "$@"; do
+            case "$arg" in --draft | -d) draft=1 ;; esac
+          done
+          [ -n "$draft" ] || refuse "a pull request opened without --draft"
+          ;;
+      esac
+      if [ "''${1:-}" = "api" ]; then
+        request="$*"
+        previous=""
+        for arg in "$@"; do
+          if [ "$previous" = "--input" ] && [ -r "$arg" ]; then
+            request="$request $(cat -- "$arg")"
+          fi
+          previous="$arg"
+        done
+        if ${final.gnugrep}/bin/grep -Eiq -- "(^|[^[:alnum:]_])event[\"']?[[:space:]]*[:=][[:space:]]*[\"']?approve([^[:alnum:]_]|$)" <<<"$request"; then
+          refuse "an approving review"
+        fi
+        if ${final.gnugrep}/bin/grep -Eiq -- "pulls/[0-9]+/merge([?[:space:]]|$)|mergePullRequest|enablePullRequestAutoMerge|markPullRequestReadyForReview" <<<"$request"; then
+          refuse "a merge or a ready-for-review through the API"
+        fi
+      fi
       args=()
       for arg in "$@"; do
         case "$arg" in
