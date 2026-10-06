@@ -27,6 +27,11 @@
     humanlayer-skills.url = "git+https://github.com/humanlayer/skills?ref=main";
     humanlayer-skills.flake = false;
 
+    # Matt Pocock's skills, for `retro` and the `writing-for-agents` guide it
+    # loads. Skill folders only, no flake.
+    mattpocock-skills.url = "git+https://github.com/mattpocock/skills?ref=main";
+    mattpocock-skills.flake = false;
+
     treefmt-nix.url = "github:numtide/treefmt-nix";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
@@ -43,6 +48,7 @@
     onepassword-secrets,
     agent-skills,
     humanlayer-skills,
+    mattpocock-skills,
     treefmt-nix,
   }: let
     # Import overlays

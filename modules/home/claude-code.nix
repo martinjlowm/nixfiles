@@ -15,6 +15,13 @@
   # Skills taken from humanlayer/skills (the `humanlayer-skills` input), each
   # under plugins/<name>/skills/<name>.
   humanlayerSkills = ["show-me"];
+  # Skills taken from mattpocock/skills (the `mattpocock-skills` input), each
+  # under skills/<category>/<name>. `retro` loads `writing-for-agents` by name,
+  # so the two ship together.
+  mattpocockSkills = {
+    retro = "engineering/retro";
+    writing-for-agents = "productivity/writing-for-agents";
+  };
 in {
   # CLI on PATH for manual use (codegraph status/query/impact ...). The MCP
   # server itself is injected via pkgs.codegraph-mcp-servers: the claude-code
@@ -51,7 +58,8 @@ in {
         })
         (builtins.attrNames (builtins.readDir "${claudeDirectory}/skills")))
       // lib.genAttrs sharedSkills (name: "${inputs.agent-skills}/${name}")
-      // lib.genAttrs humanlayerSkills (name: "${inputs.humanlayer-skills}/plugins/${name}/skills/${name}");
+      // lib.genAttrs humanlayerSkills (name: "${inputs.humanlayer-skills}/plugins/${name}/skills/${name}")
+      // lib.mapAttrs (_: path: "${inputs.mattpocock-skills}/skills/${path}") mattpocockSkills;
     settings = {
       model = "opus";
       # model = "fable";

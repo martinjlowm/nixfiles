@@ -26,15 +26,18 @@ suffix; skill names are the directory names.
 `agent-browser`, `ffmpeg`, `frontend-design`, `gh-axi`, `image-upload`, `pr-comments`,
 `pr-description`, `prd`, `resolve`, `unslop`, `visual-comparison`, `zendesk-ticket`.
 
-Two flake inputs supply skills from outside `config/claude/skills/`. Both are
+Three flake inputs supply skills from outside `config/claude/skills/`. All are
 `flake = false`.
 
 | Skill | Input | Path in the input |
 | --- | --- | --- |
 | `fleet-conversation` | `agent-skills` (FactbirdHQ/agent-skills) | `fleet-conversation` |
 | `show-me` | `humanlayer-skills` (humanlayer/skills) | `plugins/show-me/skills/show-me` |
+| `retro` | `mattpocock-skills` (mattpocock/skills) | `skills/engineering/retro` |
+| `writing-for-agents` | `mattpocock-skills` (mattpocock/skills) | `skills/productivity/writing-for-agents` |
 
-`show-me` sets `disable-model-invocation`, so only the user can invoke it as a skill.
+`show-me` and `retro` set `disable-model-invocation`, so only the user can invoke them as
+skills. `retro` loads `writing-for-agents` as its first step.
 `pr-description` reads its `SKILL.md` from `~/.claude/skills/show-me/` for the views a PR
 body draws.
 
