@@ -1,6 +1,6 @@
 ---
 name: image-upload
-description: Uploads screenshots, diagrams, logs and other files to whichever storage backend the session's instructions declare, and embeds the resulting links in GitHub PR and issue comments. Use when attaching files to a PR, issue or comment from the command line, including headless and sandboxed sessions.
+description: Upload screenshots and other files to the backend the session declares and embed them in GitHub PR or issue comments. Use when attaching files to a PR, issue or comment.
 ---
 
 # image-upload: attach files to GitHub PRs and issues
@@ -37,6 +37,7 @@ Documented backends:
 | Name | File | Storage |
 | --- | --- | --- |
 | `github-session` | [backends/github-session.md](backends/github-session.md) | GitHub user-attachments, authenticated with a browser session cookie. |
+| `session-assets` | [backends/session-assets.md](backends/session-assets.md) | The agent fleet's S3 bucket, served from a public URL. |
 
 With no `Image uploads` section in context, do not guess a backend. Skip the upload, keep
 the local files, and tell the user that no upload backend is declared.
@@ -68,7 +69,8 @@ one yourself:
 
 Pick the backend's visibility over convenience. A screenshot of an internal UI must not land
 somewhere readable by more people than the PR or issue it documents. When the declared
-backend is wider than the target, stop and ask the user.
+backend is wider than the target, stop and ask the user, unless the backend's Visibility
+section already settles it.
 
 If uploads are not possible, skip them gracefully, keep the local files, and tell the user
 what was skipped and why. Do not retry-loop a failing preflight or go looking for credentials
@@ -77,7 +79,9 @@ the declaration does not mention.
 ## Embedding in a comment
 
 1. **Determine the target.** For the current branch's PR, `gh pr view --json number,url`. If
-   no PR exists yet, skip, tell the user, and offer to post once the PR is opened.
+   no PR exists yet, skip, tell the user, and offer to post once the PR is opened. If an
+   earlier run already posted this comment, edit that one in place
+   (`gh pr comment <number> --edit-last`, or a PATCH on its id) instead of posting another.
 2. **Compose the comment body in a temp file.** The common pattern is a side-by-side before
    and after table with a collapsed detail image:
 

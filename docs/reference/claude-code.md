@@ -7,24 +7,74 @@ home-manager `programs.claude-code` module. The package comes from `nextPkgsClau
 
 | Source | Deployed as |
 | --- | --- |
-| `config/claude/CLAUDE.md` | `programs.claude-code.context`, embedded in `~/.claude/CLAUDE.md` |
-| `config/claude/agents/<name>.md` | Agent `<name>` |
+| `config/claude/CLAUDE.md`, then `config/claude/rules/github.md` and `rules/writing.md` | `programs.claude-code.context`, concatenated in that order into `~/.claude/CLAUDE.md` |
+| `config/claude/agents/<name>.md` | Subagent `<name>` |
 | `config/claude/commands/<name>.md` | Command `<name>` |
 | `config/claude/skills/<name>/` | Skill `<name>` |
 
 Agents, commands and skills are enumerated by reading the directory at evaluation time, so a
 new file is picked up by adding it and rebuilding. Agent and command names drop the `.md`
-suffix; skill names are the directory names.
+suffix; skill names are the directory names. Rules files are not enumerated. The
+`sharedRules` list in `modules/home/claude-code.nix` names them. `config/claude/loops/` and
+`config/claude/templates/` are not deployed to `~/.claude`; the packages that use them read
+them from the Nix store.
+
+## Rules
+
+`config/claude/rules/` holds the rules shared by laptop and fleet sessions.
+
+| File | Covers |
+| --- | --- |
+| `github.md` | Mentions, draft PRs, `pr-description`, one change per PR, review requests and the merge queue, shared ground, review threads, posting once |
+| `writing.md` | `unslop` and its six binding items, claiming only checked work, code comments, aligned diagrams, the four documentation modes |
+
+The mj-agents fleet builds its house rules from the same two files, read from its
+`claude-config` flake input.
 
 ## Agents
 
-`dependabot`, `fix`, `github-issues`, `github-project`, `loop`, `loop2`, `pr-maintenance`,
-`pr-review`, `project`, `project-sleep`, `roadmap-sync`, `tech-spec`.
+Every file in `config/claude/agents/` is a subagent with YAML frontmatter.
+
+| Agent | Role |
+| --- | --- |
+| `incident-root-cause` | Investigates one incident signal for the incident RCA routine |
+| `pentest-surface-probe` | Probes one staging surface for the weekly pentest routine |
+| `pr-review-orchestrator` | Runs the PR-review pipeline over the agents below |
+| `review-cdk-infra` | Reviews AWS CDK changes |
+| `review-claim-verifier` | Verifies one review claim against dependency source and docs |
+| `review-code-comments` | Reviews the code comments a PR adds or leaves |
+| `review-patterns-types-errors` | Reviews patterns, types, error handling and naming |
+| `review-perf-claim-verifier` | Verifies one review claim that rests on a measurement |
+| `review-rust-mono-items` | Compares monomorphization output between a Rust PR and its base |
+| `review-tests-perf-security` | Reviews conventions, coupling, tests, performance and security |
+| `review-visual` | Runs `visual-comparison` for a PR that changes UI |
+
+mj-agents bakes these into its image by name, from its `nixfilesAgentNames` list.
+
+## Loop prompts
+
+`config/claude/loops/` holds the prompts the loop packages send to `claude`. Each
+derivation in `scripts/default.nix` exports the store path of its prompt in an environment
+variable.
+
+| File | Read by | Variable |
+| --- | --- | --- |
+| `loop.md` | `loop` | `LOOP_PROMPT` |
+| `fix.md` | `fix` | `LOOP_PROMPT` |
+| `ci-triage.md` | `loop`, `fix` | `LOOP_CI_TRIAGE_PROMPT` |
+| `loop-sleep.md` | `loop`, `fix` | `LOOP_SLEEP_PROMPT` |
+| `roadmap-sync.md` | `roadmap-sync`, as an appended system prompt | `ROADMAP_SYNC_PROMPT` |
+| `tech-spec.md` | `tech-spec` | `TECH_SPEC_PROMPT` |
 
 ## Skills
 
 `agent-browser`, `ffmpeg`, `frontend-design`, `gh-axi`, `image-upload`, `pr-comments`,
-`pr-description`, `prd`, `resolve`, `unslop`, `visual-comparison`, `zendesk-ticket`.
+`pr-description`, `prd`, `resolve`, `review-protocol`, `unslop`, `visual-comparison`,
+`zendesk-ticket`.
+
+`review-protocol` sets `user-invocable: false`. It holds the protocol the `review-*` agents
+and claim verifiers read before their own instructions: constraints, evidence, comment
+craft, the finding schema and the result file.
 
 Three flake inputs supply skills from outside `config/claude/skills/`. All are
 `flake = false`.
@@ -49,8 +99,8 @@ overrides it.
 ## Commands and templates
 
 `config/claude/commands/` holds `quarter-summary.md`. `config/claude/templates/` holds
-`ESTIMATION.md` and `tech-spec.md`, which the `github-project` and `tech-spec` packages read
-through environment variables set by their derivations.
+`tech-spec.md`, which the `tech-spec` package reads through `TECH_SPEC_TEMPLATE`, and
+`ESTIMATION.md`, which no package or prompt reads.
 
 ## Settings
 

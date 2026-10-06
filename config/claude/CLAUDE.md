@@ -30,105 +30,13 @@ Example: `git status` → `rtk git status` (transparent, 0 tokens overhead)
 Refer to CLAUDE.md for full command reference.
 <!-- /rtk-instructions -->
 
-# GitHub: reach for gh-axi first
+# Laptop sessions
 
-Use `gh-axi` for GitHub work in a session: PR and issue views, CI runs and failed logs,
-reviews, comments, searches. It prints compact output with totals and next-step hints. The
-`gh-axi` skill lists the cases that stay on `gh`.
+On GitHub you act as the user, `martinjlowm`, so everything you post carries their name.
 
-# GitHub: mention nobody
+Use `gh-axi` for GitHub reads and writes from the shell. The `gh-axi` skill lists the cases
+that stay on `gh`.
 
-Never write an `@handle` in a PR title, PR description, PR comment, review reply, issue, or
-commit message. A mention notifies that account on the PR and again on the squash-merge
-commit, and the people it reaches are usually the ones the change does not concern. A bare
-name in prose notifies nobody, so it is fine. The `@` is what does the damage.
+Image uploads use the `github-session` backend, documented in the `image-upload` skill's
+`backends/github-session.md`.
 
-When a handle is the subject matter, a CODEOWNERS line or a config value, keep it inside a
-code span or a fenced block, where GitHub renders it inert. Before posting any body, grep it
-with `grep -n "@[A-Za-z0-9]" <file>`: every hit must sit inside a code span or be gone.
-
-# GitHub: open PRs as draft
-
-Every PR you open is a draft: `gh-axi pr create --draft` or `gh pr create --draft`. Never
-promote one. `gh pr ready`, `gh-axi pr ready`, and the `--ready` and `draft: false` forms of
-them, belong to the user, however finished the change is and however green CI is. The draft
-flag is the handover, not a claim about the code: it keeps the PR out of review queues and
-reviewer notifications until the user promotes it. Asked to "open a PR" with no mention of
-draft, open a draft anyway and say so in the line that returns the URL.
-Likewise never flip a PR the other way. A ready PR stays ready, a draft stays draft.
-
-# GitHub: every PR goes through pr-description
-
-Load the `pr-description` skill before any `pr create`, and before any `pr edit` that sets
-a title or body. That holds for a fork or subagent too, whatever its prompt says the body
-should contain. A prompt that delegates opening a PR names the skill and the facts the body
-needs, never an outline of the body, because an outline replaces the skill rather than
-feeding it.
-
-# GitHub: leave a colleague's thread for the user to answer
-
-A colleague who reviews a PR wants a person to answer them, not generated prose. So a review
-thread opened by any human other than `martinjlowm` gets the fix and nothing else, and you
-never offer to write it a reply. No "the review has no reply yet", no "want me to answer that
-thread", no draft reply held up for approval. The user answers their own reviewers.
-
-An unanswered human thread is the finished state, not a loose end, so keep it out of the list
-of what is still open. Name what you changed in response to it and stop there, or put it in
-the summary the skill in use asks for. Post on such a thread only when the user points at it
-and asks for a reply.
-
-Bots run the other way. The user's own threads and every bot review, `claude[bot]`,
-`martinjlowm-s-botler[bot]`, `dependabot[bot]`, `coderabbitai[bot]` and the rest, get a reply
-naming what changed, because that reply is the only thing tying the finding to the fix.
-
-# Image uploads
-
-Backend: `github-session`, documented in the `image-upload` skill's
-`backends/github-session.md`. Files go to GitHub user-attachments with `gh image`, against the
-repository the comment is posted to, and `GH_SESSION_TOKEN` carries the browser session.
-
-# Documentation: four modes, kept apart
-
-Documentation committed to a repository follows the Diátaxis framework
-(https://diataxis.fr/). Every page serves exactly one of four reader needs, and a page that
-serves two is the failure this rule exists to catch.
-
-- **Tutorial.** Teaches a beginner by walking one path that works. Explicit about everything,
-  offers no choices, and never stops to explain. The reader is learning, not deciding.
-- **How-to guide.** Gets a competent reader to a stated goal. Assumes they know the tools,
-  branches on real conditions, and teaches nothing.
-- **Reference.** Describes the machinery: options, attributes, outputs, file layouts. Austere,
-  structured to mirror the thing it documents, and never instructive.
-- **Explanation.** Says why the code is shaped this way, what was rejected, and what the
-  history is. Never instructs, never catalogues.
-
-Diagnose a page by the need it serves, not by its length. A reference table that has grown
-steps is two pages. A tutorial that pauses to justify a design decision has lost the learner
-and is missing an explanation page. Move the intruding material to the page that owns it
-rather than deleting it.
-
-Reference pages carry no guesses. Every option, attribute and default is read out of the code
-before it is written down, and a name that is defined but never wired up is documented as
-such rather than quietly listed with the rest.
-
-Do not cite the framework or link it from the documentation itself. Naming the sections after
-the four modes helps a reader navigate and is wanted; crediting the method that produced them
-helps nobody who came to read the docs.
-
-# Comments: the code as it stands, not the change that made it
-
-A comment states what the code does and what makes it correct, in the present tense, for a
-reader who has never seen the diff that introduced it. Anything that only parses next to
-that diff belongs in the commit message or the PR body: what the file held before, what the
-edit moved where, what incident prompted it, what a since-deleted line used to do.
-
-One sentence per fact. A safety claim needs the property that holds it up, stated once, not
-restated in three registers. Claim the general property rather than the arrangement that
-happens to satisfy it today, and name another file only when the reader must open it to
-understand this line.
-
-# Writing: run the unslop skill over it
-
-The `unslop` skill applies to everything you write, not only when asked: documentation, commit
-messages, PR titles and bodies, review replies, Slack drafts, and prose in code comments. Run
-it before handing over anything you wrote, and again after any substantial rewrite.

@@ -16,7 +16,8 @@ Edit text to remove AI patterns and add human voice.
 
 ## Adding soul
 
-Removing patterns is half the job. Sterile, voiceless writing is just as obvious.
+Removing patterns is half the job. Sterile, voiceless writing is just as obvious. This applies
+to prose people read, not to the imperative change sentence of a PR body or commit message.
 
 - **Have opinions.** React to facts instead of neutrally listing pros and cons.
 - **Vary rhythm.** Short sentences. Then longer ones that take their time. Mix it up.
