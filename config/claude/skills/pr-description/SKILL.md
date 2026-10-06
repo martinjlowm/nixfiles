@@ -57,7 +57,9 @@ gh pr diff <number> --repo <owner>/<repo>
 - **Cut process noise:** rebases, conflict resolutions, resolved bot comments, branch
   merges. Keep a stacking note only if it changes how today's diff reads.
 - **No session link or agent attribution in the body.** It records who typed the change and
-  dead-ends in `git blame`. Strip it from bodies you touch.
+  dead-ends in `git blame`. Strip it from bodies you touch. The exception is a trailer the
+  session's own rules require on unattended output, such as a loop's `Assisted-by:` or the
+  fleet's `Agent Session:`. Keep that one.
 - **Keep** issue references and screenshots. A reference the reader should follow goes inline
   as a full URL, `https://github.com/FactbirdHQ/nest/pull/20189`, not `#20189`.
 - **A ticket reference is never the description.** `Closes #125` as the whole body moves the
@@ -101,8 +103,10 @@ issue, never in place of it.
 - **Set the issue Type** on every issue you file and on any cited issue that has none: `Task`
   by default, `Bug` for a fault in shipped behaviour, `Feature` for new functionality someone
   asked for. Leave a type someone set alone.
-- **An existing issue without evidence** gets the evidence as a comment from you before the
-  PR cites it. Its body stays the author's.
+- **An existing issue without evidence** gets the evidence before the PR cites it. On the
+  user's own issue, comment it. On anyone else's, draft the comment for the user to approve,
+  and a headless session puts the evidence in the PR body instead. The issue body stays the
+  author's.
 - **Customer data stays in Zendesk.** An issue filed from a ticket links it and describes the
   problem in product terms, with no names, contact details or conversation.
 - **Resolved issues go in trailers**, one `Closes <full URL>` line each, at the end of the
@@ -342,8 +346,8 @@ gh pr edit <number> --repo <owner>/<repo> --title <title> --body-file <file>
 ## Report
 
 Sweeps only. Draft the report for the Slack channel the user named (`#pr-refinement` for the
-nest sweep) with `slack_send_message_draft` or as text in the session, and send it only when
-the user approves. A headless session puts it in its final message instead.
+nest sweep) with `slack_send_message_draft` or as text in the session. The user sends it;
+you never post it. A headless session puts it in its final message instead.
 
 - one line per changed PR: number, link, and why it was stale,
 - the count left unchanged.

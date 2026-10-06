@@ -8,6 +8,16 @@
 }: let
   claudeDirectory = ../../config/claude;
   stripMdExt = name: lib.removeSuffix ".md" name;
+  # PreToolUse hook on Bash: refuse a `git push` whose refspec names master or
+  # main. gh-agent refuses merges; this covers a direct push.
+  denyPushToDefaultBranch = pkgs.writeShellScript "deny-push-to-default-branch" ''
+    command=$(${pkgs.jq}/bin/jq -r '.tool_input.command // empty')
+    pushes=$(${pkgs.gnugrep}/bin/grep -Eo 'git[[:space:]]+push[^|;&]*' <<<"$command" || true)
+    if ${pkgs.gnugrep}/bin/grep -Eq '[[:space:]:+](refs/heads/)?(master|main)([[:space:]]|$)' <<<"$pushes"; then
+      echo "Blocked: an agent never pushes to master or main. Push a branch and open a draft PR." >&2
+      exit 2
+    fi
+  '';
   # Every file in config/claude/rules/, appended to ~/.claude/CLAUDE.md in
   # name order. FactbirdHQ/agents-mj builds its fleet house rules from the same
   # directory of the commit its claude-config input pins.
@@ -88,12 +98,33 @@ in {
       ];
       hooks = {
         PreToolUse = [
+          # Connector tools that send under the user's name. A hook, not
+          # permissions.deny, because hooks run under
+          # --dangerously-skip-permissions. A session drafts and the user sends.
+          {
+            matcher = "mcp__claude_ai_Slack__slack_(send|schedule)_message|mcp__claude_ai_Microsoft_365__(outlook_(send_mail|send_draft|forward_mail)|teams_(send_chat_message|send_channel_message|reply_channel_message))";
+            hooks = [
+              {
+                type = "command";
+                command = "echo 'Blocked: a session never sends a message under the user name. Draft it with slack_send_message_draft or outlook_create_draft, or show the text, and the user sends it.' >&2; exit 2";
+              }
+            ];
+          }
           {
             matcher = "Bash";
             hooks = [
               {
                 type = "command";
                 command = "jq -re '.tool_input.command' | grep -q 'python3' && { echo 'ERROR: Python is not allowed. Use Node.js instead.' >&2; exit 2; } || true";
+              }
+            ];
+          }
+          {
+            matcher = "Bash";
+            hooks = [
+              {
+                type = "command";
+                command = "${denyPushToDefaultBranch}";
               }
             ];
           }

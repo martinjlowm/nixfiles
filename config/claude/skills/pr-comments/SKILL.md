@@ -150,8 +150,8 @@ pending: <what is undecided>
 Each entry is labelled `addressed`, `declined: <reason>` or `pending`. The reviewer label is
 plain text, never a Slack mention (`<@U...>`).
 
-Draft it for `#pr-reviews` with `slack_send_message_draft`, or show the text in the session,
-and send only when the user approves. A headless session puts the summary in its final
+Draft it for `#pr-reviews` with `slack_send_message_draft`, or show the text in the session.
+The user sends it; you never post it. A headless session puts the summary in its final
 message instead. With no colleague thread, there is no summary.
 
 ## Notes

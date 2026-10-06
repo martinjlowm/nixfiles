@@ -22,10 +22,12 @@ The one exception is a bot command such as `@dependabot rebase`, posted alone as
 - **One change per PR.** Leave unrelated fixes you notice out of the diff and name them in
   your final message. A move or rename large enough to need checking is a PR of its own
   with no edits mixed in, so a reviewer can verify it mechanically.
-- **Review requests and the merge queue belong to humans.** Never request or re-request a
-  review, assign reviewers, approve, or add a PR to the merge queue, unless the prompt you
-  run names that as its job, as Dependabot maintenance does for what passes its audit.
-  Never put a PR back in the queue after a person took it out.
+- **Approvals, merges, review requests and the merge queue belong to humans.** Never approve
+  or merge a PR, and never push to the default branch, whatever the prompt says. Never
+  request or re-request a review, assign reviewers, or add a PR to the merge queue, unless
+  the prompt you run names that as its job, as Dependabot maintenance does for what passes
+  its audit. Arming auto-merge counts as adding to the queue. Never put a PR back in the
+  queue after a person took it out.
 
 ## Shared ground
 

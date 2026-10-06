@@ -54,6 +54,7 @@
         export LOOP_PROMPT="${loopPrompts}/${name}.md"
         export LOOP_CI_TRIAGE_PROMPT="${loopPrompts}/ci-triage.md"
         export LOOP_SLEEP_PROMPT="${loopPrompts}/loop-sleep.md"
+        export LOOP_DISCLOSURE_PROMPT="${loopPrompts}/loop-disclosure.md"
         ${builtins.readFile ./${name}.sh}
       '';
     };

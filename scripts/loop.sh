@@ -57,7 +57,9 @@ if [ "${1:-}" = "--run" ]; then
 
 $(cat "$LOOP_CI_TRIAGE_PROMPT")
 
-$(cat "$LOOP_SLEEP_PROMPT")"
+$(cat "$LOOP_SLEEP_PROMPT")
+
+$(cat "$LOOP_DISCLOSURE_PROMPT")"
 
   SLEEP_COUNT=0
 
