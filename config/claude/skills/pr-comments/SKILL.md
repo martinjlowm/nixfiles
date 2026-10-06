@@ -1,46 +1,39 @@
 ---
 name: pr-comments
-description: Address pull request review comments, then reply, resolve, or report depending on who wrote them. Own comments (martinjlowm) get a reply linking the fix and the thread resolved; bot reviews get the same reply and stay open; a colleague's comments get the fix and no reply, rolled into a comment-by-comment summary posted to #pr-reviews in Slack. Use when asked to "resolve PR comments", "address the review", "handle review feedback", or "go through the comments on PR #123".
+description: Address the review threads on a PR, then reply, resolve or summarise by who opened each. Use when asked to "resolve PR comments", "address the review" or "handle review feedback".
 ---
 
-# PR comments: fix every thread, write back to nobody but yourself and the bots
+# PR comments: fix every thread, then route by author
 
-Every thread gets the fix. Who hears about it depends on who opened it. A colleague reviewing
-this PR wants Martin to answer them, not a machine, so their thread gets the change and
-silence, and the answer they get is a human one, later, from him. A bot has nobody to talk to
-and the reply is the only record tying its finding to a commit, so it gets one.
+The thread rules in context decide what is posted. A colleague's thread gets the fix and
+silence; the user's own and every bot's get a reply. This skill adds the mechanics, when to
+resolve, and the summary the user reads before answering colleagues.
 
 ```
 thread author?
- │
- ├─ martinjlowm ──> fix ──> reply (what + permalink) ──> resolve thread
- │                                                       ▲
- │                                          only after the fix is pushed
- │
- ├─ any bot ─────> fix ──> reply (what + permalink) ──> leave unresolved
- │
- └─ any human ───> fix ──> no reply, no draft, no offer to write one
-                    │
-                    └──> entry in the #pr-reviews summary, for Martin to answer
+ |
+ +- the user ---> fix -> reply (what + permalink) -> resolve, after the push
+ |
+ +- any bot ----> fix -> reply (what + permalink) -> leave open
+ |
+ +- colleague --> fix -> no reply -> entry in the summary
 ```
 
-All three paths run in one pass. A PR usually has more than one of them.
+"The user" is `martinjlowm`. In the fleet you post as `martinjlowm-s-botler[bot]`, so your
+own earlier replies carry that login and the user's threads still carry `martinjlowm`.
 
 ## When to use
 
-The user asks to resolve, address, or handle PR comments or a review, with or without a PR
-number. Not for writing PR bodies, which is `pr-description`, or reviewing someone else's
-code, which is `/review`.
+The user asks to resolve, address or handle PR comments or a review. Not for writing PR
+bodies (`pr-description`) or reviewing someone else's code.
 
-## Inputs
-
-1. PR, optional. A number, a URL, or nothing. With nothing, use the current branch's PR.
-2. Scope, optional. Specific threads or reviewers. Default is every unresolved thread.
+Inputs: a PR number or URL, or the current branch's PR; optionally specific threads or
+reviewers. Default is every unresolved thread.
 
 ## Collect the threads
 
-Review threads, the inline resolvable ones, come from GraphQL. The REST comments endpoint
-exposes neither thread IDs nor resolution state, so it cannot drive this skill:
+Inline threads come from GraphQL, since the REST comments endpoint exposes neither thread ids
+nor resolution state.
 
 ```bash
 gh api graphql -f query='
@@ -51,7 +44,7 @@ query($owner:String!, $repo:String!, $pr:Int!) {
       reviewThreads(first:100) {
         nodes {
           id isResolved isOutdated path line originalLine
-          comments(first:50) { nodes { databaseId author { login } body } }
+          comments(first:50) { nodes { databaseId author { login } body createdAt } }
         }
       }
     }
@@ -59,87 +52,60 @@ query($owner:String!, $repo:String!, $pr:Int!) {
 }' -F owner=<owner> -F repo=<repo> -F pr=<number>
 ```
 
-Top-level PR comments and review summary bodies are a separate stream with **no resolve
-action** and no reply of their own. Read them for findings, then answer each finding in the
-inline thread that carries it (see Notes):
+Top-level comments and review summary bodies have no resolve action. Read them for findings
+and answer each in the inline thread that carries it:
 
 ```bash
 gh pr view <number> --json number,title,url,headRefOid,comments,reviews
 ```
 
-- Skip threads where `isResolved` is true.
-- Keep `isOutdated` threads in scope. The code moved, the point may not have.
-- The deciding author is `comments.nodes[0].author.login`.
-- A login ending in `[bot]` is a bot. Reply to it, never resolve it, and leave it out of
-  the Slack summary. Its thread holds its own record.
-- Every other login is a colleague. Fix, stay silent, summarise.
+- Skip resolved threads. Keep outdated ones; the code moved, the point may not have.
+- The deciding author is `comments.nodes[0].author.login`. A login ending in `[bot]` is a
+  bot; any other login except the user's is a colleague.
+- **Skip a thread you already answered**: its last comment is your own reply and no reviewer
+  comment came after it. Re-running the skill on the same PR posts nothing new there.
 
-## Address each comment
+## Decide each thread
 
-Every thread ends in one of four outcomes. Pick one. Ignoring a comment is not an outcome,
-and on a colleague's thread the outcome lands in the diff and the summary rather than in a
-reply.
+Every thread ends in one of five outcomes.
 
 | Outcome | Action |
 | --- | --- |
 | Agree | Make the change. |
 | Already handled | Point at the commit or line that handles it. |
-| Disagree | Change nothing. Give the reason, in the reply on your own or a bot thread, in the summary entry on a colleague's. |
-| Needs the user | Leave open, decide nothing on their behalf, list as pending. |
+| Disagree | Change nothing. Give the reason in the reply, or in the summary entry on a colleague's thread. |
+| Needs the user | Leave open, decide nothing, list as pending. |
+| Asks for nothing | A thread opening with `Note:`, an observation or praise. Post nothing and change nothing. On the user's own thread, resolve it. |
 
-Verify the way the project expects, with its build, tests, and lint, then commit and push
-**before** replying or summarising. A line you link must point at pushed code. One commit per
-coherent group of feedback, not one per comment.
+Verify the way the project expects (build, tests, lint), then commit and push once for the
+whole pass, before any reply or summary. A line you link must point at pushed code. One commit
+per coherent group of feedback.
 
-## Write the reply like a description, not a receipt
+## Write the reply
 
-This section governs the threads you post on, your own and the bots'. A colleague's thread
-gets no reply at all, so skip to the report for those.
-
-The same rules as `pr-description`, at one-comment scale. Two lines is usually the whole
-reply. Its rule to verify every claim against the diff is what makes resolving a thread safe.
+For your own and bot threads only. Two lines is usually the whole reply, under the same rules
+as `pr-description` at one-comment scale. Verify every claim against the pushed diff; that is
+what makes resolving safe.
 
 | Instead of | Write |
 | --- | --- |
 | Fixed! | `flush()` now holds the lock across queue-and-write. |
-| Good catch, addressed in the latest commit. | Dropped the per-row `SELECT` in `sync_devices`, now one batched query. |
 | Refactored as suggested. | Split `handler.rs` into `parse.rs` and `dispatch.rs`. No behavioural change. |
 | I don't think that's an issue. | Keeping the retry. The upstream 429 needs the backoff. Comment added at `http.rs:42`. |
-| Done, see line 88. | Done: <permalink> |
 
-Cut what the thread already knows. No restating the reviewer's comment, no "thanks for the
-review", no "let me know if you'd like anything else".
+No restating the comment, no thanks, no offer of more. Name no person. If a thread needs
+someone else, say what is undecided and leave it in the report; the user pulls them in.
 
-### Address nobody
-
-The global "mention nobody" rule binds every reply. Beyond it, a reply names no person at
-all, since the thread already reaches everyone on it.
-
-- No "good catch" to the reviewer, no "as someone suggested". Open on what changed.
-- Never name a third party to route the thread to them. If a thread needs someone else, say
-  what is undecided and leave it in the report; the user pulls them in.
-
-### Link the location
-
-Build the link from the pushed head SHA. A blob permalink survives later pushes; a branch
-line number does not.
+Link with a permalink built from the pushed head SHA, and only when the change is somewhere
+the thread does not already sit:
 
 ```bash
 gh pr view <number> --json headRefOid --jq .headRefOid
-# https://github.com/<owner>/<repo>/blob/<headRefOid>/<path>#L<line>
-# range: ...#L<start>-L<end>
+# https://github.com/<owner>/<repo>/blob/<headRefOid>/<path>#L<start>-L<end>
 ```
 
-Link only when code changed and the change is somewhere the thread does not already sit. A
-one-line edit on the commented line needs no link.
-
-### Post it on the thread
-
-Check the author one more time before this call. The body is posted only when the thread's
-first comment comes from `martinjlowm` or a `[bot]` login.
-
-Reply to the thread's **first** comment `databaseId`. A new top-level comment loses the code
-context and cannot be resolved:
+Check the thread's first author once more, then reply to the first comment's `databaseId`. A
+top-level comment loses the code context and cannot be resolved.
 
 ```bash
 gh api --method POST \
@@ -147,7 +113,12 @@ gh api --method POST \
   -f body='<reply>'
 ```
 
-## Resolve, own threads only
+## Resolve the user's threads only
+
+Resolve when the first author is the user, the fix is pushed (or the decline is reasoned) and
+the reply is posted, or when the thread asks for nothing. A bot thread stays open, and closing it
+is the user's call. Never resolve a colleague's thread or one pending on the user. When
+unsure, leave it open and say so.
 
 ```bash
 gh api graphql -f query='
@@ -156,73 +127,39 @@ mutation($threadId:ID!) {
 }' -F threadId=<thread id>
 ```
 
-### Restraint
+## Summary of colleague threads
 
-Resolve only when **all** of these hold:
-
-- the thread's first comment author is `martinjlowm`,
-- the fix is pushed (or the outcome is a reasoned decline),
-- the reply is posted.
-
-A bot thread stays open even though you replied to it. The reply is the record; closing the
-thread is the user's reading of whether the finding is dealt with. Never resolve a colleague's
-thread, however obvious the fix. Never resolve a thread left pending on the user. Never
-resolve silently. When genuinely unsure, leave the thread open and say so in the session.
-
-## Report
-
-One Slack message per PR, to **#pr-reviews**, covering the threads nobody has answered: the
-ones a colleague opened. The user's own threads and the bot threads carry their reply on
-GitHub and stay out of it. This message is what the user reads before writing back to the
-reviewer, so it says what the reviewer asked and what the code now does, comment by comment,
-in thread order:
+One summary per PR covering the threads a colleague opened, comment by comment in thread
+order. It is what the user reads before writing back to the reviewer.
 
 ```
 *<repo>#<number>*: <PR title>
 <PR url>
 
-*@<reviewer>* `<path>:<line>`
+*<reviewer>* `<path>:<line>`
 > <the comment, trimmed to its point>
-✅ <what changed> · <permalink>
+addressed: <what changed> . <permalink>
 
-*@<reviewer>* `<path>:<line>`
+*<reviewer>* general comment
 > <comment>
-💬 <why nothing changed>
+pending: <what is undecided>
 
-*@<reviewer>* general comment
-> <comment>
-⏳ Needs Martin: <what is undecided>
-
-<n> addressed · <n> declined · <n> pending
+<n> addressed . <n> declined . <n> pending
 ```
 
-The `*@<reviewer>*` heading is plain text, a label so the user can tell the entries apart.
-Never build it as a real Slack mention (`<@U…>`), and never mention anyone in the summary
-body.
+Each entry is labelled `addressed`, `declined: <reason>` or `pending`. The reviewer label is
+plain text, never a Slack mention (`<@U...>`).
 
-`✅` addressed · `💬` declined with reasoning · `⏳` pending. Two lines per entry. The detail
-lives on the threads, and the summary exists to be skimmed.
-
-Post with `mcp__claude_ai_Slack__slack_send_message` to `#pr-reviews`. Resolve the channel
-with `slack_search_channels` if the name does not take.
-
-- Post nothing when no colleague opened a thread. Note the quiet run in the session.
-- If Slack is unreachable, print the summary in the session and say the post could not be
-  made.
+Draft it for `#pr-reviews` with `slack_send_message_draft`, or show the text in the session,
+and send only when the user approves. A headless session puts the summary in its final
+message instead. With no colleague thread, there is no summary.
 
 ## Notes
 
-- Never post a top-level PR comment or submit a review. No `gh pr comment`, no
-  `issues/<n>/comments`, no review body. Everything posted on the PR is a reply to a chosen
-  inline thread. The one exception is the merge-danger comment `pr-description` keeps: when
-  the fixes change what merging risks, edit that comment in place, and never create one.
-- A finding raised in a top-level comment or a review summary, `claude[bot]`'s "Review
-  summary" included, is answered in the inline thread that carries the same finding, under
-  that thread's author rules. A finding no thread carries gets the fix and an entry in the
-  report: the session's own report for the user's and a bot's, the Slack summary for a
-  colleague's. Nothing is posted on the PR for it.
-- A comment asking for work outside the PR's scope gets a follow-up note and no wider diff.
-  Say so in the reply, or in the summary entry when a colleague raised it.
-- If the review changed what the PR does, update the body with `pr-description`. Fold the
-  change into the section it belongs to; a commit message has no "addressed feedback"
-  section.
+- Post no top-level PR comment and submit no review. The one exception is the merge-danger
+  comment `pr-description` keeps: edit it in place when the fixes change what merging risks.
+- A finding no inline thread carries gets the fix and a line in the summary or the session
+  report, and nothing on the PR.
+- A request outside the PR's scope gets no wider diff. Say so in the reply, or in the summary
+  for a colleague's thread.
+- If the review changed what the PR does, update the body with `pr-description`.

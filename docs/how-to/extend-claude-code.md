@@ -1,7 +1,7 @@
 # Extend the Claude Code configuration
 
-Everything under `config/claude/` is enumerated at evaluation time, so adding a file is
-enough. Rebuild afterwards with `darwin-rebuild switch --flake .#wololobook`.
+Agents, commands and skills under `config/claude/` are enumerated at evaluation time, so
+adding a file is enough. Rebuild afterwards with `darwin-rebuild switch --flake .#wololobook`.
 
 ## Add a skill
 
@@ -14,20 +14,34 @@ Give it YAML frontmatter with `name` and `description`. The description decides 
 skill gets invoked, so write it as the trigger conditions rather than a summary. The
 directory name becomes the skill name.
 
-## Add an agent or a command
+## Add a subagent or a command
 
 ```bash
 $EDITOR config/claude/agents/<name>.md
 $EDITOR config/claude/commands/<name>.md
 ```
 
-The filename without `.md` becomes the name.
+The filename without `.md` becomes the name. A subagent needs YAML frontmatter with `name`
+and `description`. A prompt that a script pipes into `claude` is not a subagent and goes in
+`config/claude/loops/` instead.
+
+## Add a loop prompt
+
+Put the prompt in `config/claude/loops/<name>.md` and have the package's derivation in
+`scripts/default.nix` export its store path, as `mkWeztermScript` does with `LOOP_PROMPT`.
+Read the variable in the script rather than a path under `~/.claude`.
 
 ## Change global instructions
 
-Edit `config/claude/CLAUDE.md`. It is deployed as `programs.claude-code.context` and embedded
-into `~/.claude/CLAUDE.md`. Leave the `rtk-instructions` comment markers alone: they delimit
-a generated block.
+A rule that holds for fleet sessions as well goes in `config/claude/rules/github.md` or
+`rules/writing.md`, since mj-agents builds its house rules from the same files. A new rules
+file also needs its name added to `sharedRules` in `modules/home/claude-code.nix`, and to the
+fleet's list if the fleet should read it.
+
+A laptop-only instruction goes in `config/claude/CLAUDE.md`. Leave the `rtk-instructions`
+comment markers alone: they delimit a generated block.
+
+Both are concatenated into `~/.claude/CLAUDE.md` through `programs.claude-code.context`.
 
 ## Add an MCP server to a flavour
 

@@ -8,6 +8,9 @@
 }: let
   claudeDirectory = ../../config/claude;
   stripMdExt = name: lib.removeSuffix ".md" name;
+  # Rules shared with the mj-agents fleet, whose house rules concatenate the
+  # same files, so a laptop session and a fleet session run identical text.
+  sharedRules = ["github" "writing"];
   # Skills taken from FactbirdHQ/agent-skills (the `agent-skills` flake input)
   # rather than copied into config/claude/skills, so a `nix flake update
   # agent-skills` picks up their changes.
@@ -38,9 +41,13 @@ in {
   programs.claude-code = {
     enable = true;
     package = nextPkgsClaude.claude-code;
-    # Global context; carries the RTK awareness block `rtk init -g` would
-    # embed into ~/.claude/CLAUDE.md. (Renamed from memory.source in HM 26.05.)
-    context = claudeDirectory + "/CLAUDE.md";
+    # Global context: the laptop-only CLAUDE.md, which carries the RTK
+    # awareness block `rtk init -g` would embed, followed by the shared rules.
+    # (Renamed from memory.source in HM 26.05.)
+    context = lib.concatMapStringsSep "\n" builtins.readFile (
+      [(claudeDirectory + "/CLAUDE.md")]
+      ++ map (name: claudeDirectory + "/rules/${name}.md") sharedRules
+    );
     agents = builtins.listToAttrs (builtins.map (name: {
         name = stripMdExt name;
         value = claudeDirectory + "/agents/${name}";
