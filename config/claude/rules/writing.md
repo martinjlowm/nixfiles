@@ -43,13 +43,12 @@ reader who never saw the diff that introduced it.
 // device's own row instead of orphaning it.
 ```
 
-## Diagrams that depend on alignment
+## Diagrams
 
-A tree, a before/after pair or a bracket spanning rows uses ASCII only (`|`, `+`, `-`, `->`).
-Box-drawing and arrow glyphs take two cells in some terminals and one on GitHub, so a line
-carrying one drifts. Write the block to a file and check the column of every aligned token
-before posting. In a comment a ` ```mermaid ` block avoids the problem; a PR body cannot use
-one, because it becomes the commit message.
+When a shape says more than a paragraph, such as a call order, a file layout or a before and
+after, draw it with the views in the `show-me` skill (`~/.claude/skills/show-me/SKILL.md`).
+The skill sets `disable-model-invocation`, so read the file rather than invoking it, and pick
+the smallest view that makes the point.
 
 ## Documentation: four modes, kept apart
 

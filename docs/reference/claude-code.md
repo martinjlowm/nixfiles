@@ -88,8 +88,8 @@ Three flake inputs supply skills from outside `config/claude/skills/`. All are
 
 `show-me` and `retro` set `disable-model-invocation`, so only the user can invoke them as
 skills. `retro` loads `writing-for-agents` as its first step.
-`pr-description` reads its `SKILL.md` from `~/.claude/skills/show-me/` for the views a PR
-body draws.
+The diagram rule in `rules/writing.md` and `pr-description` read its `SKILL.md` from
+`~/.claude/skills/show-me/` for the views a diagram or a PR body draws.
 
 `image-upload` stores files with the backend named in an `Image uploads` section of the
 instructions in context. `config/claude/CLAUDE.md` declares `github-session`, documented in

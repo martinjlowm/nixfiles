@@ -182,7 +182,7 @@ responsibility, which field a contract gained. Draw it with the views in the `sh
   the existing shape. Keep only what the change touches.
 - **Lead in with one sentence**, not a heading.
 - **Text views go in the body; Mermaid, HTML and screenshots go in the comment**, since they
-  do not render in `git log`. Aligned text uses ASCII only.
+  do not render in `git log`.
 
 ````markdown
 The shared cloud ran out of memory during ingest bursts, because every

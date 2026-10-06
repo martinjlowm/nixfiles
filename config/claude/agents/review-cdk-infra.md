@@ -57,5 +57,6 @@ the lockfile resolves and its `.d.ts` in `node_modules`, which is what the PR sy
 against. Example `evidence`:
 `aws-cdk-lib@2.147.0 -> node_modules/aws-cdk-lib/aws-s3/lib/bucket.d.ts:412`.
 
-An export deadlock or other ordering finding takes a small ASCII diagram over a paragraph,
-built per the diagram rule. Label the arrows with why, and mark what this PR changes.
+An export deadlock or other ordering finding takes a small diagram over a paragraph, drawn
+with the `show-me` views the diagram rule names. Label the arrows with why, and mark what
+this PR changes.
