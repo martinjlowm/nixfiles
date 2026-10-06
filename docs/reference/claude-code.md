@@ -140,12 +140,11 @@ issues and pull requests outside a GitHub repository, rather than an explicit em
 
 ## Hooks
 
-Three `PreToolUse` hooks match `Bash`.
+Two `PreToolUse` hooks match `Bash`.
 
 | Hook | Behaviour |
 | --- | --- |
 | Interpreter guard | Fails the call with a message when the command contains `python3`. |
-| `deny-push-to-default-branch` | Fails the call when a `git push` in the command names `master` or `main` as a refspec: bare, after `:` or `+`, or as `refs/heads/…`. A push with no refspec from a checked-out default branch is not caught. |
 | `rtk hook claude` | Rewrites commands to run under `rtk`, compressing output before it reaches the context. |
 
 One `PreToolUse` hook matches the connector tools that send under the user's name and fails every call: `slack_send_message`, `slack_schedule_message`, `outlook_send_mail`, `outlook_send_draft`, `outlook_forward_mail`, `teams_send_chat_message`, `teams_send_channel_message` and `teams_reply_channel_message`. It is a hook rather than a `permissions.deny` entry because hooks run under `--dangerously-skip-permissions`.
