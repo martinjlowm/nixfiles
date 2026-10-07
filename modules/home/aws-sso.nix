@@ -207,9 +207,12 @@ in {
 
     # Pick one account/role pair and print its ARN and portal, tab separated.
     # fzf shows and matches field 1 only, which carries the portal label, so
-    # typing an organisation's name narrows the list to it. Fields 2 and 3
-    # pass through to the caller. A role that appears or disappears without
-    # the token expiring needs an explicit `aws-sso -S <portal> cache`.
+    # typing an organisation's name narrows the list to it. `--exact` matches
+    # each space-separated query word as a whole substring rather than as
+    # scattered characters; a word prefixed with `'` goes back to fuzzy
+    # matching. Fields 2 and 3 pass through to the caller. A role that
+    # appears or disappears without the token expiring needs an explicit
+    # `aws-sso -S <portal> cache`.
     _aws_sso_pick () {
       # Factbird's palette: purple 500 frames the list, magenta 600 marks the
       # prompt and the cursor, blue 500 highlights what the query matched,
@@ -219,7 +222,7 @@ in {
       # moving the cursor up.
       local colors='fg:#CCCCCC,fg+:#FFFFFF,bg:-1,bg+:#333333,hl:#6DD1F1,hl+:#8AE3FF,border:#6C45EE,prompt:#FF00CC,pointer:#FF00CC,marker:#4CAF50,info:#919191,spinner:#FFC01D,header:#919191'
       _aws_sso_rows \
-        | ${pkgs.fzf}/bin/fzf --delimiter=$'\t' --with-nth=1 --nth=1 \
+        | ${pkgs.fzf}/bin/fzf --delimiter=$'\t' --with-nth=1 --nth=1 --exact \
             --prompt="$1 » " --query="''${2:-}" --select-1 --exit-0 \
             --height=40% --reverse --no-multi \
             --border=thinblock --color="$colors" --bind=ctrl-k:kill-line \
