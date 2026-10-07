@@ -124,6 +124,7 @@ in {
         ];
       };
       env = {
+        DEVENV_TUI = "false";
         CLAUDE_CODE_ENABLE_TELEMETRY = "1";
         OTEL_METRICS_EXPORTER = "otlp";
         OTEL_LOGS_EXPORTER = "otlp";
