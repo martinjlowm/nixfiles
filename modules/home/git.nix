@@ -1,7 +1,6 @@
 # Git configuration
 {
   pkgs,
-  nextPkgs,
   ...
 }: let
   allowedSignersContent = pkgs.writeText "allowed_signers" ''
@@ -34,7 +33,7 @@ in {
       gpg = {
         format = "ssh";
         ssh = {
-          program = "${nextPkgs._1password-gui}/Applications/1Password.app/Contents/MacOS/op-ssh-sign";
+          program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign";
           allowedSignersFile = "${allowedSignersContent}";
         };
       };
