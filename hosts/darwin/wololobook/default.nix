@@ -34,9 +34,8 @@
     enable = true;
     package = nextPkgs._1password-cli;
   };
-  programs._1password-gui = {
-    enable = true;
-    package = nextPkgs._1password-gui;
-  };
+  # 1Password.app updates itself in /Applications. The nix-darwin module would
+  # copy its packaged version back over the update on every activation.
+  programs._1password-gui.enable = false;
 
 }
