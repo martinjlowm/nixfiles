@@ -215,13 +215,13 @@ in {
     # `aws-sso -S <portal> cache`.
     #
     # A non-empty query skips the interactive list: `--filter` applies the
-    # same matching and prints every hit, `--no-sort` keeps them in the
-    # order `_aws_sso_rows` gives, and the first one wins.
+    # same matching and prints every hit best score first, and the first
+    # one wins.
     _aws_sso_pick () {
       local fields=(--delimiter=$'\t' --with-nth=1 --nth=1 --exact)
       if [[ -n "''${2:-}" ]]; then
         _aws_sso_rows \
-          | ${pkgs.fzf}/bin/fzf "''${fields[@]}" --no-sort --filter="$2" \
+          | ${pkgs.fzf}/bin/fzf "''${fields[@]}" --filter="$2" \
           | head -n 1 \
           | cut -f2,3
         return
