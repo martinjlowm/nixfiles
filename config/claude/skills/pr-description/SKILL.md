@@ -99,7 +99,9 @@ issue, never in place of it.
   problem, not the fix. The body says what is wrong, what it costs and where it shows, with
   the evidence a reader needs to believe it: the failing test and its output, the log line,
   the query and its result, a screenshot via `image-upload`. If the session does not settle
-  the problem, ask rather than file a guess. Add no labels, assignees or project.
+  the problem, ask rather than file a guess. Add no labels, assignees or project. Leave the
+  body unwrapped, one line per paragraph: the 80-column wrap below exists for the commit
+  message, and an issue never becomes one.
 - **Set the issue Type** on every issue you file and on any cited issue that has none: `Task`
   by default, `Bug` for a fault in shipped behaviour, `Feature` for new functionality someone
   asked for. Leave a type someone set alone.
@@ -153,7 +155,7 @@ the diff and, a year later, see why it exists.
   under headings, then the trailers.
 - **Wrap the body at 80 columns.** Markdown joins the lines, so the width only serves the
   raw text under `git log` and in the editor. Leave fenced blocks, tables and links
-  unwrapped.
+  unwrapped. An issue body is never a commit message and stays unwrapped.
 - **Answer "what" once.** Do not walk through every case or call site that follows; a reader
   who needs that reads the diff.
 - **A summary of the diff is not a description.** Listing touched files and renamed
