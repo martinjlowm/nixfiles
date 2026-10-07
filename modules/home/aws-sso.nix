@@ -213,7 +213,20 @@ in {
     # matching. Fields 2 and 3 pass through to the caller. A role that
     # appears or disappears without the token expiring needs an explicit
     # `aws-sso -S <portal> cache`.
+    #
+    # A non-empty query skips the interactive list: `--filter` applies the
+    # same matching and prints every hit, `--no-sort` keeps them in the
+    # order `_aws_sso_rows` gives, and the first one wins.
     _aws_sso_pick () {
+      local fields=(--delimiter=$'\t' --with-nth=1 --nth=1 --exact)
+      if [[ -n "''${2:-}" ]]; then
+        _aws_sso_rows \
+          | ${pkgs.fzf}/bin/fzf "''${fields[@]}" --no-sort --filter="$2" \
+          | head -n 1 \
+          | cut -f2,3
+        return
+      fi
+
       # Factbird's palette: purple 500 frames the list, magenta 600 marks the
       # prompt and the cursor, blue 500 highlights what the query matched,
       # and grey carries the counters. bg:-1 leaves the terminal's own
@@ -222,8 +235,7 @@ in {
       # moving the cursor up.
       local colors='fg:#CCCCCC,fg+:#FFFFFF,bg:-1,bg+:#333333,hl:#6DD1F1,hl+:#8AE3FF,border:#6C45EE,prompt:#FF00CC,pointer:#FF00CC,marker:#4CAF50,info:#919191,spinner:#FFC01D,header:#919191'
       _aws_sso_rows \
-        | ${pkgs.fzf}/bin/fzf --delimiter=$'\t' --with-nth=1 --nth=1 --exact \
-            --prompt="$1 » " --query="''${2:-}" --select-1 --exit-0 \
+        | ${pkgs.fzf}/bin/fzf "''${fields[@]}" --prompt="$1 » " \
             --height=40% --reverse --no-multi \
             --border=thinblock --color="$colors" --bind=ctrl-k:kill-line \
         | cut -f2,3
@@ -232,7 +244,7 @@ in {
     a () {
       local pick
       _aws_sso_login || return 1
-      pick=$(_aws_sso_pick 'Assume' "''${1:-}")
+      pick=$(_aws_sso_pick 'Assume' "$*")
       [[ -n "$pick" ]] || return 1
       eval "$(${pkgs.aws-sso-cli}/bin/aws-sso -S "''${pick##*$'\t'}" eval --arn "''${pick%%$'\t'*}")"
     }
@@ -240,7 +252,7 @@ in {
     c () {
       local pick
       _aws_sso_login || return 1
-      pick=$(_aws_sso_pick 'Console' "''${1:-}")
+      pick=$(_aws_sso_pick 'Console' "$*")
       [[ -n "$pick" ]] || return 1
       ${pkgs.aws-sso-cli}/bin/aws-sso -S "''${pick##*$'\t'}" console --arn "''${pick%%$'\t'*}"
     }
