@@ -3,7 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
-    nextNixpkgsDevenv.url = "github:NixOS/nixpkgs/e99366c665bdd53b7b500ccdc5226675cfc51f45";
+    nextNixpkgsDevenv.url = "github:NixOS/nixpkgs/aa48d347080940b8a2b8d2f48228674e280a3514";
     nextNixpkgs.url = "github:NixOS/nixpkgs/d1c2cd5033acedf3f29affd8d44e288107e95238";
     nextNixpkgsClaude.url = "github:NixOS/nixpkgs/5ee9f0ecf9ea4ef788544118d184a5d37baf5eee";
 

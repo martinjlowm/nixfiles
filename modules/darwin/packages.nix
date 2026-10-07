@@ -151,7 +151,7 @@ in {
       # Development - Other
       ast-grep
       git-lfs
-      devenv
+      nextPkgsDevenv.devenv
 
       # Image processing
       imagemagick
