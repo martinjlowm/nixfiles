@@ -59,7 +59,8 @@ gh pr diff <number> --repo <owner>/<repo>
 - **End the body with the disclosure your session's rules define**, such as a laptop
   session's `<sub>Made with love by Claude (Opus 5.5)</sub>`, a loop's `Assisted-by:` or the
   fleet's `Agent Session:` trailer, last in the trailer block. Keep it when you rewrite a
-  body, and never add one to a body a person wrote. No other session link or attribution.
+  body, and add it when you rewrite one a person wrote, since the text is now yours. No
+  other session link or attribution.
 - **Keep** issue references and screenshots. A reference the reader should follow goes inline
   as a full URL, `https://github.com/FactbirdHQ/nest/pull/20189`, not `#20189`.
 - **A ticket reference is never the description.** `Closes #125` as the whole body moves the
