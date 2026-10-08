@@ -56,10 +56,10 @@ gh pr diff <number> --repo <owner>/<repo>
   as a claim about the change.
 - **Cut process noise:** rebases, conflict resolutions, resolved bot comments, branch
   merges. Keep a stacking note only if it changes how today's diff reads.
-- **No session link or agent attribution in the body.** It records who typed the change and
-  dead-ends in `git blame`. Strip it from bodies you touch. The exception is a trailer the
-  session's own rules require on unattended output, such as a loop's `Assisted-by:` or the
-  fleet's `Agent Session:`. Keep that one.
+- **End the body with the disclosure your session's rules define**, such as a laptop
+  session's `<sub>Made with love by Claude (Opus 5.5)</sub>`, a loop's `Assisted-by:` or the
+  fleet's `Agent Session:` trailer, last in the trailer block. Keep it when you rewrite a
+  body, and never add one to a body a person wrote. No other session link or attribution.
 - **Keep** issue references and screenshots. A reference the reader should follow goes inline
   as a full URL, `https://github.com/FactbirdHQ/nest/pull/20189`, not `#20189`.
 - **A ticket reference is never the description.** `Closes #125` as the whole body moves the
@@ -226,8 +226,9 @@ is worth keeping for the reviewer but not for `git log`:
 - worked examples, sample payloads, and diagrams too large for the body.
 
 When you open a PR, move such material out of the body into this comment rather than deleting
-it. Wrap the comment at 80 columns like the body. When the instructions in context define a
-session footer, the comment ends with it; the body never carries one.
+it. Wrap the comment at 80 columns like the body. The comment ends with the
+same disclosure as the body, or with the session footer when the instructions in context
+define one.
 
 ```bash
 gh pr comment <number> --repo <owner>/<repo> --body-file <file>

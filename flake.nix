@@ -20,7 +20,7 @@
     onepassword-secrets.inputs.nixpkgs.follows = "nixpkgs";
 
     # Factbird's shared Claude Code skills. Skill folders only, no flake.
-    agent-skills.url = "git+https://github.com/FactbirdHQ/agent-skills?ref=main";
+    agent-skills.url = "git+https://github.com/FactbirdHQ/agent-skills?ref=add-agent-guard";
     agent-skills.flake = false;
 
     # HumanLayer's skills, for `show-me`. Skill folders only, no flake.

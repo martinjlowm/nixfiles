@@ -20,7 +20,14 @@
     import nixpkgs {
       inherit system;
       config = nixpkgsConfig;
-      overlays = [inputs.onepassword-secrets.overlays.default overlays.default] ++ extraOverlays;
+      overlays =
+        [
+          inputs.onepassword-secrets.overlays.default
+          # Flake inputs the default overlay builds from.
+          (_: _: {agent-skills-src = inputs.agent-skills;})
+          overlays.default
+        ]
+        ++ extraOverlays;
     };
 
   # Create a Darwin (macOS) system configuration

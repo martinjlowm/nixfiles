@@ -124,6 +124,8 @@ in {
         ];
       };
       env = {
+        # agent-guard lets an agent arm auto-merge only on this login's PRs.
+        AGENT_GUARD_OWNER = "martinjlowm";
         DEVENV_TUI = "false";
         CLAUDE_CODE_ENABLE_TELEMETRY = "1";
         OTEL_METRICS_EXPORTER = "otlp";

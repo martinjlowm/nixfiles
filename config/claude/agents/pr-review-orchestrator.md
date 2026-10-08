@@ -293,7 +293,8 @@ The body is the verdict and the sections that report something, nothing more:
 Use `<details>` only inside those sections, one level deep, with a blank line after
 `</summary>` and before `</details>`, and never a heading inside `<summary>`.
 
-The pending ending's body ends there, because `martinjlowm` sends it under their own name.
+The pending ending's body ends with the disclosure the session's rules define, which
+`martinjlowm` keeps or rewrites before sending the review under their own name.
 A review the fleet submits, the draft-file ending, ends with the house-rules session footer,
 which the main thread adds when it submits.
 
