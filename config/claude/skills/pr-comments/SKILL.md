@@ -93,6 +93,23 @@ Every thread ends in one of five outcomes.
 | Needs the user | Leave open, decide nothing, list as pending. |
 | Asks for nothing | A thread opening with `Note:`, an observation or praise. Post nothing and change nothing. |
 
+### Verify a claim before you agree with it
+
+A finding that asserts a fact (how a dependency, an API or the code behaves) is a claim, not
+the truth, whoever wrote it, bots included. A reviewer can cite a bug fixed several versions
+before the one installed. Before an Agree that changes code, hand each such claim to the
+`review-claim-verifier` agent, one claim per spawn: the repository, PR number, head sha,
+checkout, the claim, its anchor, its `claim_type` and the evidence the thread offers, but
+not who wrote it. Its verdict decides the outcome:
+
+- `confirmed`: Agree, and cite the verifier's evidence in the reply.
+- `refuted`: Disagree, and the reply gives the correction and its source.
+- `unsupported`: Needs the user, with what the verifier could not establish. Change nothing
+  on the claim's word alone.
+
+A finding that asks for a preference rather than asserting a fact, such as a name, a style
+or a missing test, needs no verifier.
+
 Verify the way the project expects (build, tests, lint), then commit and push once for the
 whole pass, before any reply or summary. A line you link must point at pushed code. One commit
 per coherent group of feedback.
