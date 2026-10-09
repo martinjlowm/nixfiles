@@ -55,6 +55,7 @@ Each angle has one owner, so two reviewers never file the same issue at differen
 | `review-patterns-types-errors` | repo conventions, module coupling, type safety, error handling, naming |
 | `review-tests-perf-security` | test quality, performance, application security |
 | `review-code-comments` | every finding about a code comment |
+| `review-scope` | whether the PR solves one problem and its split plan; functions that keep their rules in prose rather than types |
 | `review-cdk-infra` | CDK constructs, IAM and least privilege, export ordering, star-policy whitelist |
 | `review-rust-mono-items` | duplicate monomorphization, when the PR touches Rust |
 | `review-visual` | screenshots against staging, when the PR touches UI; never findings |
@@ -101,8 +102,8 @@ Remember the token; on a resume it tells you the directory is yours.
 
 Subagents run in the background, and a completion notification reaches you only while your
 turn is open. So every dispatch carries `Result file: <results dir>/<name>.json`, where the
-name is `tests-perf-security`, `patterns-types-errors`, `code-comments`, `cdk-infra`,
-`visual`, `mono-items`, or `verify-<n>` for the nth verifier, and you wait on the files in
+name is `tests-perf-security`, `patterns-types-errors`, `code-comments`, `scope`,
+`cdk-infra`, `visual`, `mono-items`, or `verify-<n>` for the nth verifier, and you wait on the files in
 the same turn with this Bash call (tool timeout 600000):
 
 ```
@@ -131,7 +132,7 @@ budget is spent: 30 minutes from the spawn, or 135 minutes when the batch holds
 
 ## Phase 1: fan out
 
-Spawn the four review subagents in one message, with `review-visual` and
+Spawn the five review subagents in one message, with `review-visual` and
 `review-rust-mono-items` beside them when the sections below say the PR needs them.
 `review-cdk-infra` returns `{"comments": []}` for a PR with no CDK changes, which is not a
 degraded angle.
@@ -265,6 +266,9 @@ The visual status is `compared`, `skipped` or `blocked` as returned, `not_applic
 nothing was spawned, and `failed` when it died or did not parse. `failed` also goes in
 `degraded_angles` as `visual`; `skipped` does not. The mono-items status follows the same
 rule with `compared`, `skipped`, `not_applicable` and `failed`, recorded as `mono_items`.
+The scope review's comments enter the aggregate like any reviewer's, with a `blocker`
+demoted to `concern` on arrival, and its status is `scored`, `not_applicable` or `failed`,
+recorded as `scope`; `failed` also goes in `degraded_angles`.
 
 **Empty.** When the set is empty, return `mode: "empty"` and verdict `APPROVE`, and create
 nothing. The exception is a visual review that `compared` and found at least one substantial
@@ -288,6 +292,7 @@ The body is the verdict and the sections that report something, nothing more:
   verbatim. A `skipped`, `blocked` or `failed` visual review, or one with no differences,
   adds nothing to the body; the main thread names its status in its own summary.
 - A mono-items `report_path` that is not empty follows the same way, verbatim.
+- A scope `report_path` that is not empty follows the same way, verbatim.
 - General notes folded in by step 6 of phase 3 go last, one line each.
 
 Use `<details>` only inside those sections, one level deep, with a blank line after
@@ -367,7 +372,9 @@ Return this object and nothing else:
   "visual": "compared | skipped | blocked | failed | not_applicable",
   "visual_report_path": "",
   "mono_items": "compared | skipped | failed | not_applicable",
-  "mono_items_report_path": ""
+  "mono_items_report_path": "",
+  "scope": "scored | failed | not_applicable",
+  "scope_report_path": ""
 }
 ```
 
@@ -375,8 +382,8 @@ Return this object and nothing else:
   `draft_file`.
 - `skipped` means phase 0 stopped the run. `degraded_angles` holds `already_reviewed` or
   `concurrent_run`, and nothing else in the object is meaningful.
-- `visual_report_path` and `mono_items_report_path` are null when that review wrote no
-  report. In `draft_file` mode the main thread builds the body and takes the reports from
+- `visual_report_path`, `mono_items_report_path` and `scope_report_path` are null when that
+  review wrote no report. In `draft_file` mode the main thread builds the body and takes the reports from
   these paths.
 - A high `unverified_count` means the environment could not reach its sources, and the
   review deserves closer reading.

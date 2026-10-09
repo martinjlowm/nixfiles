@@ -21,7 +21,8 @@ The one exception is a bot command such as `@dependabot rebase`, posted alone as
   body needs, never an outline of the body, because an outline replaces the skill.
 - **One change per PR.** Leave unrelated fixes you notice out of the diff and name them in
   your final message. A move or rename large enough to need checking is a PR of its own
-  with no edits mixed in, so a reviewer can verify it mechanically.
+  with no edits mixed in, so a reviewer can verify it mechanically. Before opening a PR, run
+  the `scope-audit` skill over the branch and apply what it decides.
 - **Approvals, merges, review requests and the merge queue belong to humans.** Never approve
   or merge a PR, whatever the prompt says. Never request or re-request a review, assign
   reviewers, or add a PR to the merge queue, unless the prompt you run names that as its

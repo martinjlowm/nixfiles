@@ -1,0 +1,199 @@
+[
+  {
+    "kind": "description",
+    "name": "nest#20481 compose web-api env vars centrally",
+    "description": "# chore(rust-backend): compose web-api environment variables centrally\n\nEvery environment variable that changes web-api's behaviour was read\nwhere it was used: `PERIPHERAL_CACHE_CAPACITY_BYTES` in\n`graphql_schema`, `FACTBIRD_LIVE_DATA_CACHE` /\n`FACTBIRD_CACHE_REQUEST_COALESCING` / `FACTBIRD_CACHE_TTL_SECONDS`\ninside the moka cache constructor, `IAM_ENTRY_ARN` inside a per-request\nresolver, and OAuth/MCP/IoT settings inside their own `from_env()`\nhelpers. No naming convention spans these, so there was no single place\nto see what web-api is configurable with, and several settings\ntravelled as `Option` only because the default lived at the read site.\n\nNow, compose `web_api::config::WebApiConfig` once in `main` and hand\nit down. `fb_datafusion_cache::TimeseriesCacheConfig` does the same for\nthe cache tunables the cache used to read from the process environment\nitself. Environment reads now happen only in\n`rust-backend/web-api/src/config.rs` and\n`libraries/rust/fb-datafusion-cache/src/caching/config.rs`, through\nshared helpers in a new `fb_rust::env` module (`env_or`,\n`parse_env_flag`, behind an `env` feature).\n\n```diff\n async_main\n+  config = WebApiConfig::from_env()\n-  server(url, aws_config)\n+  server(url, aws_config, config)\n-    cross_account::from_env(..)                # read IoT env itself\n+    cross_account::client_provider(.., &config.devices.cross_account_iot)\n     server_with_deps(ServerDeps { config, .. })\n-      graphql_schema(..)\n-        env PERIPHERAL_CACHE_CAPACITY_BYTES, CLOUD_SUBDOMAIN\n-        QueryDatafusionTables::new(.., capacity)\n-          TimeseriesTableCacheMoka::new          # read FACTBIRD_* itself\n+      graphql_schema(.., &config)\n+        QueryDatafusionTables::new(.., config.timeseries_cache)\n+        schema.data(config)                    # resolvers: ctx.data::<WebApiConfig>()\n```\n\nEach variable keeps its parse rule (`USE_LOCAL_GATEWAY` stays\npresence-based, `IGNORE_MISSING_MIGRATIONS` still compares to `\"true\"`,\nthe `FACTBIRD_*` flags still accept `1`/`true`) and its default, with\ntwo exceptions at the explicitly-empty/zero boundary. Neither is\nreachable in a deployed environment:\n\n- `PERIPHERAL_CACHE_CAPACITY_BYTES=0` used to parse to `Some(0)` and\n  take the cached branch (a moka cache with `max_capacity(0)`). Now\n  `enabled()` is `capacity_bytes > 0`, so an explicit `0` takes the\n  uncached branch, a different physical plan. This applies to the\n  napi bindings too.\n- `DB_HOST_READ_ONLY=\"\"` used to satisfy `if let Ok(..)` and take the\n  read-only branch with an empty endpoint. Now `is_empty()` routes it\n  back to the primary pool. The CDK always sets it to\n  `dbCluster.clusterReadEndpoint.hostname`, never empty.\n\nBoth `from_env` constructors `warn!` on values that fail to parse and\nfall back to the default, so `FACTBIRD_*` typos are no longer silent.\nThe warning lives in `fb_rust::env::env_or`, so `fb-datafusion-cache`\ngets `tracing` through `fb-rust` rather than depending on it directly.\n\nOut of scope: a naming convention for feature flags, and a system that\nchanges settings without a service restart.\n\n- Every field resolves to a concrete value, with defaults in `Default`\n  impls next to the field. Where absence is the setting, an\n  `enabled()` predicate over empty/zero replaces the `Option`:\n  `TimeseriesCacheConfig::enabled()` (capacity `0`),\n  `CertificateArchiveConfig::enabled()`,\n  `CrossAccountIotConfig::enabled()`.\n- `IAM_ENTRY_ARN`, which deployed environments always set but local\n  runs may not, is stored as the raw `Result` of the environment read.\n  Consumers `expect` it with their prior messages the moment they\n  reach the IAM dependency, so a local process still boots and fails\n  only there, as it did with `std::env::var(..).expect(..)`.\n- The `config` module doc tables every variable, the field it lands\n  in, and its default, plus the variables shared libraries\n  (`fb_postgres_utils`, `fb_influxdb_utils`, `fb_permission_checker`,\n  `fb_aws_config`, ...) parse on web-api's behalf. Those stay where\n  they are, since `ingester`, `background-processor` and the napi\n  bindings share them.\n- `TimeseriesTableCacheMoka::new` and the\n  `dynamodb_peripheral_data_*_with_cache` builders take\n  `TimeseriesCacheConfig` instead of a bare capacity, so tests and\n  benchmarks build an explicit config instead of reading `FACTBIRD_*`\n  from the process environment. Their effective settings are\n  unchanged, since `Default` matches what the unset environment\n  produced. `dynamodb_peripheral_data_seconds_30_with_live_cache` is\n  dropped; the plain `_with_cache` builder covers it now that the\n  config carries the live-tail TTL.\n- `fb-datafusion-dynamodb-tables` re-exports `TimeseriesCacheConfig`,\n  so web-api and the napi bindings need no direct dependency on\n  `fb-datafusion-cache`.\n\nCloses https://github.com/FactbirdHQ/nest/issues/22189\n\n",
+    "expect": "one-problem"
+  },
+  {
+    "kind": "description",
+    "name": "nest#22230 fixed app-token step ids",
+    "description": "# chore(infrastructure/ci-cd): stop renumbering app token step ids\n\nEach job's token step took its id from a module-level counter (`gt0`,\n`gt1`, ...), so adding or removing one job renumbered the ids in every\nworkflow.\n\nNow, give the token step the fixed id `github-token`, and move it into\nthe composite action `.github/actions/generate-github-token` so the\ntoken steps are no longer duplicated in every job.\n\nA local action is read from the workspace, so the checkout now runs\nfirst, with `github.token` and `persist-credentials: false`. A persisted\ncredential would take precedence over the app token, which git\noperations such as the push in `update-github-runner` rely on.\n\n`ci-ui-dashboard` no longer mints a second token before `Deploy to\nNext`. Nothing read it, and the job's first token is seconds old when\nthe deploy runs, since master skips `Build`.\n\nMind that `action.yml` is committed by hand until\nhttps://github.com/FactbirdHQ/nest/pull/18579 generates it.\n\nCloses https://github.com/FactbirdHQ/nest/issues/22229\n\n",
+    "expect": "one-problem"
+  },
+  {
+    "kind": "description",
+    "name": "nixfiles#60 comment-audit",
+    "description": "# feat(claude): audit added code comments with Jev\n\nAgent sessions write comments that restate the code, narrate the change\nthat wrote them, or repeat a fact stated elsewhere. The code-comments rule\nforbids most of it, but nothing measured a diff against the rule.\n\nNow, add a `comment-audit` skill whose scorer asks Jev six narrow questions\nabout every comment block a diff adds, and turns the answers into one\naction per comment: remove, into-code, move-to-commit, dedupe, trim or\nkeep. The session reading the code makes the edit or files the finding.\n\n- `rules/writing.md` puts names before comments, with units last and steps\n  extracted into functions, and runs the skill before a commit that adds\n  comments.\n- `review-code-comments` scores the PR first and treats the flags as where\n  to start. Its necessity test also covers shorthand names that want\n  spelling out, history, and a fact repeated across sites.\n\nEach question names one failure mode, because a single quality Score mixes\ndimensions and rates a long \"why\" comment as highly as a useful one. A text\nmatch on issue numbers, finding ids and past-tense words backs up the\nhistory question, which scored a bare `#21471` near 0.6.\n\nMind that the scorer sends one Jev request per added comment block and\nneeds `TYPESAFE_API_KEY`. Without the key the skill applies its table by\nhand and says the scorer did not run.\n\nCloses https://github.com/martinjlowm/nixfiles/issues/59\n\n",
+    "expect": "one-problem"
+  },
+  {
+    "kind": "description",
+    "name": "agents-mj#109 bump claude-config",
+    "description": "# chore(claude-agents): verify review claims before acting on them\n\nFleet sessions that address review threads implemented a reviewer's\nstatement of fact without checking it. On\nhttps://github.com/FactbirdHQ/nest/pull/22340 one session rewrote a fetch\nfor an Apollo Client race fixed versions before the one ui-app pins, and a\nlater session reverted it.\n\nNow, take nixfiles b51a17d, whose `pr-comments` skill hands such a claim\nto `review-claim-verifier` before agreeing. The image already ships the\nverifier. The bump also brings `pr-description`'s rule that issue bodies\nstay unwrapped; the other commits in the range touch only the laptop.\n\nMind that the change reaches sessions only once the agent image is\nrebuilt and pushed, because skills are baked into it.\n\nRefs https://github.com/martinjlowm/nixfiles/issues/54\n\n",
+    "expect": "one-problem"
+  },
+  {
+    "kind": "description",
+    "name": "synthetic: fix plus unrelated refactor plus a dependency bump",
+    "description": "# fix(web-api): reject empty device ids\n\nEmpty device ids crashed the sync job.\n\nNow, reject them at the resolver. While here, rename `DeviceRepo` to `DeviceStore` across the crate, move the retry helper into `fb-rust`, and bump `aws-sdk-iot` to 1.60 for the new paginator.",
+    "expect": "split"
+  },
+  {
+    "kind": "function",
+    "name": "fb-range NonEmptyRange::split",
+    "path": "src/lib.rs",
+    "code": "    pub fn split(&self, mid: DateTime<Utc>) -> Split<Self> {\n        let before = Self::new(self.start, self.end.min(mid));\n        let after = Self::new(self.start.max(mid), self.end);\n        match (before, after) {\n            // PANICS:\n            // This will never panic because all constructors enforce start < end\n            (None, None) => unreachable!(),\n            (Some(before), None) => Split::Before(before),\n            (None, Some(after)) => Split::After(after),\n            (Some(before), Some(after)) => Split::Both(before, after),\n        }\n    }",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "fb-range WellFormedRange::new",
+    "path": "src/lib.rs",
+    "code": "    pub fn new(start: DateTime<Utc>, end: DateTime<Utc>) -> Option<Self> {\n        (start <= end).then_some(Self { start, end })\n    }",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "fb-app-error AppError::client",
+    "path": "src/lib.rs",
+    "code": "    pub fn client<E>(e: E) -> Self\n    where\n        E: Into<InnerError>,\n    {\n        Self {\n            inner: Some((Kind::Client, e.into())),\n        }\n    }",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "fb-app-error Drop for AppError",
+    "path": "src/lib.rs",
+    "code": "    fn drop(&mut self) {\n        if let Some((kind, e)) = self.inner.take() {\n            // TODO: Consider building this into the soft-assert contract\n            if std::thread::panicking() {\n                error!(?kind, ?e, \"AppError dropped without being consumed\");\n            } else {\n                soft_assert_error!(?kind, ?e, \"AppError dropped without being consumed\");\n            }\n        }\n    }",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "fb-app-error From<AppError> for async_graphql::Error",
+    "path": "src/lib.rs",
+    "code": "    fn from(mut value: AppError) -> Self {\n        let (kind, error) = value\n            .inner\n            .take()\n            .expect(\"AppError inner is always Some until converted\");\n        match kind {\n            Kind::Client => {\n                debug!(?error, \"Client error\");\n                Self::new(error.to_string())\n            }\n            Kind::Server => {\n                soft_assert_error!(?error, \"Server error\");\n                // Don't leak potentially sensitive information\n                Self::new(\"Internal server error\")\n            }\n            Kind::Undecided => {\n                warn!(?error, \"Client or server error (undecided)\");\n                Self::new(error.to_string())\n            }\n        }\n    }",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "fb-soft-assert __should_panic",
+    "path": "src/lib.rs",
+    "code": "pub fn __should_panic() -> bool {\n    static SHOULD_PANIC: OnceLock<bool> = OnceLock::new();\n    *SHOULD_PANIC.get_or_init(|| match std::env::var_os(\"SOFT_ASSERT_PANIC\") {\n        None => cfg!(debug_assertions),\n        Some(s) if s == \"auto\" => cfg!(debug_assertions),\n        Some(s) if s == \"always\" => true,\n        Some(s) if s == \"never\" => false,\n        Some(s) => {\n            panic!(\"Expected SOFT_ASSERT_PANIC to be 'auto', 'always' or 'never', but got {s:?}\")\n        }\n    })\n}",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "kinesis calculate_backoff_delay",
+    "path": "src/kinesis_reader.rs",
+    "code": "fn calculate_backoff_delay(attempt: u32) -> Duration {\n    let base_delay = BASE_RETRY_DELAY_MS * (1 << attempt.min(5));\n    let delay = base_delay.min(MAX_RETRY_DELAY_MS);\n    let jitter = (delay / 4) * (attempt as u64 % 4) / 4;\n    Duration::from_millis(delay + jitter)\n}",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "kinesis calculate_adaptive_poll_interval",
+    "path": "src/kinesis_reader.rs",
+    "code": "fn calculate_adaptive_poll_interval(record_count: usize, current_interval_ms: u64) -> u64 {\n    if record_count >= LOW_RECORD_THRESHOLD {\n        // Plenty of data, poll at minimum interval\n        MIN_POLL_INTERVAL_MS\n    } else if record_count == 0 {\n        // No data, back off more aggressively\n        ((current_interval_ms as f64) * IDLE_BACKOFF_MULTIPLIER).min(MAX_POLL_INTERVAL_MS as f64)\n            as u64\n    } else {\n        // Some data but not much, slight backoff\n        ((current_interval_ms as f64) * 1.2).min(MAX_POLL_INTERVAL_MS as f64) as u64\n    }\n}",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "kinesis parse_raw_records",
+    "path": "src/kinesis_reader.rs",
+    "code": "fn parse_raw_records<T: Aggregatable>(\n    raw_records: Vec<RawKinesisRecord>,\n    shard_id: &str,\n) -> Vec<KinesisRecord<T>> {\n    raw_records\n        .into_iter()\n        .filter_map(|raw| {\n            let sample: T = match serde_json::from_slice(&raw.data) {\n                Ok(s) => s,\n                Err(e) => {\n                    let data_preview = String::from_utf8_lossy(&raw.data);\n                    let preview_truncated: String = data_preview.chars().take(200).collect();\n                    warn!(\n                        error = %e,\n                        data_preview = %preview_truncated,\n                        \"Failed to deserialize Kinesis record, skipping\"\n                    );\n                    return None;\n                }\n            };\n            let arrival_time = raw\n                .approximate_arrival_timestamp\n                .and_then(|t| DateTime::from_timestamp(t.secs(), t.subsec_nanos()))\n                .unwrap_or_else(Utc::now);\n\n            Some(KinesisRecord {\n                sample,\n                approximate_arrival_time: arrival_time,\n                sequence_number: raw.sequence_number,\n                shard_id: shard_id.to_string(),\n            })\n        })\n        .collect()\n}",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "kinesis get_shard_iterator_with_retry",
+    "path": "src/kinesis_reader.rs",
+    "code": "    async fn get_shard_iterator_with_retry(\n        &self,\n        shard_id: &str,\n        position: ShardIteratorPosition,\n    ) -> anyhow::Result<String> {\n        let mut attempt = 0;\n\n        loop {\n            attempt += 1;\n\n            match self\n                .reader\n                .get_shard_iterator(&self.config.stream_name, shard_id, position.clone())\n                .await\n            {\n                Ok(iterator) => return Ok(iterator),\n                Err(e) => {\n                    if attempt >= MAX_SHARD_ITERATOR_RETRIES {\n                        return Err(e);\n                    }\n                    let delay = calculate_backoff_delay(attempt);\n                    warn!(shard_id = %shard_id, attempt, \"Retrying get_shard_iterator\");\n                    sleep(delay).await;\n                }\n            }\n        }\n    }",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "thing_cache resolve_target_account",
+    "path": "src/thing_cache.rs",
+    "code": "async fn resolve_target_account(\n    describer: &dyn IotDescriber,\n    thing_name: &str,\n) -> anyhow::Result<Option<String>> {\n    let attrs = describer.describe_thing(thing_name).await?;\n    Ok(attrs.and_then(|a| a.get(\"targetAccount\").cloned()))\n}",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "thing_cache AwsIotDescriber::describe_thing",
+    "path": "src/thing_cache.rs",
+    "code": "    async fn describe_thing(\n        &self,\n        thing_name: &str,\n    ) -> anyhow::Result<Option<HashMap<String, String>>> {\n        match self\n            .client\n            .describe_thing()\n            .thing_name(thing_name)\n            .send()\n            .await\n        {\n            Ok(response) => Ok(response.attributes),\n            Err(err)\n                if err.as_service_error().is_some_and(|e| {\n                    matches!(\n                        e,\n                        DescribeThingError::ResourceNotFoundException(_)\n                            | DescribeThingError::InvalidRequestException(_)\n                    )\n                }) =>\n            {\n                warn!(thing_name, \"Thing not found or invalid, skipping\");\n                Ok(None)\n            }\n            Err(err) => Err(err.into()),\n        }\n    }",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "ui-base storage getItem",
+    "path": "src/hooks/storage.tsx",
+    "code": "  const getItem = <T,>(key: string, parser: (value: string) => T = JSON.parse) => {\n    if (typeof window === 'undefined') {\n      return;\n    }\n\n    const item = window[storage].getItem(key);\n\n    if (!item) {\n      return;\n    }\n\n    return parser(item);\n  };",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "ui-base storage reducer",
+    "path": "src/hooks/storage.tsx",
+    "code": "  const reducer = <T extends {}>(state: Record<string, T>, action: { key: string; value: T }) => {\n    if (typeof window !== 'undefined') {\n      if (action.value === null || action.value === undefined) {\n        window[storage].removeItem(action.key);\n      } else {\n        window[storage].setItem(action.key, JSON.stringify(action.value));\n      }\n    }\n\n    return {\n      ...state,\n      [action.key]: action.value,\n    };\n  };",
+    "expect": ["keep"]
+  },
+  {
+    "kind": "function",
+    "name": "20718 charge_insert: a reservation the caller must settle",
+    "path": "src/caching/timeseries_cache_moka.rs",
+    "code": "    fn charge_insert(&self, bytes: u64) -> bool {\n        let Some(high_water) = self.insert_high_water_bytes else {\n            return true;\n        };\n        // Reserve first, then check. Concurrent charges serialize through the\n        // reservation counter, so each check sees every earlier in-flight\n        // charge; a refused charge rolls its reservation back.\n        let outstanding = self\n            .reserved_insert_bytes\n            .fetch_add(bytes, Ordering::SeqCst);\n        if self\n            .approx_bytes_cached()\n            .saturating_add(outstanding)\n            .saturating_add(bytes)\n            > high_water\n        {\n            self.reserved_insert_bytes\n                .fetch_sub(bytes, Ordering::SeqCst);\n            return false;\n        }\n        true\n    }",
+    "others": [],
+    "expect": ["type-the-invariant"]
+  },
+  {
+    "kind": "function",
+    "name": "20718 settle_insert_charge: the other half of the pair",
+    "path": "src/caching/timeseries_cache_moka.rs",
+    "code": "    fn settle_insert_charge(&self, bytes: u64) {\n        // With the guard disabled `charge_insert` reserved nothing.\n        if self.insert_high_water_bytes.is_some() {\n            self.reserved_insert_bytes\n                .fetch_sub(bytes, Ordering::SeqCst);\n        }\n    }",
+    "others": [],
+    "expect": ["type-the-invariant"]
+  },
+  {
+    "kind": "function",
+    "name": "20718 BufferedInsert::run: charge then settle by hand, armed flag",
+    "path": "src/caching/cache_insert.rs",
+    "code": "    async fn run(\n        mut self,\n    ) -> DatafusionResult<(\n        Vec<RecordBatch>,\n        futures::stream::Fuse<SendableRecordBatchStream>,\n    )> {\n        // Only the first poll arms the exit, not construction.\n        self.exit.armed = true;\n\n        let mut held = Vec::new();\n        while let Some(batch) = self.input.next().await {\n            let batch = batch?;\n            // A bypassed batch still passes through untouched. Admission decides\n            // retention only, never what the query returns.\n            let incoming_bytes = batch.get_array_memory_size() as u64;\n            if batch.num_rows() != 0 && self.admission.admit(incoming_bytes) {\n                let inserted = self.cache.insert_batch_deduplicated(\n                    Arc::clone(&self.schema),\n                    self.pk.clone(),\n                    &batch,\n                );\n                // Settled before the error propagates, so a failed insert\n                // releases its charge too.\n                self.cache.settle_insert_charge(incoming_bytes);\n                inserted?;\n            }\n            held.push(batch);\n            // `admit` may have just tripped the bypass, and so may another partition\n            // sharing this admission state. A bypassed span records neither items\n            // nor void, so this partition owes it nothing further.\n            if self.admission.bypassed() {\n                self.exit.finish(false);\n                return Ok((held, self.input));\n            }\n        }\n\n        self.exit.finish(true);\n        Ok((held, self.input))\n    }",
+    "others": [],
+    "expect": ["type-the-invariant"]
+  },
+  {
+    "kind": "function",
+    "name": "20718 Drop for InsertExit: reads the armed flag finish clears by hand",
+    "path": "src/caching/cache_insert.rs",
+    "code": "    fn drop(&mut self) {\n        // A buffered insert interrupted by an error or a cancellation leaves the\n        // fetch incomplete, so the partition counts as finished-failed and the\n        // span's void is never recorded.\n        if self.armed {\n            self.tracker.partition_finished(false);\n        }\n        // Dropped here rather than left to the field, so the release follows the\n        // marking above in one readable sequence.\n        drop(self.release.take());\n    }",
+    "others": [],
+    "expect": ["type-the-invariant"]
+  },
+  {
+    "kind": "function",
+    "name": "20718 insert_batch_deduplicated: weight delta written out again",
+    "path": "src/caching/timeseries_cache_moka.rs",
+    "code": "    fn insert_batch_deduplicated(\n        &self,\n        schema: SchemaRef,\n        pk: String,\n        batch: &RecordBatch,\n    ) -> DatafusionResult<()> {\n        // The weight moka will fold in for this entry, minus the weight it\n        // already carries. This is the same delta its weigher computes on replace.\n        let mut newly_added_bytes: i64 = 0;\n        self.inner\n            .entry_by_ref(&pk)\n            .and_try_compute_with(|entry| match entry {\n                Some(entry) => {\n                    let existing = entry.into_value();\n                    let existing_bytes = entry_weight(pk.len(), existing.size_bytes());\n                    let items_cache = existing.append_batch_deduplicated(batch)?;\n                    newly_added_bytes = entry_weight(pk.len(), items_cache.size_bytes()) as i64\n                        - existing_bytes as i64;\n\n                    DatafusionResult::<Op<ItemsCache>>::Ok(Op::Put(items_cache))\n                }\n                None => {\n                    let items_cache =\n                        ItemsCache::new(Arc::clone(&schema), self.temporal_column.name.clone())\n                            .append_batch_deduplicated(batch)?;\n                    newly_added_bytes = entry_weight(pk.len(), items_cache.size_bytes()) as i64;\n\n                    DatafusionResult::<Op<ItemsCache>>::Ok(Op::Put(items_cache))\n                }\n            })?;\n\n        self.add_weight_delta(newly_added_bytes);\n        self.metrics.record_size_bytes(self.approx_bytes_cached());\n\n        Ok(())\n    }",
+    "others": [
+      "    fn record_void_range(\n        &self,\n        schema: SchemaRef,\n        pk: &str,\n        start_millis: i64,\n        end_exclusive_millis: i64,\n    ) {\n        let item_span_millis = self.item_span.num_milliseconds();\n        // The recorded void grows the entry's weight (`ItemsCache::size_bytes`\n        // counts the void `Ranges`); add that delta exactly as an insert does.\n        let mut delta: i64 = 0;\n        self.inner.entry_by_ref(pk).and_compute_with(|entry| {\n            let existing = entry.map(|entry| entry.into_value());\n            let existing_bytes = existing\n                .as_ref()\n                .map_or(0, |items| entry_weight(pk.len(), items.size_bytes()));\n            let updated = existing\n                .unwrap_or_else(|| ItemsCache::new(schema, self.temporal_column.name.clone()))\n                .record_void_range(start_millis, end_exclusive_millis, item_span_millis);\n            delta = entry_weight(pk.len(), updated.size_bytes()) as i64 - existing_bytes as i64;\n            Op::Put(updated)\n        });\n\n        self.add_weight_delta(delta);\n        self.metrics.record_size_bytes(self.approx_bytes_cached());\n    }",
+      "    fn refresh_live_window_if_stale(\n        &self,\n        pk: &str,\n        live_cutoff: DateTime<Utc>,\n        now: DateTime<Utc>,\n    ) -> DatafusionResult<()> {\n        let Some(ttl) = self.live_data_ttl else {\n            return Ok(());\n        };\n\n        {\n            let mut refreshed_at = self\n                .live_refreshed_at\n                .lock()\n                .unwrap_or_else(std::sync::PoisonError::into_inner);\n            let is_fresh = refreshed_at\n                .get(pk)\n                .is_some_and(|refreshed| now - *refreshed < ttl);\n            if is_fresh {\n                return Ok(());\n            }\n            refreshed_at.insert(pk.to_string(), now);\n        }\n\n        // Drop the live window (sort keys at/after the cutoff) so the query's\n        // normal fetch path repopulates it with fresh data. Rows that have aged\n        // below the cutoff are immutable and stay cached — the live tail becomes\n        // durable in place.\n        //\n        // The drop shrinks the entry via `Op::Put`, a `Replaced` the eviction\n        // listener skips, so the shrink lands in the total like every other weight\n        // change.\n        let mut delta: i64 = 0;\n        self.inner\n            .entry_by_ref(pk)\n            .and_try_compute_with(|entry| match entry {\n                Some(entry) => {\n                    let existing = entry.into_value();\n                    let existing_bytes = entry_weight(pk.len(), existing.size_bytes());\n                    let retained = existing.retain_older_than(live_cutoff)?;\n                    delta = entry_weight(pk.len(), retained.size_bytes()) as i64\n                        - existing_bytes as i64;\n                    DatafusionResult::<Op<ItemsCache>>::Ok(Op::Put(retained))\n                }\n                None => DatafusionResult::<Op<ItemsCache>>::Ok(Op::Nop),\n            })?;\n        self.add_weight_delta(delta);\n        Ok(())\n    }"
+    ],
+    "expect": ["merge-duplicate"]
+  },
+  {
+    "kind": "function",
+    "name": "20718 record_void_range: weight delta written out again",
+    "path": "src/caching/timeseries_cache_moka.rs",
+    "code": "    fn record_void_range(\n        &self,\n        schema: SchemaRef,\n        pk: &str,\n        start_millis: i64,\n        end_exclusive_millis: i64,\n    ) {\n        let item_span_millis = self.item_span.num_milliseconds();\n        // The recorded void grows the entry's weight (`ItemsCache::size_bytes`\n        // counts the void `Ranges`); add that delta exactly as an insert does.\n        let mut delta: i64 = 0;\n        self.inner.entry_by_ref(pk).and_compute_with(|entry| {\n            let existing = entry.map(|entry| entry.into_value());\n            let existing_bytes = existing\n                .as_ref()\n                .map_or(0, |items| entry_weight(pk.len(), items.size_bytes()));\n            let updated = existing\n                .unwrap_or_else(|| ItemsCache::new(schema, self.temporal_column.name.clone()))\n                .record_void_range(start_millis, end_exclusive_millis, item_span_millis);\n            delta = entry_weight(pk.len(), updated.size_bytes()) as i64 - existing_bytes as i64;\n            Op::Put(updated)\n        });\n\n        self.add_weight_delta(delta);\n        self.metrics.record_size_bytes(self.approx_bytes_cached());\n    }",
+    "others": [
+      "    fn insert_batch_deduplicated(\n        &self,\n        schema: SchemaRef,\n        pk: String,\n        batch: &RecordBatch,\n    ) -> DatafusionResult<()> {\n        // The weight moka will fold in for this entry, minus the weight it\n        // already carries. This is the same delta its weigher computes on replace.\n        let mut newly_added_bytes: i64 = 0;\n        self.inner\n            .entry_by_ref(&pk)\n            .and_try_compute_with(|entry| match entry {\n                Some(entry) => {\n                    let existing = entry.into_value();\n                    let existing_bytes = entry_weight(pk.len(), existing.size_bytes());\n                    let items_cache = existing.append_batch_deduplicated(batch)?;\n                    newly_added_bytes = entry_weight(pk.len(), items_cache.size_bytes()) as i64\n                        - existing_bytes as i64;\n\n                    DatafusionResult::<Op<ItemsCache>>::Ok(Op::Put(items_cache))\n                }\n                None => {\n                    let items_cache =\n                        ItemsCache::new(Arc::clone(&schema), self.temporal_column.name.clone())\n                            .append_batch_deduplicated(batch)?;\n                    newly_added_bytes = entry_weight(pk.len(), items_cache.size_bytes()) as i64;\n\n                    DatafusionResult::<Op<ItemsCache>>::Ok(Op::Put(items_cache))\n                }\n            })?;\n\n        self.add_weight_delta(newly_added_bytes);\n        self.metrics.record_size_bytes(self.approx_bytes_cached());\n\n        Ok(())\n    }",
+      "    fn refresh_live_window_if_stale(\n        &self,\n        pk: &str,\n        live_cutoff: DateTime<Utc>,\n        now: DateTime<Utc>,\n    ) -> DatafusionResult<()> {\n        let Some(ttl) = self.live_data_ttl else {\n            return Ok(());\n        };\n\n        {\n            let mut refreshed_at = self\n                .live_refreshed_at\n                .lock()\n                .unwrap_or_else(std::sync::PoisonError::into_inner);\n            let is_fresh = refreshed_at\n                .get(pk)\n                .is_some_and(|refreshed| now - *refreshed < ttl);\n            if is_fresh {\n                return Ok(());\n            }\n            refreshed_at.insert(pk.to_string(), now);\n        }\n\n        // Drop the live window (sort keys at/after the cutoff) so the query's\n        // normal fetch path repopulates it with fresh data. Rows that have aged\n        // below the cutoff are immutable and stay cached — the live tail becomes\n        // durable in place.\n        //\n        // The drop shrinks the entry via `Op::Put`, a `Replaced` the eviction\n        // listener skips, so the shrink lands in the total like every other weight\n        // change.\n        let mut delta: i64 = 0;\n        self.inner\n            .entry_by_ref(pk)\n            .and_try_compute_with(|entry| match entry {\n                Some(entry) => {\n                    let existing = entry.into_value();\n                    let existing_bytes = entry_weight(pk.len(), existing.size_bytes());\n                    let retained = existing.retain_older_than(live_cutoff)?;\n                    delta = entry_weight(pk.len(), retained.size_bytes()) as i64\n                        - existing_bytes as i64;\n                    DatafusionResult::<Op<ItemsCache>>::Ok(Op::Put(retained))\n                }\n                None => DatafusionResult::<Op<ItemsCache>>::Ok(Op::Nop),\n            })?;\n        self.add_weight_delta(delta);\n        Ok(())\n    }"
+    ],
+    "expect": ["merge-duplicate"]
+  },
+  {
+    "kind": "function",
+    "name": "20718 execute_coalesced: 82 lines across coalescing, coverage and fallback",
+    "path": "src/caching/cache_insert.rs",
+    "code": "    fn execute_coalesced(\n        &self,\n        partition: usize,\n        context: Arc<TaskContext>,\n        rx: &tokio::sync::watch::Receiver<Release>,\n    ) -> DatafusionResult<SendableRecordBatchStream> {\n        let schema = Arc::clone(&self.input.schema());\n\n        if partition > 0 {\n            return Ok(Box::pin(RecordBatchStreamAdapter::new(\n                schema,\n                futures::stream::empty::<DatafusionResult<_>>(),\n            )));\n        }\n\n        let cache = Arc::clone(&self.cache);\n        let input = Arc::clone(&self.input);\n        let pk = self.pk.clone();\n        let sk_name = cache.temporal_column().name().to_string();\n        let sk_range = self.sk_range.clone();\n        let mut rx = rx.clone();\n\n        let stream = futures::stream::once(async move {\n            // `Err` means the primary vanished without signalling (its sender was\n            // dropped); treat that as unpopulated and fetch ourselves.\n            let populated = matches!(\n                rx.wait_for(|r| r.is_settled()).await.as_deref(),\n                Ok(Release::Populated)\n            );\n\n            if populated {\n                // The cache compares its native timestamp sort keys, not strings;\n                // BETWEEN is inclusive, so the half-open end steps back one grid\n                // millisecond.\n                let filter = col(&sk_name).between(\n                    sk_range.start.literal(),\n                    sk_range.end.last_before().literal(),\n                );\n                let execution_props = datafusion::execution::context::ExecutionProps::new();\n                match cache.filtered_batches(&pk, &[filter], &execution_props) {\n                    Ok(batches) => {\n                        // Trust the read only when the present items plus the\n                        // recorded void cover the whole span, never on row\n                        // presence alone. `Populated` is latched at the primary's\n                        // release for the primary's own span; the coalescing key\n                        // floors and ceils to `item_span`, so a waiter with a\n                        // wider exact `sk_range` shares the key yet needs rows the\n                        // primary never fetched, and the moka entry can be evicted\n                        // between release and read. A non-empty but incomplete\n                        // read would serve that uncovered tail as absent.\n                        match coalesced_read_coverage(\n                            &batches,\n                            cache.void_ranges(&pk),\n                            &sk_name,\n                            cache.item_span(),\n                        ) {\n                            Ok(covered) => {\n                                if span_is_fully_covered(covered, &sk_range) {\n                                    return futures::stream::iter(batches.into_iter().map(Ok))\n                                        .boxed();\n                                }\n                            }\n                            Err(e) => return futures::stream::once(async { Err(e) }).boxed(),\n                        }\n                    }\n                    Err(e) => return futures::stream::once(async { Err(e) }).boxed(),\n                }\n            }\n\n            // The fetch is not re-keyed. A bypassed or failed fetch never populates\n            // the cache, so re-acquiring the coalescing key would serialize the\n            // waiters behind an insert none of them could then read, adding latency\n            // without saving a backend query. This stream consumes all input\n            // partitions because only partition 0 emits for a coalesced instance.\n            cache.record_backend_fetch();\n            let partitions = input.properties().output_partitioning().partition_count();\n            match (0..partitions)\n                .map(|p| input.execute(p, Arc::clone(&context)))\n                .collect::<DatafusionResult<Vec<_>>>()\n            {\n                Ok(streams) => futures::stream::select_all(streams).boxed(),\n                Err(e) => futures::stream::once(async { Err(e) }).boxed(),\n            }\n        })\n        .flatten();\n\n        Ok(Box::pin(RecordBatchStreamAdapter::new(schema, stream)))\n    }",
+    "others": [],
+    "expect": ["extract"]
+  },
+  {
+    "kind": "function",
+    "name": "synthetic: verbose flag switches the output format",
+    "path": "src/report.ts",
+    "code": "export function renderReport(report: Report, verbose: boolean): string {\n  if (verbose) {\n    return report.rows.map((row) => `${row.path}: ${row.score.toFixed(2)} ${row.reasons.join(', ')}`).join('\\n');\n  }\n  return `${report.rows.length} rows, ${report.flagged} flagged`;\n}",
+    "expect": ["split-flag"]
+  }
+]
