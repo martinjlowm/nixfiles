@@ -39,7 +39,7 @@ Every file in `config/claude/agents/` is a subagent with YAML frontmatter.
 | --- | --- |
 | `incident-root-cause` | Investigates one incident signal for the incident RCA routine |
 | `pentest-surface-probe` | Probes one staging surface for the weekly pentest routine |
-| `pr-review-orchestrator` | Runs the PR-review pipeline over the agents below |
+| `pr-review-orchestrator` | Runs the PR-review pipeline over the agents below. `/pr-review` spawns it on the laptop |
 | `review-cdk-infra` | Reviews AWS CDK changes |
 | `review-claim-verifier` | Verifies one review claim against dependency source and docs |
 | `review-code-comments` | Reviews the code comments a PR adds or leaves |
@@ -70,8 +70,14 @@ variable.
 ## Skills
 
 `agent-browser`, `ffmpeg`, `frontend-design`, `gh-axi`, `image-upload`, `pr-comments`,
-`pr-description`, `prd`, `resolve`, `review-protocol`, `unslop`, `visual-comparison`,
-`zendesk-ticket`.
+`pr-description`, `pr-review`, `prd`, `resolve`, `review-protocol`, `unslop`,
+`visual-comparison`, `zendesk-ticket`.
+
+`pr-review` sets `disable-model-invocation`, so only the user can invoke it, as
+`/pr-review [<number> | <url>] [mono]`. It checks out the PR head in a worktree under
+`$TMPDIR/pr-review/`, spawns `pr-review-orchestrator` with `Delivery: by_author` and
+`Visual review: none`, and audits the pending review or lists the draft findings it returns.
+`mono` adds a `Mono-item review` block for `*.rs`, `Cargo.toml` and `Cargo.lock`.
 
 `review-protocol` sets `user-invocable: false`. It holds the protocol the `review-*` agents
 and claim verifiers read before their own instructions: constraints, evidence, comment
