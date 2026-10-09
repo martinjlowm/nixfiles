@@ -1,0 +1,140 @@
+[
+  {
+    "name": "doc restates fn name (fleet-provisioning iot.rs)",
+    "comment": "Get the IoT credential provider endpoint for the current account.",
+    "code": "pub async fn describe_credentials_endpoint(iot: &aws_sdk_iot::Client) -> Result<String> {\n    iot.describe_endpoint()\n        .endpoint_type(\"iot:CredentialProvider\")\n        .send()\n        .await?",
+    "expect": ["remove"]
+  },
+  {
+    "name": "field doc restates field name (provision.rs)",
+    "comment": "The raw `iot:Data-ATS` endpoint.",
+    "code": "pub struct TenantEndpoints {\n    pub data_ats: String,\n    pub data_domain: Option<String>,\n    pub credentials: String,\n}",
+    "expect": ["remove"]
+  },
+  {
+    "name": "field doc restates field name (webhooks query.rs)",
+    "comment": "The webhook that was created or rotated.",
+    "code": "pub struct WebhookWithSecret {\n    pub webhook: Webhook,\n    pub signing_secret: String,\n}",
+    "expect": ["remove"]
+  },
+  {
+    "name": "test step narrates the request below (webhooks test)",
+    "comment": "Rotation issues a different secret for the same webhook.",
+    "code": "let rotate_vars = rotate_webhook_signing_secret::Variables {\n    id: created.webhook.id,\n};\nlet rotated = graphql_request::<RotateWebhookSigningSecret>(test_context.clone(), rotate_vars)\n    .await\n    .unwrap();\nassert_eq!(rotated.webhook.id, created.webhook.id);\nassert_ne!(rotated.signing_secret, created.signing_secret);",
+    "expect": ["remove"]
+  },
+  {
+    "name": "history: same calls as before (provision.rs)",
+    "comment": "Independent lookups, so they run concurrently; the same calls as before\nagainst the tenant's 10 RPS control plane, not more.",
+    "code": "let (data_domain, data_ats, credentials) = tokio::try_join!(\n    iot::resolve_data_domain(&tenant_iot, FLEET_PROVISIONING_AUTHORIZER),\n    iot::describe_endpoint(&tenant_iot),\n    iot::describe_credentials_endpoint(&tenant_iot),\n)?;",
+    "expect": ["move-to-commit"]
+  },
+  {
+    "name": "history: as the legacy reactor did (legacy_endpoint.rs)",
+    "comment": "Publish the tenant endpoints to the device on the mgmt broker, QoS 1 as the\nlegacy reactor did. `mgmt_iot_data` is a data-plane client signing with the\nmgmt account's credentials.",
+    "code": "pub async fn publish(\n    mgmt_iot_data: &aws_sdk_iotdataplane::Client,\n    device_uuid: &str,\n    endpoints: &TenantEndpoints,\n) -> Result<()> {\n    mgmt_iot_data\n        .publish()\n        .topic(accepted_topic(device_uuid))\n        .qos(1)",
+    "expect": ["move-to-commit"]
+  },
+  {
+    "name": "module doc narrating a migration (legacy_endpoint.rs)",
+    "comment": "The claim-time endpoint response for devices provisioned through the\n**mgmt** broker (firmware below 5.0.0).\n\nSuch a device waits on `endpoint/v1/{uuid}/accepted` for the IoT endpoints\nof the tenant it was claimed to. The legacy `claim-reactor` published it from\nthe `Devices` stream; now that every claim is mirrored into `ManagedDevices`,\nthe fleet reactor publishes it for every claim of a device that still\nprovisions through the mgmt broker.\n\nGoes away with the last device below 5.0.0 (factbird-mini #860).",
+    "code": "use aws_sdk_iotdataplane::primitives::Blob;\nuse serde::Serialize;\n\npub fn accepted_topic(device_uuid: &str) -> String {\n    format!(\"endpoint/v1/{device_uuid}/accepted\")\n}",
+    "expect": ["move-to-commit"]
+  },
+  {
+    "name": "CI step citing an incident and a finding id (main.ts)",
+    "comment": "The #21471 traversal. It reaches the ALB on the gateway's host, which web-api's\nrule does not match, so the gateway answers 404. Without the `Authorization` header\nf-f6edf616 used, `parse_auth` answers 401 and masks a surviving bypass.",
+    "code": "curlIntegrationTest({\n  name: 'oauth-path-traversal-blocked',\n  url: `${apiUrl}/oauth/..%2Fsql/select`,\n  headers: { Authorization: 'Bearer ${{ secrets.QA_TOKEN }}' },\n  expectedStatus: 404,\n}),",
+    "expect": ["move-to-commit"]
+  },
+  {
+    "name": "defends a rejected alternative (fb-webhooks signing)",
+    "comment": "The value of the signature header.\n\n`Display` renders it as `t=<unix_seconds>,v1=<hex>`. Keeping the timestamp\nand digest as named fields rather than a bare string lets a caller read\neither part back, or render the value a second way, without parsing the\nheader string again, and it documents the header's shape at the type level.",
+    "code": "#[derive(Debug, Clone, PartialEq, Eq)]\npub struct WebhookSignature {\n    pub timestamp: i64,\n    pub digest_hex: String,\n}\n\nimpl fmt::Display for WebhookSignature {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        write!(f, \"t={},v1={}\", self.timestamp, self.digest_hex)\n    }\n}",
+    "expect": ["trim"]
+  },
+  {
+    "name": "same fact explained at a second site (ota.rs OtaUpdate.from_version)",
+    "comment": "Firmware version the device is running when it applies this step. On a\nDUO below 4.4.0 the OTA job parser can't hold a full signature, so\n`ota-create-job` sends a short placeholder instead of this base64 value.",
+    "code": "pub struct OtaUpdate {\n    pub uuid: String,\n    pub device_type: ManagedDeviceType,\n    pub version: String,\n    pub firmware_s3_key: String,\n    pub signature: String,\n    pub from_version: String,\n}",
+    "other_comments": [
+      "ota.rs:22: Firmware version the device is running when it applies this step: the device's current version for the first step, the previous step's target thereafter. DUO firmware below 4.4.0 parses the OTA job's signature into a `heapless::String<64>` that a full (~96-char base64) signature overflows, so `ota-create-job` substitutes a short placeholder for those steps (the field is required there but never verified). EDGE always gets the real signature."
+    ],
+    "expect": ["dedupe"]
+  },
+  {
+    "name": "CDK comment restating a module doc in another file (dynamo.ts)",
+    "comment": "The fleet managed-devices-reactor tells a device that still provisions\nthrough this account's broker (its live claim certificate was minted\nhere, i.e. firmware < 5.0.0) its tenant endpoints on claim, as the\nretired ms-device-provisioner claim-reactor did. Goes with the last\nsuch device (factbird-mini #860).",
+    "code": "fleetReactorRole.addToPolicy(\n  new iam.PolicyStatement({\n    actions: ['iot:Publish'],\n    resources: [formatArn({ service: 'iot', resource: 'topic', resourceName: 'endpoint/v1/*/accepted' })],\n  }),\n);",
+    "other_comments": [
+      "legacy_endpoint.rs:1: The claim-time endpoint response for devices provisioned through the mgmt broker (firmware below 5.0.0). The legacy claim-reactor published it from the Devices stream; now the fleet reactor publishes it for every claim of a device that still provisions through the mgmt broker. Goes away with the last device below 5.0.0 (factbird-mini #860)."
+    ],
+    "expect": ["dedupe", "move-to-commit"]
+  },
+  {
+    "name": "constant doc restates its name (nest AGENTS.md, pre-reset)",
+    "comment": "Maximum number of widgets allowed per row",
+    "code": "export const MAX_WIDGETS_PER_ROW = 3;",
+    "expect": ["remove"]
+  },
+  {
+    "name": "comment restates the condition (nest AGENTS.md, pre-reset)",
+    "comment": "When UseSqlPermissions is enabled, use PostgreSQL directly",
+    "code": "if (useSqlPermissions(context) && resourcePermissionsCanBeCheckedInPostgres(resource)) {\n  return checkPermissionInPostgres(context, resource);\n}",
+    "expect": ["remove"]
+  },
+  {
+    "name": "step label that wants to be a function (nest AGENTS.md kept it)",
+    "comment": "Find and remove the widget from its source position",
+    "code": "const sourceRowIdx = result.findIndex((row) => row.includes(widgetId));\nconst sourcePosIdx = result[sourceRowIdx].indexOf(widgetId);\nresult[sourceRowIdx].splice(sourcePosIdx, 1);",
+    "expect": ["into-code"]
+  },
+  {
+    "name": "shorthand name explained by a comment",
+    "comment": "x is the time since the last heartbeat, in milliseconds",
+    "code": "const x = Date.now() - lastHeartbeatAt;\nif (x > 30_000) {\n  markOffline(device);\n}",
+    "expect": ["into-code"]
+  },
+  {
+    "name": "narrates an increment",
+    "comment": "increment i",
+    "code": "i += 1",
+    "expect": ["remove"]
+  },
+  {
+    "name": "keep: external broker behaviour",
+    "comment": "Retry once: the broker drops the first publish after a reconnect.",
+    "code": "if let Err(error) = client.publish(topic, payload).await {\n    tracing::warn!(%error, \"publish failed, retrying\");\n    client.publish(topic, payload).await?;\n}",
+    "expect": ["keep"]
+  },
+  {
+    "name": "keep: why an expect cannot fire (fb-webhooks signing)",
+    "comment": "new_from_slice only errors on key lengths HMAC forbids, and HMAC accepts\nany key length, so this cannot fail.",
+    "code": "let mut mac =\n    HmacSha256::new_from_slice(secret.as_bytes()).expect(\"HMAC accepts a key of any length\");\nmac.update(timestamp.to_string().as_bytes());\nmac.update(b\".\");\nmac.update(body);",
+    "expect": ["keep"]
+  },
+  {
+    "name": "keep: an AWS limit forces the wildcard (rust-backend main.ts)",
+    "comment": "Wildcards because an ALB rule admits five condition values including the\nhost, and web-api's six endpoints do not fit spelled out.",
+    "code": "const WEB_API_OWN_PATHS = ['/oauth/*', '/.well-known/*', '/sql/*', '/register'];",
+    "expect": ["keep"]
+  },
+  {
+    "name": "keep: key choice that survives rotation (nixfiles writing rule)",
+    "comment": "The push endpoint rotates over a subscription's life, so it cannot key the\ntable. (userPool#userSub, deviceId) stays fixed, so a rotation overwrites the\ndevice's own row instead of orphaning it.",
+    "code": "await table.put({\n  pk: `${userPool}#${userSub}`,\n  sk: deviceId,\n  endpoint: subscription.endpoint,\n  keys: subscription.keys,\n});",
+    "expect": ["keep"]
+  },
+  {
+    "name": "keep: guard against a concurrent edit (nest AGENTS.md, pre-reset)",
+    "comment": "Guard against a widget that was already removed by a concurrent edit",
+    "code": "if (sourceRowIdx === -1) {\n  return result;\n}",
+    "expect": ["keep"]
+  },
+  {
+    "name": "keep: firmware parser limit behind a placeholder",
+    "comment": "DUO firmware below 4.4.0 reads the signature into a 64-byte string that a\nfull base64 signature overflows, so it gets a placeholder it never verifies.",
+    "code": "let signature = if device.is_duo() && device.firmware < Version::new(4, 4, 0) {\n    SIGNATURE_PLACEHOLDER.to_owned()\n} else {\n    step.signature.clone()\n};",
+    "expect": ["keep"]
+  }
+]
