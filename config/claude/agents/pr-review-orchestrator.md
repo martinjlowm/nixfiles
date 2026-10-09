@@ -104,7 +104,9 @@ Subagents run in the background, and a completion notification reaches you only 
 turn is open. So every dispatch carries `Result file: <results dir>/<name>.json`, where the
 name is `tests-perf-security`, `patterns-types-errors`, `code-comments`, `scope`,
 `cdk-infra`, `visual`, `mono-items`, or `verify-<n>` for the nth verifier, and you wait on the files in
-the same turn with this Bash call (tool timeout 600000):
+the same turn with this Bash call, in the foreground with tool timeout 600000. Never pass it
+`run_in_background`: a background waiter outlives the handoff and wakes you again when it
+exits.
 
 ```
 dir=<results dir>; names="<the names this batch spawned>"
@@ -126,6 +128,8 @@ budget is spent: 30 minutes from the spawn, or 135 minutes when the batch holds
 - A name still missing at the end of the budget is a subagent that died. Phase 3 records it.
 - Never end the turn to wait, and never send a message saying you will wait. That message
   becomes your final one.
+- Send the phase 5 handoff only when nothing you started still runs: every batch's files are
+  in or its budget is spent, and no Bash call of yours runs in the background.
 - If the main thread resumes you after a turn ended early, the files are where the
   subagents left them. Do not recreate the directory or spawn again. Wait for the batch you
   were on and carry on.
