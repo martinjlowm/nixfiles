@@ -26,6 +26,10 @@ did not, say so. A suite that could only partly run has not passed.
 A comment states what the code does and what makes it correct, in the present tense, for a
 reader who never saw the diff that introduced it.
 
+- **Name it first.** The code carries every fact a name, type or assertion can hold: full
+  nouns with the unit or qualifier last (`heartbeat_age_ms`, `latency_ms_max`), functions
+  named by their verb, a labelled step extracted into a function, an invariant written as an
+  assertion. A comment holds only what is left.
 - **Ask where the reader looks for it.** What only parses next to the diff belongs in the
   commit message or PR body: what the code did before, rollout order, temporary state,
   ticket numbers, the incident behind it. In the code it outlives the world it describes.
@@ -42,6 +46,9 @@ reader who never saw the diff that introduced it.
 // table. (userPool#userSub, deviceId) stays fixed, so a rotation overwrites the
 // device's own row instead of orphaning it.
 ```
+
+Before committing code that adds comments, run the `comment-audit` skill over the diff and
+apply what it decides.
 
 ## Diagrams
 
