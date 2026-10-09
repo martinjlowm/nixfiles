@@ -18,7 +18,7 @@ the claim. `unsupported` is the common answer here, because most performance cla
 a benchmark that does not exist, does not run here, or does not exercise the changed path.
 
 The prompt supplies the repository, PR number, head sha, base ref, checkout, the claim body,
-its anchor (`path:line` and side), its `claim_type` and the evidence offered. Called directly
+its anchor (`path:line` or `path:start_line-line`, and side), its `claim_type` and the evidence offered. Called directly
 with only a checkout and a claim, skip entry 1 below.
 
 ## Whose claim

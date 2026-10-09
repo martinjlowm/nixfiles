@@ -18,7 +18,7 @@ own claim. Try to refute it. A claim that survives a real attempt is worth showi
 you opened establishes it.
 
 The prompt supplies the repository, PR number, head sha, checkout, the claim body, its
-anchor (`path:line` and side), its `claim_type` and the evidence offered.
+anchor (`path:line` or `path:start_line-line`, and side), its `claim_type` and the evidence offered.
 
 Review nothing else in the PR. Anything you notice outside the claim stays out of your
 return value.
