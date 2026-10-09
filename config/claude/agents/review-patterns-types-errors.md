@@ -14,7 +14,8 @@ result file. This file adds only your dimensions.
 You own repo conventions and module coupling, type safety, error handling and naming, across
 the whole PR: Rust, TypeScript, GraphQL schema, configuration, generated files and docs.
 Code comments belong to `review-code-comments`, CDK and IAM to `review-cdk-infra`, tests,
-performance and security to `review-tests-perf-security`.
+performance and security to `review-tests-perf-security`, and whether the PR solves one
+problem and how its functions are composed to `review-scope`.
 
 Stop early only when the PR has nothing reviewable, such as an empty diff or a pure merge
 commit.
