@@ -55,6 +55,7 @@ Each angle has one owner, so two reviewers never file the same issue at differen
 | `review-patterns-types-errors` | repo conventions, module coupling, type safety, error handling, naming |
 | `review-tests-perf-security` | test quality, performance, application security |
 | `review-code-comments` | every finding about a code comment |
+| `review-scope` | whether the PR solves one problem and its split plan; functions that keep their rules in prose rather than types |
 | `review-cdk-infra` | CDK constructs, IAM and least privilege, export ordering, star-policy whitelist |
 | `review-rust-mono-items` | duplicate monomorphization, when the PR touches Rust |
 | `review-visual` | screenshots against staging, when the PR touches UI; never findings |
@@ -101,9 +102,11 @@ Remember the token; on a resume it tells you the directory is yours.
 
 Subagents run in the background, and a completion notification reaches you only while your
 turn is open. So every dispatch carries `Result file: <results dir>/<name>.json`, where the
-name is `tests-perf-security`, `patterns-types-errors`, `code-comments`, `cdk-infra`,
-`visual`, `mono-items`, or `verify-<n>` for the nth verifier, and you wait on the files in
-the same turn with this Bash call (tool timeout 600000):
+name is `tests-perf-security`, `patterns-types-errors`, `code-comments`, `scope`,
+`cdk-infra`, `visual`, `mono-items`, or `verify-<n>` for the nth verifier, and you wait on the files in
+the same turn with this Bash call, in the foreground with tool timeout 600000. Never pass it
+`run_in_background`: a background waiter outlives the handoff and wakes you again when it
+exits.
 
 ```
 dir=<results dir>; names="<the names this batch spawned>"
@@ -125,13 +128,15 @@ budget is spent: 30 minutes from the spawn, or 135 minutes when the batch holds
 - A name still missing at the end of the budget is a subagent that died. Phase 3 records it.
 - Never end the turn to wait, and never send a message saying you will wait. That message
   becomes your final one.
+- Send the phase 5 handoff only when nothing you started still runs: every batch's files are
+  in or its budget is spent, and no Bash call of yours runs in the background.
 - If the main thread resumes you after a turn ended early, the files are where the
   subagents left them. Do not recreate the directory or spawn again. Wait for the batch you
   were on and carry on.
 
 ## Phase 1: fan out
 
-Spawn the four review subagents in one message, with `review-visual` and
+Spawn the five review subagents in one message, with `review-visual` and
 `review-rust-mono-items` beside them when the sections below say the PR needs them.
 `review-cdk-infra` returns `{"comments": []}` for a PR with no CDK changes, which is not a
 degraded angle.
@@ -216,7 +221,7 @@ Digest: <dir>
 Result file: <results dir>/verify-<n>.json
 
 Claim: <body>
-Anchor: <path>:<line> (<side>)
+Anchor: <path>:<start_line>-<line> (<side>), or <path>:<line> when start_line is null
 Claim type: <claim_type>
 Evidence offered: <evidence>
 ```
@@ -238,24 +243,32 @@ Count confirmations, refutations and demotions for the handoff.
    `<digest>/comments.md`, from any author or bot and any earlier round. Drop a finding that
    one of them already raises on the same file and issue, whether or not it was resolved.
    This applies to both endings.
-3. **Collapse duplicates.** The same `path` and `line` describing the same issue becomes one
-   comment, keeping the clearest body and the highest severity. Two findings at one anchor
-   whose ```suggestion blocks disagree cannot both ship, since the author can apply only
-   one. Keep the higher severity and fold the other in as a second sentence with one merged
-   suggestion block.
+3. **Collapse duplicates.** Overlapping ranges in one `path` that describe the same issue
+   become one comment, keeping the clearest body and the highest severity. Two findings at
+   one anchor whose ```suggestion blocks disagree cannot both ship, since the author can
+   apply only one. Keep the higher severity and fold the other in as a second sentence with
+   one merged suggestion block.
 4. **Sort** `blocker`, then `concern`, then `nit`.
 5. **Hold the volume.** At most 10 inline comments. Drop nits first, then the weakest
    concerns. On a PR whose author is not the review owner, a set left with only nits is
    empty.
-6. **Validate anchors.** Each `path`, `line` and `side` falls inside a hunk of
-   `<digest>/diff.patch`, or GitHub rejects the whole comment array with a 422 that names
-   nothing. Re-anchor a finding to the nearest changed line in the same file, or fold it
-   into the body as a one-line note. Never drop it for its anchor.
+6. **Validate anchors.** Each `path`, `start_line` through `line`, and `side` falls inside
+   one hunk of `<digest>/diff.patch`, or GitHub rejects the whole comment array with a 422
+   that names nothing.
+   - A ```suggestion block replaces exactly its range. When the block repeats lines that
+     sit just outside the range, extend the range over them.
+   - A single-line anchor whose `Sources:` cites lines of the same file in the same hunk
+     becomes a range over those lines.
+   - Clip a range that leaves its hunk to the part inside it, and drop its suggestion block,
+     which no longer matches the lines it replaces.
+   - Re-anchor a finding with nothing inside a hunk to the nearest changed line in the same
+     file, or fold it into the body as a one-line note. Never drop it for its anchor.
 7. **Normalise each body.** Strip a leading emoji, banner, sign-off or `**blocker:**` style
    prefix, and flatten any inline `<details>`. Rebuild the `Sources:` block as the protocol
    specifies, last and after a blank line, with every repository citation linked at
    `https://github.com/<repo>/blob/<head sha>/<path>#L<first>-L<last>`. Turn a bare
-   `path:line` or a prose `Source:` line into that shape.
+   `path:line` or a prose `Source:` line into that shape. Drop a citation that falls inside
+   the comment's own range, and drop the block when nothing is left.
 
 Write the full set, with `claim_type`, `evidence` and verifier status, to
 `<checkout>/.pr-review/<number>-<sha>.json`, plus a `visual` and a `mono_items` object
@@ -265,6 +278,9 @@ The visual status is `compared`, `skipped` or `blocked` as returned, `not_applic
 nothing was spawned, and `failed` when it died or did not parse. `failed` also goes in
 `degraded_angles` as `visual`; `skipped` does not. The mono-items status follows the same
 rule with `compared`, `skipped`, `not_applicable` and `failed`, recorded as `mono_items`.
+The scope review's comments enter the aggregate like any reviewer's, with a `blocker`
+demoted to `concern` on arrival, and its status is `scored`, `not_applicable` or `failed`,
+recorded as `scope`; `failed` also goes in `degraded_angles`.
 
 **Empty.** When the set is empty, return `mode: "empty"` and verdict `APPROVE`, and create
 nothing. The exception is a visual review that `compared` and found at least one substantial
@@ -288,6 +304,7 @@ The body is the verdict and the sections that report something, nothing more:
   verbatim. A `skipped`, `blocked` or `failed` visual review, or one with no differences,
   adds nothing to the body; the main thread names its status in its own summary.
 - A mono-items `report_path` that is not empty follows the same way, verbatim.
+- A scope `report_path` that is not empty follows the same way, verbatim.
 - General notes folded in by step 6 of phase 3 go last, one line each.
 
 Use `<details>` only inside those sections, one level deep, with a blank line after
@@ -339,8 +356,11 @@ Take it only under `by_author`, when the author is not the review owner.
 
    ```
    gh-as-owner api repos/<repo>/pulls/<number>/reviews/<review_id>/comments --method POST \
-     --field path="<path>" --field line=<line> --field side=<side> --field body="<body>"
+     --field path="<path>" --field start_line=<start_line> --field start_side=<side> \
+     --field line=<line> --field side=<side> --field body="<body>"
    ```
+
+   Leave out `start_line` and `start_side` for a single-line anchor.
 
    Every inline comment opens a new thread. Never reply to an existing one.
 
@@ -368,7 +388,9 @@ Return this object and nothing else:
   "visual": "compared | skipped | blocked | failed | not_applicable",
   "visual_report_path": "",
   "mono_items": "compared | skipped | failed | not_applicable",
-  "mono_items_report_path": ""
+  "mono_items_report_path": "",
+  "scope": "scored | failed | not_applicable",
+  "scope_report_path": ""
 }
 ```
 
@@ -376,8 +398,8 @@ Return this object and nothing else:
   `draft_file`.
 - `skipped` means phase 0 stopped the run. `degraded_angles` holds `already_reviewed` or
   `concurrent_run`, and nothing else in the object is meaningful.
-- `visual_report_path` and `mono_items_report_path` are null when that review wrote no
-  report. In `draft_file` mode the main thread builds the body and takes the reports from
+- `visual_report_path`, `mono_items_report_path` and `scope_report_path` are null when that
+  review wrote no report. In `draft_file` mode the main thread builds the body and takes the reports from
   these paths.
 - A high `unverified_count` means the environment could not reach its sources, and the
   review deserves closer reading.

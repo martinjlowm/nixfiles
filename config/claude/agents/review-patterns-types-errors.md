@@ -14,7 +14,8 @@ result file. This file adds only your dimensions.
 You own repo conventions and module coupling, type safety, error handling and naming, across
 the whole PR: Rust, TypeScript, GraphQL schema, configuration, generated files and docs.
 Code comments belong to `review-code-comments`, CDK and IAM to `review-cdk-infra`, tests,
-performance and security to `review-tests-perf-security`.
+performance and security to `review-tests-perf-security`, and whether the PR solves one
+problem and how its functions are composed to `review-scope`.
 
 Stop early only when the PR has nothing reviewable, such as an empty diff or a pure merge
 commit.
@@ -73,6 +74,12 @@ a violation of your taste is not.
 
 - Names match behaviour: `table_queries`, not `table_scans`, when querying a partition;
   "editing mode", not "dirty flag".
+- Names stand alone at their use sites. Read each name the diff adds where it is used,
+  away from its declaration and any comment there. A name that leaves the reader asking
+  "of what" or "in what unit" needs its noun or qualifier, unit last: `MAX_COMMAND_NESTING`,
+  not `MAX_NESTING`; `timeout_ms`, not `timeout`; `retry_budget`, not `n`. Booleans read
+  as predicates (`is_`, `has_`), functions by their verb. Suggest the name, and list the use
+  sites the rename touches.
 - No generated or stale files committed, such as `.devenv/` or `index.d.ts`.
 - `include_str!` for large embedded text such as prompts and templates, kept in separate
   files.

@@ -25,6 +25,14 @@ its code.
 Out of scope: generated files, license headers, and directives tooling reads
 (`biome-ignore`, `eslint-disable`, `#[allow(...)]`, `@ts-expect-error`). Those are code.
 
+## Score first
+
+Run the `comment-audit` skill's scorer over the PR before reading comment by comment, with
+`--diff <Digest>/diff.patch --repo <Local checkout>`, and follow its step 2 for what each action
+means. Its flagged and uncertain comments are where you start, not the boundary of your scope:
+a comment it keeps can still fail the first test below, and a flag you cannot argue from the
+code gets dropped.
+
 ## The two tests
 
 A comment fails the first, fails the second, or stays.
@@ -53,8 +61,18 @@ code itself is the first place to ask "where else could the reader find this".
 - A comment that restates its code gets deleted, not condensed. A shorter restatement is
   still a restatement. Say remove.
 - Where the code is hard to follow, fix the code. A comment labelling a step is that step
-  asking to be a named function or value. Suggest the extraction or rename together with
-  the removal.
+  asking to be a named function or value, and a comment explaining a shorthand name is that
+  name asking to be spelled out. Suggest the extraction or rename together with the removal.
+- Before calling a name self-explanatory, read it at a use site far from the comment. If
+  the comment supplies the noun or qualifier the name leaves out, what is limited, counted
+  or measured, or its unit, the name takes it and the comment goes: `MAX_NESTING` under
+  "Commands inside commands" becomes `MAX_COMMAND_NESTING`. A comment that repeats another
+  one still owes the name this check. Name the other use sites the rename touches.
+- A comment the rule's "where the reader looks" test sends to the commit message gets
+  removed, and the finding names the commit message or PR body as its home.
+- A fact the diff states at two or more sites stays at the one where a reader makes the
+  decision it governs. File one finding at that site's duplicates, naming the site that keeps
+  it.
 
 Severity is `concern` when the PR adds the comment, `nit` when it predates the PR and the diff
 only passed nearby. A redundancy finding cites the lines the comment restates.
@@ -78,12 +96,14 @@ tail.
 Ship a ```suggestion block with the exact replacement lines, in the file's indentation and
 comment syntax, covering every line it replaces.
 
-- **Removal.** The code line without the comment. Never an empty block or a prose description.
+- **Removal.** Anchor from the comment's first line through the code line below it, and put
+  that code line alone in the block. Never an empty block or a prose description.
 - **Rewrite.** Only where the comment reached for something real and missed. Write the sentence
   you want, not a shorter copy of the one there.
 - **Restructure.** The rename or extraction plus the removal, in one block.
 - **Intent unrecoverable.** Ask the author what the comment was for. That question is the one
   finding allowed without a suggestion block. Drop any other finding that lacks one.
 
-`section` is `Comment accuracy` or `Comment necessity`. Anchor `line` on the comment itself.
-Most redundancy findings are `reasoning`.
+`section` is `Comment accuracy` or `Comment necessity`. Anchor the range on the comment itself,
+through the contradicting line when it sits in the same hunk. Most redundancy findings are
+`reasoning`.
