@@ -94,4 +94,5 @@ node --test scripts/comments.test.ts
 ```
 
 and compare agreement before and after. Add a case for every comment
-the audit got wrong in practice.
+the audit got wrong in practice. Reword a question in `comment-score.ts` with the
+`typesafe-ai` skill open; it covers writing Noul criteria and Score levels.
