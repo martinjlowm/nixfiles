@@ -331,6 +331,17 @@
         hash = "sha256-Lh2Y90TFv+njKqo/g5WXEHw0Rk1jQSH5POqKtrvy5kM=";
       };
 
+      # The agent-guard hook (FactbirdHQ/agent-skills) runs TypeScript, which
+      # needs Node 22.18 or later. Its hook command resolves `node` from PATH,
+      # where a project's dev shell can put an older one first, so this copy
+      # names Node 24 by store path.
+      agentGuardPlugin = final.runCommand "agent-guard" {} ''
+        cp -r ${final.agent-skills-src}/agent-guard $out
+        chmod -R u+w $out
+        substituteInPlace $out/hooks/hooks.json \
+          --replace-fail '"node ' '"${final.nodejs_24}/bin/node '
+      '';
+
       denyGhConfig = final.writeText "deny-gh-config.sb" ''
         (deny file-read* file-write* (home-subpath "/.config/gh"))
       '';
@@ -451,13 +462,14 @@
           esac
         done
 
-        # Enable codegraph and the TypeSafe agent skill for every session.
+        # Enable codegraph, the TypeSafe agent skill and the agent-guard hook
+        # for every session.
         # Trailing placement is load-bearing: --mcp-config and --plugin-dir
         # are variadic, so ahead of the user args they swallow positional
         # prompts as config paths. Subcommands (claude mcp list, claude
         # doctor, ...) reject the flags outright, so skip those.
         mcp_args=(--mcp-config ${codegraphMcpConfig})
-        plugin_args=(--plugin-dir ${typesafePlugin})
+        plugin_args=(--plugin-dir ${typesafePlugin} --plugin-dir ${agentGuardPlugin})
         case "''${claude_args[0]:-}" in
           agents|auth|auto-mode|config|doctor|install|mcp|migrate-installer|plugin|plugins|project|setup-token|ultrareview|update|upgrade)
             mcp_args=()
