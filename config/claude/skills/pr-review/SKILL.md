@@ -102,7 +102,7 @@ gh-as-owner api repos/<owner>/<name>/pulls/<number>/reviews/<review_id>/comments
 
 The review passes when its state is `PENDING`, its body opens on `## Verdict:` with the
 verdict from the handoff, it holds `comment_count` comments, and each comment matches a
-finding in the audit record by path and line. Correct a body that fails with a `PUT` on the
+finding in the audit record by path and range. Correct a body that fails with a `PUT` on the
 review, as the orchestrator's phase 4 does. Report a comment that matches no finding to the
 user rather than deleting it.
 
@@ -114,7 +114,7 @@ PR's "Files changed" tab, so leave it `PENDING`.
 
 On the user's own PR GitHub refuses a `REQUEST_CHANGES` review, and the user is fixing the
 code rather than reviewing it. List the findings from `draft_path`, blockers first, each as
-`path:line`, its severity and its body, so the user can act on them here. A
+`path:line` or `path:start_line-line`, its severity and its body, so the user can act on them here. A
 `scope_report_path` holds the split plan when the PR solves more than one problem; give it
 after the findings. Offer to fix them, and post nothing to the PR.
 

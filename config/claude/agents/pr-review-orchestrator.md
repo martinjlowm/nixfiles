@@ -217,7 +217,7 @@ Digest: <dir>
 Result file: <results dir>/verify-<n>.json
 
 Claim: <body>
-Anchor: <path>:<line> (<side>)
+Anchor: <path>:<start_line>-<line> (<side>), or <path>:<line> when start_line is null
 Claim type: <claim_type>
 Evidence offered: <evidence>
 ```
@@ -239,24 +239,32 @@ Count confirmations, refutations and demotions for the handoff.
    `<digest>/comments.md`, from any author or bot and any earlier round. Drop a finding that
    one of them already raises on the same file and issue, whether or not it was resolved.
    This applies to both endings.
-3. **Collapse duplicates.** The same `path` and `line` describing the same issue becomes one
-   comment, keeping the clearest body and the highest severity. Two findings at one anchor
-   whose ```suggestion blocks disagree cannot both ship, since the author can apply only
-   one. Keep the higher severity and fold the other in as a second sentence with one merged
-   suggestion block.
+3. **Collapse duplicates.** Overlapping ranges in one `path` that describe the same issue
+   become one comment, keeping the clearest body and the highest severity. Two findings at
+   one anchor whose ```suggestion blocks disagree cannot both ship, since the author can
+   apply only one. Keep the higher severity and fold the other in as a second sentence with
+   one merged suggestion block.
 4. **Sort** `blocker`, then `concern`, then `nit`.
 5. **Hold the volume.** At most 10 inline comments. Drop nits first, then the weakest
    concerns. On a PR whose author is not the review owner, a set left with only nits is
    empty.
-6. **Validate anchors.** Each `path`, `line` and `side` falls inside a hunk of
-   `<digest>/diff.patch`, or GitHub rejects the whole comment array with a 422 that names
-   nothing. Re-anchor a finding to the nearest changed line in the same file, or fold it
-   into the body as a one-line note. Never drop it for its anchor.
+6. **Validate anchors.** Each `path`, `start_line` through `line`, and `side` falls inside
+   one hunk of `<digest>/diff.patch`, or GitHub rejects the whole comment array with a 422
+   that names nothing.
+   - A ```suggestion block replaces exactly its range. When the block repeats lines that
+     sit just outside the range, extend the range over them.
+   - A single-line anchor whose `Sources:` cites lines of the same file in the same hunk
+     becomes a range over those lines.
+   - Clip a range that leaves its hunk to the part inside it, and drop its suggestion block,
+     which no longer matches the lines it replaces.
+   - Re-anchor a finding with nothing inside a hunk to the nearest changed line in the same
+     file, or fold it into the body as a one-line note. Never drop it for its anchor.
 7. **Normalise each body.** Strip a leading emoji, banner, sign-off or `**blocker:**` style
    prefix, and flatten any inline `<details>`. Rebuild the `Sources:` block as the protocol
    specifies, last and after a blank line, with every repository citation linked at
    `https://github.com/<repo>/blob/<head sha>/<path>#L<first>-L<last>`. Turn a bare
-   `path:line` or a prose `Source:` line into that shape.
+   `path:line` or a prose `Source:` line into that shape. Drop a citation that falls inside
+   the comment's own range, and drop the block when nothing is left.
 
 Write the full set, with `claim_type`, `evidence` and verifier status, to
 `<checkout>/.pr-review/<number>-<sha>.json`, plus a `visual` and a `mono_items` object
@@ -343,8 +351,11 @@ Take it only under `by_author`, when the author is not the review owner.
 
    ```
    gh-as-owner api repos/<repo>/pulls/<number>/reviews/<review_id>/comments --method POST \
-     --field path="<path>" --field line=<line> --field side=<side> --field body="<body>"
+     --field path="<path>" --field start_line=<start_line> --field start_side=<side> \
+     --field line=<line> --field side=<side> --field body="<body>"
    ```
+
+   Leave out `start_line` and `start_side` for a single-line anchor.
 
    Every inline comment opens a new thread. Never reply to an existing one.
 
