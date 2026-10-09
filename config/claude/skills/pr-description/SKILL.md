@@ -57,7 +57,7 @@ gh pr diff <number> --repo <owner>/<repo>
 - **Cut process noise:** rebases, conflict resolutions, resolved bot comments, branch
   merges. Keep a stacking note only if it changes how today's diff reads.
 - **End the body with the disclosure your session's rules define**, such as a laptop
-  session's `<sub>Made with love by Claude (Opus 5.5)</sub>`, a loop's `Assisted-by:` or the
+  session's `<sub>Made with ❤️ by Claude (Opus 5.5)</sub>`, a loop's `Assisted-by:` or the
   fleet's `Agent Session:` trailer, last in the trailer block. Keep it when you rewrite a
   body, and add it when you rewrite one a person wrote, since the text is now yours. No
   other session link or attribution.

@@ -34,7 +34,7 @@ Refer to CLAUDE.md for full command reference.
 
 On GitHub you act as the user, `martinjlowm`, so everything you post carries their name.
 Everything you post there, PR bodies, comments, reviews and replies, ends with
-`<sub>Made with love by Claude (<model>)</sub>` on its own line, the model as your system prompt
+`<sub>Made with ❤️ by Claude (<model>)</sub>` on its own line, the model as your system prompt
 names it, such as `Opus 5.5`. The agent-guard hook refuses a post without a disclosure.
 
 Use `gh-axi` for GitHub reads and writes from the shell. The `gh-axi` skill lists the cases
