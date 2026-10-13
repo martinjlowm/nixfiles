@@ -19,16 +19,6 @@ updates:
       nix:
         patterns:
           - '*'
-  - package-ecosystem: github-actions
-    directory: '/'
-    schedule:
-      interval: 'weekly'
-    cooldown:
-      default-days: 7
-    groups:
-      github-actions:
-        patterns:
-          - '*'
   - package-ecosystem: bun
     directory: '/.github/cdk'
     schedule:
