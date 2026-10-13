@@ -17,6 +17,7 @@
 | `.state/` | Loop working state. Gitignored. |
 | `lockfiles/` | Pinned dependency manifests used by overlays. |
 | `1password.nix` | opnix secret declarations. |
+| `.github/` | `dependabot.yml`, and the workflows `.github/cdk/main.ts` generates into `workflows/` with `bun run synth`. |
 
 ## lib
 
