@@ -1,0 +1,44 @@
+version: 2
+
+# A `cooldown` is set to reduce the risk of getting affected by supply chain attacks.
+# It does not apply to security updates.
+updates:
+  # Dependabot skips the FlakeHub nixpkgs input, so cdkactions_nixpkgs-bump.yaml updates it.
+  - package-ecosystem: nix
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 7
+    ignore:
+      # FactbirdHQ/agent-skills is an internal repository that Dependabot cannot fetch.
+      - dependency-name: 'agent-skills'
+      # Each nextNixpkgs* input pins the nixpkgs commit that carries one newer package.
+      - dependency-name: 'nextNixpkgs*'
+    groups:
+      nix:
+        patterns:
+          - '*'
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+  - package-ecosystem: bun
+    directory: '/.github/cdk'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
+    groups:
+      bun:
+        patterns:
+          - '*'

@@ -17,6 +17,7 @@
 | `.state/` | Loop working state. Gitignored. |
 | `lockfiles/` | Pinned dependency manifests used by overlays. |
 | `1password.nix` | opnix secret declarations. |
+| `.github/` | `dependabot.yml`, and the workflows `.github/cdk/main.ts` generates into `workflows/` with `bun run synth`. |
 
 ## lib
 
@@ -64,7 +65,7 @@ and `x86_64-linux`.
 
 | Input | Tracks | Purpose |
 | --- | --- | --- |
-| `nixpkgs` | `nixos-26.05` | Base package set. |
+| `nixpkgs` | FlakeHub `DeterminateSystems/nixpkgs-26.05-chilled` | Base package set, `nixos-26.05` behind a cooldown. |
 | `nextNixpkgs` | pinned revision | Newer packages, exposed as `nextPkgs`. |
 | `nextNixpkgsDevenv` | pinned revision | Newer devenv, exposed as `nextPkgsDevenv`. |
 | `nextNixpkgsClaude` | pinned revision | Newer Claude Code, exposed as `nextPkgsClaude`. |

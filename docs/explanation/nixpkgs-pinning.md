@@ -1,7 +1,9 @@
 # Why there are four nixpkgs inputs
 
-`flake.nix` takes `nixpkgs` from the `nixos-26.05` release branch and then three more inputs,
-`nextNixpkgs`, `nextNixpkgsDevenv` and `nextNixpkgsClaude`, each pinned to a bare commit.
+`flake.nix` takes `nixpkgs` from `nixpkgs-26.05-chilled`, Determinate Systems' FlakeHub mirror of
+the `nixos-26.05` release branch that adopts an upstream revision only after a cooldown. Three
+more inputs, `nextNixpkgs`, `nextNixpkgsDevenv` and `nextNixpkgsClaude`, are each pinned to a
+bare commit.
 
 The release branch is the base because a system configuration wants a package set that
 changes on a schedule someone else is testing. The three pins exist because a handful of
