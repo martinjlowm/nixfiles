@@ -64,7 +64,7 @@ and `x86_64-linux`.
 
 | Input | Tracks | Purpose |
 | --- | --- | --- |
-| `nixpkgs` | `nixos-26.05` | Base package set. |
+| `nixpkgs` | FlakeHub `DeterminateSystems/nixpkgs-26.05-chilled` | Base package set, `nixos-26.05` behind a cooldown. |
 | `nextNixpkgs` | pinned revision | Newer packages, exposed as `nextPkgs`. |
 | `nextNixpkgsDevenv` | pinned revision | Newer devenv, exposed as `nextPkgsDevenv`. |
 | `nextNixpkgsClaude` | pinned revision | Newer Claude Code, exposed as `nextPkgsClaude`. |
