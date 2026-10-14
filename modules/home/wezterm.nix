@@ -156,6 +156,19 @@
           mods = 'NONE',
           action = act.CompleteSelection 'ClipboardAndPrimarySelection',
         },
+        -- Cmd+click opens a link, as in other macOS terminals. The press does
+        -- nothing so that the release opens the link rather than ending a
+        -- selection.
+        {
+          event = { Down = { streak = 1, button = 'Left' } },
+          mods = 'CMD',
+          action = act.Nop,
+        },
+        {
+          event = { Up = { streak = 1, button = 'Left' } },
+          mods = 'CMD',
+          action = act.OpenLinkAtMouseCursor,
+        },
       }
 
       -- macOS option as alt (from kitty)
