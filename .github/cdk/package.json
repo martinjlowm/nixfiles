@@ -7,10 +7,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@factbird/cdkactions": "2.1.2",
+    "@factbird/cdkactions": "^2.2.0",
     "constructs": "^10.4.2"
   },
   "devDependencies": {
+    "@factbird/cdkactions-cli": "^2.2.0",
     "@types/node": "^24.0.0",
     "typescript": "^5.7.3"
   }
