@@ -32,3 +32,14 @@ updates:
       bun:
         patterns:
           - '*'
+  # The pin sync workflow carries these bumps from the generated workflows into .github/cdk/main.ts.
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - '*'
