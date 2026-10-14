@@ -7,7 +7,7 @@
   # aws-sso runs this command itself rather than handing the URL to `open`, so
   # on macOS it needs the executable inside the bundle. The bundle directory
   # does not work.
-  brave = "${pkgs.brave}/Applications/Brave Browser.app/Contents/MacOS/Brave Browser";
+  brave = "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser";
 
   # UrlExecCommand receives one argument, `%s`, so the profile a URL belongs to
   # has to come out of the URL itself. UrlAction below rewrites every console
