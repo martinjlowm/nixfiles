@@ -3,6 +3,7 @@
   imports = [
     ./system.nix
     ./packages.nix
+    ./homebrew.nix
     ./yabai.nix
     ./jankyborders.nix
     ./rosetta-builder.nix

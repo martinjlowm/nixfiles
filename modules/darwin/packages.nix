@@ -175,10 +175,8 @@ in {
       podman-compose
       inkscape
 
-      # Browsers & Apps
-      brave
+      # Apps. The browsers come from Homebrew, see homebrew.nix.
       discord
-      firefox
       whatsapp-for-mac
 
       # LaTeX
