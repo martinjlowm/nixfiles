@@ -40,3 +40,25 @@ agent-browser snapshot -i --json              # machine-readable output
 agent-browser errors                          # page errors; console for console messages
 agent-browser open <url> --headed             # show the window
 ```
+
+## When a click lands but nothing happens
+
+A component library (MUI is the common case) often wraps the clickable
+element one or more ancestors above the node the snapshot labels by its
+visible text — `click @ref` or `find role button click --name "..."` then
+resolves to a `MuiTypography-root` span sitting inside a `MuiButtonBase-root`,
+and the span eats the click without firing the handler. Find the real target
+by coordinate instead of role, then click there directly:
+
+```bash
+agent-browser eval "(() => {
+  const el = document.elementFromPoint(X, Y);
+  let p = el, chain = [];
+  for (let i = 0; i < 6 && p; i++) { chain.push(p.tagName + '.' + (p.className || '').slice(0, 30)); p = p.parentElement; }
+  return chain.join(' < ');
+})()"
+# BUTTON.MuiButtonBase-root MuiButton-r < DIV.MuiBox-root ... < DIV.MuiCardContent-root ...
+agent-browser mouse move X Y
+agent-browser mouse down
+agent-browser mouse up
+```
