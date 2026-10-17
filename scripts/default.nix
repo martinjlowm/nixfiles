@@ -179,15 +179,20 @@ in {
       ${builtins.readFile ./roadmap-sync.sh}
     '';
   };
-  pr-ua = pkgs.writeShellApplication {
-    name = "pr-ua";
+  prq = pkgs.writeShellApplication {
+    name = "prq";
     runtimeInputs = [
+      pkgs.nodejs_24
       pkgs.gh
-      pkgs.jq
+      pkgs.git
       pkgs.fzf
+      pkgs.gnutar
     ];
-    checkPhase = "";
-    text = builtins.readFile ./pr-ua.sh;
+    text = ''
+      export PRQ_COMMENT_SCORE=${../config/claude/skills/comment-audit}/scripts/comment-score.ts
+      export PRQ_SCOPE_SCORE=${../config/claude/skills/scope-audit}/scripts/scope-score.ts
+      exec node ${./prq}/prq.ts "$@"
+    '';
   };
   pr-attn = pkgs.writeShellApplication {
     name = "pr-attn";
