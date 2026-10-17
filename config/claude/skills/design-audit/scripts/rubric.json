@@ -1,0 +1,20 @@
+{
+  "source": "FactbirdHQ/nest libraries/typescript/ui-base/src/themes/factbird/base.ts and ../component-overrides.ts",
+  "checks": {
+    "spacingStepPx": 4,
+    "spacingTolerancePx": 0.5,
+    "layoutClassPattern": "^Mui(Box|Stack|Grid2?|GridLegacy|Container|Paper|Card|CardContent|CardActions|CardHeader|DialogTitle|DialogContent|DialogActions|Toolbar|List|ListItem|Accordion|AccordionSummary|AccordionDetails)-root$",
+    "marginSkipClassPattern": "^Mui(FormHelperText|FormControlLabel|InputLabel|InputBase|InputAdornment|OutlinedInput-notchedOutline|Typography|Checkbox|Radio|Switch|SvgIcon|TouchRipple|Badge|Tab|Tabs|Toolbar|AppBar)-",
+    "roundedRadiusPx": 8,
+    "fontFamilies": ["Inter", "Roboto", "Helvetica", "Arial", "Material Icons", "monospace"],
+    "inputVariant": "filled",
+    "dataGridInputVariant": "outlined",
+    "blockSelector": ".MuiFormControl-root, .MuiAutocomplete-root, .MuiTypography-root, .MuiAlert-root, .MuiCard-root, .MuiDataGrid-root, .MuiTableContainer-root, .MuiDivider-root",
+    "alignmentTolerancePx": 2,
+    "alignmentNearMissPx": 24,
+    "gapTolerancePx": 2,
+    "actionsSelector": ".MuiDialogActions-root, .MuiCardActions-root",
+    "buttonSelector": ".MuiButton-root, .MuiLoadingButton-root",
+    "dismissLabelPattern": "^(cancel|close|discard|discard changes|back|no|dismiss)$"
+  }
+}

@@ -84,12 +84,16 @@ Skip the skill's last step of posting the comment. Write its comment body to
 `<checkout>/.pr-review/<number>-<sha>-visual.md` instead, changed as follows:
 
 - The first line is the verdict, `No substantial visual differences.` or
-  `<n> substantial visual differences.`, then the provisional-baseline note.
+  `<n> substantial visual differences.`, followed by
+  `<m> design system deviations introduced.` when the skill's design audit found any in Y
+  that staging does not show, then the provisional-baseline note.
 - Everything after it sits in one `<details>` block, with a blank line after `</summary>`
   and before `</details>`.
 
 A visual difference is information for the reviewer, not a defect, since the PR may intend
-it. Never phrase one as a finding or a blocker, and never suggest a code change.
+it. Never phrase one as a finding or a blocker, and never suggest a code change. A design
+system deviation is different: it is measured against the theme, so name it as a departure
+from the design system, with its evidence line and the theme value it misses.
 
 ## Return
 
@@ -99,6 +103,7 @@ it. Never phrase one as a finding or a blocker, and never suggest a code change.
   "reason": "",
   "report_path": "",
   "substantial_differences": 0,
+  "design_deviations": 0,
   "routes_captured": 0,
   "routes_blocked": 0
 }

@@ -300,8 +300,8 @@ The body is the verdict and the sections that report something, nothing more:
 <1-2 sentences naming the concrete thing that drove the verdict: the file, the symbol, the failing job.>
 ```
 
-- A visual report whose `substantial_differences` is above zero follows after a blank line,
-  verbatim. A `skipped`, `blocked` or `failed` visual review, or one with no differences,
+- A visual report whose `substantial_differences` or `design_deviations` is above zero
+  follows after a blank line, verbatim. A `skipped`, `blocked` or `failed` visual review, or one with no differences,
   adds nothing to the body; the main thread names its status in its own summary.
 - A mono-items `report_path` that is not empty follows the same way, verbatim.
 - A scope `report_path` that is not empty follows the same way, verbatim.
