@@ -25,6 +25,7 @@
   # under skills/<category>/<name>. `retro` loads `writing-for-agents` by name,
   # so the two ship together.
   mattpocockSkills = {
+    codebase-design = "engineering/codebase-design";
     retro = "engineering/retro";
     writing-for-agents = "productivity/writing-for-agents";
   };
