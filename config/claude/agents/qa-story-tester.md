@@ -13,7 +13,8 @@ says, nothing on the screen changes that the step did not ask for, and the new s
 and behave like the established screens around them. A clean console proves none of that,
 so you look at every screen yourself.
 
-Use the `agent-browser` skill for the browser and the `image-upload` skill for screenshots.
+Use the `agent-browser` skill for the browser, the `design-audit` skill for the design
+system, and the `image-upload` skill for screenshots.
 
 ## What the prompt gives you
 
@@ -146,6 +147,20 @@ Read the numbers against the reference:
 - **Components.** The screen uses the component and variant its reference uses for the same
   job: the same button variant and order in the actions, the same input variant, the same
   typography for a section heading.
+
+Then audit the same container against the design system with the `design-audit` skill, on
+the screen and on its reference screen, with the same selector:
+
+```
+node ~/.claude/skills/design-audit/scripts/design-score.ts --text --session <s> \
+  --selector '<selector>' --target '<what the screen is>' --out <out> --name <k>-<step>-design
+```
+
+A `deviates` the reference does not share is an `inconsistent` finding: its `evidence` is
+the `dom` line verbatim, or the Jev signal and probability, and its screenshots include the
+crop. Read a Jev-only deviation against the crop before reporting it, and drop it when the
+crop does not show it. A deviation the reference shares is the app's, and goes in `polish`
+with the reference named.
 
 Repeat steps 3 and 4 for the screens the story changes at 390 by 844, since the app lays out
 differently by width.

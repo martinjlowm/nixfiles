@@ -553,6 +553,24 @@ contiguous changed region.
    - A one-line summary: map the largest blob's box to the component under it and say what
      changed. "FilterPanel apply-button row shifted ~4px down; button color changed".
 
+#### k. Design audit
+
+A pixel diff says Y changed, not whether Y still follows the design system. For every render
+path whose coverage reason is the diff, audit the component the path ends in with the
+`design-audit` skill, in both sessions while each still shows the captured state:
+
+```bash
+node ~/.claude/skills/design-audit/scripts/design-score.ts --text --session <x-session> \
+  --selector '<component root>' --target '<what it is>' --out .visual-comparison/diff --name <route>_design-x
+node ~/.claude/skills/design-audit/scripts/design-score.ts --text --session <y-session> \
+  --selector '<component root>' --target '<what it is>' --out .visual-comparison/diff --name <route>_design-y
+```
+
+A deviation in Y that X does not show is the PR's: a finding whatever the pixel verdict, with
+the `dom` line or the Jev signal as its evidence and Y's crop as its image. A deviation both
+sides show predates the PR and is listed, not counted. A path that exists only in Y has no X
+to compare, so every deviation in it is the PR's.
+
 ### 4. Dev-server errors in Y
 
 Watch for errors that stop a page rendering while the server runs: `Module not found`,
@@ -615,6 +633,11 @@ modal, tab and data-gated states are where a change to shared plumbing shows.
 
 ### Functional differences
 ### Substantial visual differences
+### Design system deviations
+| Render path | Introduced by Y | Evidence |
+|---|---|---|
+| (/workers) WorkersPage ▸ [click "Create"] CreateWorkerDialog | yes | dom spacing: marginTop 22px, not a multiple of 4px (MuiTextField-root "Email") |
+| (/workers) WorkersPage ▸ [click "Create"] CreateWorkerDialog | no, X too | jev offPalette 0.91 |
 ### Masked regions
 ### Routes blocked by network errors
 ### Authentication events
@@ -691,6 +714,10 @@ lead that path's section with the crop:
 magick .visual-comparison/x/<route>.png -crop <w>x<h>+<x>+<y> +repage .visual-comparison/diff/<route>_crop-x.png
 magick .visual-comparison/y/<route>.png -crop <w>x<h>+<x>+<y> +repage .visual-comparison/diff/<route>_crop-y.png
 ```
+
+**Design deviations Y introduces** follow the image sections under `### Design system`, one
+bullet each with its render path, evidence line and Y's crop embedded. Deviations X shares
+are left out of the comment and stay in the report.
 
 **Check before posting.** The filled image cells number exactly twice the good and substantial
 rows, and every image cell starts with `![`.

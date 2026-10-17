@@ -1,0 +1,13 @@
+{
+  "source": "FactbirdHQ/nest libraries/typescript/ui-base/src/themes/factbird/base.ts and ../component-overrides.ts",
+  "checks": {
+    "spacingStepPx": 4,
+    "spacingTolerancePx": 0.5,
+    "layoutClassPattern": "^Mui(Box|Stack|Grid2?|GridLegacy|Container|Paper|Card|CardContent|CardActions|CardHeader|DialogTitle|DialogContent|DialogActions|Toolbar|List|ListItem|Accordion|AccordionSummary|AccordionDetails)-root$",
+    "marginSkipClassPattern": "^Mui(FormHelperText|FormControlLabel|InputLabel|InputBase|InputAdornment|OutlinedInput-notchedOutline|Typography|Checkbox|Radio|Switch|SvgIcon|TouchRipple|Badge|Tab|Tabs|Toolbar|AppBar)-",
+    "roundedRadiusPx": 8,
+    "fontFamilies": ["Inter", "Roboto", "Helvetica", "Arial", "Material Icons", "monospace"],
+    "inputVariant": "filled",
+    "dataGridInputVariant": "outlined"
+  }
+}
