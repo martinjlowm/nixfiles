@@ -199,7 +199,7 @@ in {
       scripts.rebuild
       scripts.loop
       scripts.fix
-      scripts.pr-ua
+      scripts.prq
       scripts.pr-pr
       scripts.pr-attn
       scripts.pr-ready

@@ -54,10 +54,10 @@ Sentry and Datadog, `claude-dbg` for SignOZ.
 progress on disk and reading control tokens out of each iteration's output. `fix` is the
 same machinery with a fixed spec that repairs CI on one of your pull requests.
 
-🔀 **Pull request tools.** `pr-ua`, `pr-pr`, `pr-ready` and `pr-attn` sort your open pull
-requests by what they are waiting on: reviewers who need prompting, reviewers who need
-suggesting, branches clear to merge, and colleagues who asked you something and have not heard
-back.
+🔀 **Pull request tools.** `prq`, `pr-pr`, `pr-ready` and `pr-attn` sort your open pull
+requests by what they are waiting on: replies you owe, reviewers to re-request, stacks and how
+far their review has got, reviewers who need suggesting, branches clear to merge, and
+colleagues who asked you something and have not heard back.
 
 📊 **Repository analytics.** Six git history reports covering churn, bug hotspots, commit
 velocity, firefighting, and contributor rankings all-time and recent.
