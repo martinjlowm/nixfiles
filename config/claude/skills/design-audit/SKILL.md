@@ -13,7 +13,8 @@ clipped. The theme in nest's `libraries/typescript/ui-base/src/themes/` is the s
 Two sources measure, and you decide.
 
 - **The DOM probe** reads computed padding, margin, gap, corner radius, typeface and input
-  variant from the live page. Code settles these, so a probe violation is a deviation.
+  variant from the live page, and the position of every field, text block and action. Code
+  settles these, so a probe violation is a deviation.
 - **Jev** (Jev 1.14, images) answers four yes/no questions about a crop of the component:
   a typeface other than the theme's sans-serif, outlined text fields, clipped or overlapping
   text, and a colour outside the palette. Jev cannot see a spacing difference of a few pixels
@@ -67,6 +68,9 @@ and text). Each `jev` line names the signal and its probability.
 | `dom radius` | A rounded paper, card or dialog not rounded 8px. |
 | `dom font` | Text set in a typeface the theme does not load. |
 | `dom input-variant` | An outlined field in a form, or a filled one in a data grid. |
+| `dom alignment` | A block (field, text, alert, card, table, divider) whose left edge is 3 to 24px off the edge most blocks in its column share. A larger offset is read as an intended indent or a second column. |
+| `dom gap` | Three or more blocks of one kind stacked directly on each other with gaps that differ by more than 2px. A block of another kind between them, such as a section heading, starts a new run. |
+| `dom actions` | A dialog or card action group that stops short of the end of its container, a contained button that is not last, or a dismiss action (Cancel, Close, Discard) after the confirming one. |
 | `jev typeface` | Text that looks serif or otherwise off the theme's sans-serif. |
 | `jev outlinedInput` | Text fields drawn as outlined boxes rather than filled. |
 | `jev overflow` | Text cut off, clipped or overlapping. |
@@ -91,3 +95,20 @@ the screen is wrong.
 
 A deviation becomes a finding with its evidence: the `dom` line verbatim, or the Jev signal
 and probability with the crop. Which findings get fixed, and where, is the caller's rule.
+
+## Placing a new component
+
+The audit checks these after the fact; follow them while building a view in nest. They are
+read from nest's `ui-app` dialogs and its theme, so the established screens already agree.
+
+- **Space with the theme.** Fields in a form sit 16px apart (`spacing={2}` on the `Stack` or
+  `Grid`, the value in 31 of about 50 dialog layouts), 8px (`spacing={1}`) inside a compact
+  group. Never a raw px value, and never a margin on one field to push it away from the next.
+- **One column, one edge.** Everything in a column starts at the container's content edge.
+  Indent only on purpose and by more than 24px, never a few pixels.
+- **Group with headings, not gaps.** A new group of fields gets a heading or a divider, so the
+  gaps within each group stay equal.
+- **Actions at the end, confirm last.** A dialog's actions sit at its bottom right: the dismiss
+  action (Cancel, Close) first, the confirming one last and contained when the dialog has one.
+  A destructive action that is not the confirm, such as Delete in an edit dialog, sits alone
+  at the left with `justifyContent: 'space-between'`.

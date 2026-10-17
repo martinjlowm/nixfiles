@@ -146,8 +146,7 @@ function browser(session: string, ...args: string[]): string {
 
 function runProbe(session: string, selector: string, checks: Checks): Probe {
   const source = readFileSync(join(here, 'probe.js'), 'utf8').trim();
-  const args = [selector, checks.layoutClassPattern, checks.marginSkipClassPattern].map((a) => JSON.stringify(a));
-  const call = `${source}(${args.join(', ')})`;
+  const call = `${source}(${JSON.stringify(selector)}, ${JSON.stringify(checks)})`;
   const result = JSON.parse(browser(session, 'eval', call)) as Probe | { error: string };
   if ('error' in result) {
     throw new Error(result.error);

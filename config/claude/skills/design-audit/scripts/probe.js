@@ -1,15 +1,15 @@
 // Runs in the page through `agent-browser eval`. design-score.ts appends the
-// call, `(selector, layoutClassPattern, marginSkipClassPattern)`, and reads the
-// returned object.
-(function probe(selector, layoutClassPattern, marginSkipClassPattern) {
+// call, `(selector, checks)` with the rubric's checks, and reads the returned
+// object.
+(function probe(selector, checks) {
   const root = document.querySelector(selector);
   if (!root) {
     return { error: `no element matches ${selector}` };
   }
   root.scrollIntoView({ block: 'start', inline: 'start' });
 
-  const layoutClass = new RegExp(layoutClassPattern);
-  const marginSkipClass = new RegExp(marginSkipClassPattern);
+  const layoutClass = new RegExp(checks.layoutClassPattern);
+  const marginSkipClass = new RegExp(checks.marginSkipClassPattern);
   const rectOf = (el) => {
     const r = el.getBoundingClientRect();
     return { left: r.left, top: r.top, width: r.width, height: r.height };
@@ -80,6 +80,25 @@
     }
   }
 
+  // A block nested in another block moves with it, so only the outermost
+  // block of each kind is measured for alignment.
+  const blocks = [...root.querySelectorAll(checks.blockSelector)]
+    .filter((el) => el.getBoundingClientRect().width > 0 && !el.parentElement.closest(checks.blockSelector))
+    .map((el) => ({
+      ...describe(el),
+      kind: [...el.classList].find((c) => /^Mui\w+-root$/.test(c)) || el.tagName.toLowerCase(),
+    }));
+
+  const actionGroups = [...root.querySelectorAll(checks.actionsSelector)]
+    .filter((el) => el.getBoundingClientRect().width > 0)
+    .map((el) => ({
+      ...describe(el),
+      paddingRight: px(getComputedStyle(el).paddingRight) || 0,
+      buttons: [...el.querySelectorAll(checks.buttonSelector)]
+        .filter((b) => b.getBoundingClientRect().width > 0 && !b.parentElement.closest(checks.buttonSelector))
+        .map((b) => ({ ...describe(b), contained: b.classList.contains('MuiButton-contained') })),
+    }));
+
   return {
     devicePixelRatio: window.devicePixelRatio,
     viewport: { width: window.innerWidth, height: window.innerHeight },
@@ -88,5 +107,7 @@
     radii,
     inputs,
     fonts: [...fonts.values()],
+    blocks,
+    actionGroups,
   };
 })

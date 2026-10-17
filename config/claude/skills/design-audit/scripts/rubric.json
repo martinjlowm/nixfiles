@@ -8,6 +8,13 @@
     "roundedRadiusPx": 8,
     "fontFamilies": ["Inter", "Roboto", "Helvetica", "Arial", "Material Icons", "monospace"],
     "inputVariant": "filled",
-    "dataGridInputVariant": "outlined"
+    "dataGridInputVariant": "outlined",
+    "blockSelector": ".MuiFormControl-root, .MuiAutocomplete-root, .MuiTypography-root, .MuiAlert-root, .MuiCard-root, .MuiDataGrid-root, .MuiTableContainer-root, .MuiDivider-root",
+    "alignmentTolerancePx": 2,
+    "alignmentNearMissPx": 24,
+    "gapTolerancePx": 2,
+    "actionsSelector": ".MuiDialogActions-root, .MuiCardActions-root",
+    "buttonSelector": ".MuiButton-root, .MuiLoadingButton-root",
+    "dismissLabelPattern": "^(cancel|close|discard|discard changes|back|no|dismiss)$"
   }
 }

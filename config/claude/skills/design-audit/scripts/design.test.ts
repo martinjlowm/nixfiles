@@ -4,12 +4,17 @@ import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
 import {
+  type ActionGroup,
+  actionViolations,
+  alignmentViolations,
+  type Block,
   type Checks,
   cropFor,
   cropFromBox,
   domViolations,
   type Element,
   fitImage,
+  gapViolations,
   type JevSignals,
   jevVerdicts,
   offGrid,
@@ -37,7 +42,25 @@ const probe = (overrides: Partial<Probe> = {}): Probe => ({
   radii: [],
   inputs: [],
   fonts: [{ family: 'Inter', count: 3, sample: element() }],
+  blocks: [],
+  actionGroups: [],
   ...overrides,
+});
+
+const block = (kind: string, left: number, top: number, height = 48, width = 600): Block => ({
+  ...element({ classes: kind, rect: { left, top, width, height } }),
+  kind,
+});
+
+const button = (text: string, left: number, contained = false) => ({
+  ...element({ classes: 'MuiButton-root', text, rect: { left, top: 300, width: 80, height: 36 } }),
+  contained,
+});
+
+const actions = (buttons: ReturnType<typeof button>[], groupRight = 700): ActionGroup => ({
+  ...element({ classes: 'MuiDialogActions-root', rect: { left: 0, top: 290, width: groupRight, height: 56 } }),
+  paddingRight: 24,
+  buttons,
 });
 
 const quiet: JevSignals = { typeface: 0.04, outlinedInput: 0.02, overflow: 0.02, offPalette: 0.02 };
@@ -107,6 +130,78 @@ describe('domViolations', () => {
       violations.map((v) => v.rule),
       ['font'],
     );
+  });
+});
+
+describe('alignmentViolations', () => {
+  it('flags only the block a few pixels off the edge its column shares', () => {
+    const violations = alignmentViolations(
+      [
+        block('MuiFormControl-root', 40, 0),
+        block('MuiFormControl-root', 56, 64),
+        block('MuiFormControl-root', 40, 128),
+      ],
+      checks,
+    );
+    assert.deepEqual(
+      violations.map((v) => v.evidence),
+      ["left 56px, 16px off its column's edge at 40px"],
+    );
+  });
+
+  it('accepts shared edges, sub-pixel offsets, deliberate indents and side-by-side columns', () => {
+    const blocks = [
+      block('MuiFormControl-root', 40, 0),
+      block('MuiFormControl-root', 41.5, 64),
+      block('MuiTypography-root', 80, 128),
+      block('MuiFormControl-root', 40, 200, 48, 280),
+      block('MuiFormControl-root', 352, 200, 48, 280),
+    ];
+    assert.deepEqual(alignmentViolations(blocks, checks), []);
+  });
+});
+
+describe('gapViolations', () => {
+  it('flags uneven gaps between stacked blocks of one kind', () => {
+    const violations = gapViolations(
+      [block('MuiFormControl-root', 40, 0), block('MuiFormControl-root', 40, 70), block('MuiFormControl-root', 40, 118)],
+      checks,
+    );
+    assert.equal(violations.length, 1);
+    assert.match(violations[0].evidence, /^gaps of 22px, 0px between 3 stacked MuiFormControl-root blocks$/);
+  });
+
+  it('starts a new run at a block of another kind, so a section heading is not a gap', () => {
+    const blocks = [
+      block('MuiFormControl-root', 40, 0),
+      block('MuiFormControl-root', 40, 64),
+      block('MuiTypography-root', 40, 152, 24),
+      block('MuiFormControl-root', 40, 200),
+      block('MuiFormControl-root', 40, 264),
+    ];
+    assert.deepEqual(gapViolations(blocks, checks), []);
+  });
+});
+
+describe('actionViolations', () => {
+  it('accepts dismiss then a contained confirm at the end of the group', () => {
+    assert.deepEqual(actionViolations([actions([button('Cancel', 500), button('Create worker', 590, true)])], checks), []);
+  });
+
+  it('flags a contained action that is not last and a dismiss action that closes the group', () => {
+    const violations = actionViolations([actions([button('Create worker', 500, true), button('Cancel', 590)])], checks);
+    assert.deepEqual(
+      violations.map((v) => v.evidence),
+      [
+        'contained action 1 of 2, the confirming action is last',
+        '"Cancel" closes the group, the dismiss action comes before the confirming one',
+      ],
+    );
+  });
+
+  it('flags actions that stop short of the end of their group', () => {
+    const violations = actionViolations([actions([button('Cancel', 24), button('Save', 114, true)])], checks);
+    assert.match(violations[0].evidence, /^last action ends 482px before the end of its group/);
   });
 });
 
