@@ -51,7 +51,6 @@ cat > <out>/step <<'EOF'
 # errors and console since then, screenshot.
 s=$1 base=$2 last=$(dirname "$2")/.last-$(basename "$2" | cut -d- -f1)
 ab() { agent-browser --session "$s" "$@" 2>/dev/null; }
-ab snapshot -i --json > "$base.json"
 ab snapshot -i | sed -E 's/ *\[?ref=e[0-9]+\]?//g' > "$base.txt"
 echo '--- changed'; [ -f "$last" ] && diff "$(cat "$last")" "$base.txt"; echo "$base.txt" > "$last"
 echo '--- errors'; ab errors | tail -20; ab errors --clear > /dev/null
@@ -116,22 +115,29 @@ not load, the theme wins and the difference is a `polish` finding addressed to d
 
 ## 3. Walk the plan
 
-Do each step as a user would, by clicking and typing, and never by navigating to a URL a
-user would not type. Chain a step's actions and its wait into one call.
+Do each step as a user would, by clicking and typing. Reach the screen a step starts on by
+opening its URL, as a user with a bookmark does, rather than clicking through the menu
+again; the step itself is clicks and typing. Chain a step's actions and its wait into one
+call with `&&`, so the chain stops at the first command that fails.
 
 Wait for what the step should produce, never for a fixed time and never with
 `wait --load networkidle`. Both wait on something other than the screen: a sleep is too
 short on a slow response and wasted on a fast one, and the network goes idle on its own
-schedule. Wait instead for the element, text or state the step leads to:
+schedule. Wait instead for the element, text or state the step leads to, copied from a
+snapshot of the screen rather than from the plan or the source, since the screen renders
+text in its own case and words:
 
 ```
-agent-browser --session <s> wait --text "Call taken"
+agent-browser --session <s> wait --text "CALL TAKEN"
 agent-browser --session <s> wait '.MuiDialog-paper'
-agent-browser --session <s> wait '.MuiCircularProgress-root' --state hidden
+agent-browser --session <s> wait '.MuiDialog-paper .MuiCircularProgress-root' --state hidden
 agent-browser --session <s> wait --fn "document.querySelectorAll('tbody tr').length > 0"
 ```
 
-A wait that times out is a finding to read, not a reason to retry with a longer sleep.
+Scope a spinner to the container the step loads, since another one elsewhere on the page
+can stay. Never send a wait's output to `/dev/null`. A wait that times out means the screen
+is not what you expected, so run `step` and read what is there before the next action,
+rather than waiting again for the same thing.
 
 After every step, run `<out>/step <s> <out>/<k>-<step>`. Then:
 
