@@ -42,6 +42,25 @@ agent-browser --session <s> network har start <out>/<k>.har
 agent-browser --session <s> set viewport 1440 900
 ```
 
+Write the helper that step 3 runs after every step, so one call records it:
+
+```
+cat > <out>/step <<'EOF'
+#!/usr/bin/env bash
+# step <session> <out>/<k>-<step>: snapshot, change since the previous step,
+# errors and console since then, screenshot.
+s=$1 base=$2 last=$(dirname "$2")/.last-$(basename "$2" | cut -d- -f1)
+ab() { agent-browser --session "$s" "$@" 2>/dev/null; }
+ab snapshot -i --json > "$base.json"
+ab snapshot -i | sed -E 's/ *\[?ref=e[0-9]+\]?//g' > "$base.txt"
+echo '--- changed'; [ -f "$last" ] && diff "$(cat "$last")" "$base.txt"; echo "$base.txt" > "$last"
+echo '--- errors'; ab errors | tail -20; ab errors --clear > /dev/null
+echo '--- console'; ab console | tail -40; ab console --clear > /dev/null
+ab screenshot "$base.png" > /dev/null && echo "--- screenshot $base.png"
+EOF
+chmod +x <out>/step
+```
+
 ## 2. Find the reference screens
 
 Every design judgement compares the screen with a reference, never with taste. In order of
@@ -98,15 +117,30 @@ not load, the theme wins and the difference is a `polish` finding addressed to d
 ## 3. Walk the plan
 
 Do each step as a user would, by clicking and typing, and never by navigating to a URL a
-user would not type. After every step:
+user would not type. Chain a step's actions and its wait into one call.
 
-1. Run `agent-browser snapshot -i --json` and keep it as `<out>/<k>-<step>.json`.
-2. Compare it with the snapshot before the step. Every control that appeared, disappeared,
-   changed its value or changed its enabled state must follow from the step. A field that
-   vanishes once it holds a value, a selection that resets, or a dialog that loses its
-   inputs is a `broken` finding even when no error is logged.
-3. Read `agent-browser errors` and `agent-browser console`.
-4. Screenshot to `<out>/<k>-<step>.png`.
+Wait for what the step should produce, never for a fixed time and never with
+`wait --load networkidle`. Both wait on something other than the screen: a sleep is too
+short on a slow response and wasted on a fast one, and the network goes idle on its own
+schedule. Wait instead for the element, text or state the step leads to:
+
+```
+agent-browser --session <s> wait --text "Call taken"
+agent-browser --session <s> wait '.MuiDialog-paper'
+agent-browser --session <s> wait '.MuiCircularProgress-root' --state hidden
+agent-browser --session <s> wait --fn "document.querySelectorAll('tbody tr').length > 0"
+```
+
+A wait that times out is a finding to read, not a reason to retry with a longer sleep.
+
+After every step, run `<out>/step <s> <out>/<k>-<step>`. Then:
+
+1. Read what changed. Every control that appeared, disappeared, changed its value or
+   changed its enabled state must follow from the step. A field that vanishes once it holds
+   a value, a selection that resets, or a dialog that loses its inputs is a `broken`
+   finding even when no error is logged.
+2. Read the errors and console lines it printed.
+3. Look at the screenshot.
 
 Then exercise what the plan leaves out but a user does next, where the screen offers it:
 
@@ -187,8 +221,9 @@ rather than a paragraph above it when the reference uses helper lines.
 
 Stop the HAR and note the end time. Read it for status 500 and above, 4xx the plan did not
 expect, and GraphQL responses carrying an `errors` array. Find the component file behind
-each design or state finding with `git grep` on its visible text or translation key, so
-the caller can attribute it.
+each design or state finding with one `git grep` on its visible text or translation key, so
+the caller can attribute it. Stop at the file: the caller reads the code to find the cause
+and the pull request behind it, so reading it here spends the story's time twice.
 
 Upload every screenshot a finding cites, the outcome screen of the story, and each
 reference screenshot or mockup render a finding compares against, through the
