@@ -155,13 +155,41 @@
         mainProgram = "gh-image";
       };
     };
-    # gh with gh-image baked in. There is no GH_DATA_DIR, so XDG_DATA_HOME is
-    # pinned to a store path holding just the extension (auth is unaffected;
-    # imperatively-installed extensions are hidden).
+    # gh extension for stacked pull requests, the CLI the gh-stack Claude skill
+    # drives. Pinned to the tag the skill's frontmatter records (github-ref:
+    # refs/tags/v0.1.0), the same tag FactbirdHQ/factbird-factory fetches the
+    # fleet's copy of the skill from.
+    gh-stack = final.buildGoModule rec {
+      pname = "gh-stack";
+      version = "0.1.0";
+      src = final.fetchFromGitHub {
+        owner = "github";
+        repo = "gh-stack";
+        rev = "v${version}";
+        hash = "sha256-48JkOeqbvHlCZ2u3LnwJymw55xMQWLTPJLDbV44clGI=";
+      };
+      vendorHash = "sha256-0Xtr/MOpX4u5GnbRdNxKPA0GpSzi8PIbVc9MmP05De4=";
+      ldflags = ["-s" "-X=github.com/github/gh-stack/cmd.Version=${version}"];
+      nativeCheckInputs = [final.gitMinimal];
+      # Some tests resolve branches through git and need a repository.
+      preCheck = ''
+        git init --quiet
+      '';
+      meta = {
+        description = "GitHub CLI extension to use stacked PRs";
+        homepage = "https://github.com/github/gh-stack";
+        license = final.lib.licenses.mit;
+        mainProgram = "gh-stack";
+      };
+    };
+    # gh with gh-image and gh-stack baked in. There is no GH_DATA_DIR, so
+    # XDG_DATA_HOME is pinned to a store path holding just these extensions
+    # (auth is unaffected; imperatively-installed extensions are hidden).
     gh-with-image = let
-      extensionsDir = final.runCommand "gh-image-extensions" {} ''
-        mkdir -p $out/gh/extensions/gh-image
+      extensionsDir = final.runCommand "gh-extensions" {} ''
+        mkdir -p $out/gh/extensions/gh-image $out/gh/extensions/gh-stack
         ln -s ${final.lib.getExe final.gh-image} $out/gh/extensions/gh-image/gh-image
+        ln -s ${final.lib.getExe final.gh-stack} $out/gh/extensions/gh-stack/gh-stack
       '';
     in
       final.symlinkJoin {

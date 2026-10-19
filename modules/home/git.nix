@@ -42,5 +42,8 @@ in {
 
   programs.git-worktree-switcher.enable = true;
 
-  programs.gh.enable = true;
+  programs.gh = {
+    enable = true;
+    extensions = [pkgs.gh-stack];
+  };
 }
