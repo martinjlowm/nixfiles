@@ -34,7 +34,7 @@ Refer to CLAUDE.md for full command reference.
 
 On GitHub you act as the user, `martinjlowm`, so everything you post carries their name.
 Everything you post there, PR bodies, comments, reviews and replies, ends with the
-disclosure.
+disclosure, and every commit message you write ends with its trailer.
 
 Use `gh-axi` for GitHub reads and writes from the shell. The `gh-axi` skill lists the cases
 that stay on `gh`.

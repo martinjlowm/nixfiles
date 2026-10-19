@@ -7,5 +7,11 @@ line, on its own line, with the model named as your system prompt names it, such
 <sub>Made with ❤️ by Claude (<model>)</sub>
 ```
 
-The agent-guard hook refuses a post that carries no disclosure, and taking a PR out of draft
-appends `, reviewed` after the closing parenthesis.
+A commit message carries it as its last trailer instead, because GitHub renders no HTML there:
+
+```
+Assisted-by: Claude (<model>)
+```
+
+The agent-guard hook refuses a post or a `git commit` message that carries no disclosure, and
+taking a PR out of draft appends `, reviewed` after the closing parenthesis.
