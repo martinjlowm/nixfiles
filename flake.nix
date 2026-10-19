@@ -95,6 +95,13 @@
       "Martins-MacBook-Pro" = wololobook; # Alias for the same machine
     };
 
+    # wololobook's home-manager configuration on its own, for `rebuild home`
+    homeConfigurations."martinjlowm" = lib.mkHomeConfiguration {
+      system = "aarch64-darwin";
+      username = "martinjlowm";
+      modules = [./users/martinjlowm];
+    };
+
     # NixOS configurations (add your Linux machines here)
     nixosConfigurations = {
       # "example-nixos" = example-nixos;

@@ -30,6 +30,17 @@
         ++ extraOverlays;
     };
 
+  # The arguments every home-manager module receives
+  mkHomeSpecialArgs = {system}: let
+    mkNextPkgs = nixpkgs: mkPkgs {inherit system nixpkgs;};
+  in {
+    inherit inputs;
+    pkgs = mkPkgs {inherit system;};
+    nextPkgs = mkNextPkgs inputs.nextNixpkgs;
+    nextPkgsDevenv = mkNextPkgs inputs.nextNixpkgsDevenv;
+    nextPkgsClaude = mkNextPkgs inputs.nextNixpkgsClaude;
+  };
+
   # Create a Darwin (macOS) system configuration
   mkDarwinSystem = {
     system ? "aarch64-darwin",
@@ -38,19 +49,8 @@
     modules ? [],
     extraPkgs ? {},
   }: let
-    pkgs = mkPkgs {inherit system;};
-    nextPkgs = mkPkgs {
-      inherit system;
-      nixpkgs = inputs.nextNixpkgs;
-    };
-    nextPkgsDevenv = mkPkgs {
-      inherit system;
-      nixpkgs = inputs.nextNixpkgsDevenv;
-    };
-    nextPkgsClaude = mkPkgs {
-      inherit system;
-      nixpkgs = inputs.nextNixpkgsClaude;
-    };
+    homeSpecialArgs = mkHomeSpecialArgs {inherit system;};
+    inherit (homeSpecialArgs) pkgs nextPkgs nextPkgsDevenv;
   in
     inputs.nix-darwin.lib.darwinSystem {
       inherit pkgs;
@@ -62,10 +62,26 @@
           inputs.home-manager.darwinModules.home-manager
           {
             home-manager.useUserPackages = true;
-            home-manager.extraSpecialArgs = {inherit pkgs nextPkgs nextPkgsDevenv nextPkgsClaude inputs;};
+            home-manager.extraSpecialArgs = homeSpecialArgs;
           }
         ]
         ++ modules;
+    };
+
+  # Create a standalone home-manager configuration, which the user activates
+  # without root. Its packages go to ~/.nix-profile rather than
+  # /etc/profiles/per-user, which only the system activation can write.
+  mkHomeConfiguration = {
+    system ? "aarch64-darwin",
+    username,
+    modules ? [],
+  }: let
+    homeSpecialArgs = mkHomeSpecialArgs {inherit system;};
+  in
+    inputs.home-manager.lib.homeManagerConfiguration {
+      inherit (homeSpecialArgs) pkgs;
+      extraSpecialArgs = homeSpecialArgs;
+      modules = [{home.username = username;}] ++ modules;
     };
 
   # Create a NixOS (Linux) system configuration
@@ -98,5 +114,5 @@
         ++ modules;
     };
 in {
-  inherit mkPkgs mkDarwinSystem mkNixosSystem nixpkgsConfig;
+  inherit mkPkgs mkDarwinSystem mkHomeConfiguration mkNixosSystem nixpkgsConfig;
 }
