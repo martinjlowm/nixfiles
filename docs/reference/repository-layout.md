@@ -53,6 +53,7 @@ Each directory has a `default.nix` importing its siblings.
 | --- | --- |
 | `darwinConfigurations.wololobook` | The MacBook Pro configuration. |
 | `darwinConfigurations."Martins-MacBook-Pro"` | Alias of the same configuration. |
+| `homeConfigurations.martinjlowm` | `users/martinjlowm` as a standalone home-manager configuration for `aarch64-darwin`, with the same special arguments as the one nested in `wololobook`. |
 | `nixosConfigurations` | Empty. |
 | `darwinPackages` | `wololobook.pkgs`. |
 | `packages.<system>` | The set described in [packages](packages.md). |

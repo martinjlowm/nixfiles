@@ -47,6 +47,17 @@ if (($# > 0)) && [[ $1 != -* ]]; then
   shift
 fi
 
+# `rebuild home` activates only the home-manager configuration, as the calling
+# user. Run as root, the activation would manage /var/root instead.
+if [[ $action == home ]]; then
+  if ((EUID == 0)); then
+    echo "rebuild: run 'rebuild home' without sudo" >&2
+    exit 1
+  fi
+  generation=$(nix build --no-link --print-out-paths -L "$flake#homeConfigurations.$USER.activationPackage" "$@")
+  exec "$generation/activate"
+fi
+
 # Both `wololobook` and `Martins-MacBook-Pro` are defined, so whichever name
 # the machine answers to resolves.
 exec darwin-rebuild "$action" --flake "$flake#$(hostname -s)" -L "$@"
