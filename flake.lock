@@ -76,11 +76,11 @@
     "humanlayer-skills": {
       "flake": false,
       "locked": {
-        "lastModified": 1789646706,
-        "narHash": "sha256-BX9k5S3hwgik7AKxssUVm7VQRTjgjXVVcE2Jph88tS0=",
+        "lastModified": 1791496465,
+        "narHash": "sha256-W3dFEdIi4sz4CAZvaj1xjtN7xTRebF/WHOTQYCIe2Xo=",
         "ref": "main",
-        "rev": "ca7c8088db69e315a8b2deea43820270457f8f3c",
-        "revCount": 16,
+        "rev": "653b6411c1f70c275a18e37673b042ff99f67ceb",
+        "revCount": 28,
         "type": "git",
         "url": "https://github.com/humanlayer/skills"
       },
@@ -93,11 +93,11 @@
     "mattpocock-skills": {
       "flake": false,
       "locked": {
-        "lastModified": 1791294082,
-        "narHash": "sha256-c36sg+3AyW+iZ730QKXqwejpFOL+2neWlZhL5Jc7Rcs=",
+        "lastModified": 1791543409,
+        "narHash": "sha256-NljCSZNI3sZ+vbCw7pRdrwR7try4BxOFp4gdjuWYtzs=",
         "ref": "main",
-        "rev": "6fd947921b935b7e1e69293a200400f0fdd5c15f",
-        "revCount": 527,
+        "rev": "49dd158d1076134a641b33efb035946536778336",
+        "revCount": 545,
         "type": "git",
         "url": "https://github.com/mattpocock/skills"
       },
@@ -288,11 +288,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1791236051,
-        "narHash": "sha256-rUcjj1Wl4PbMcU43TE6W1wE3aeGuji5hAHx3XnNC9ks=",
+        "lastModified": 1791885023,
+        "narHash": "sha256-C3alQ2MEt0zVrUSho5NUDo3jmhbff72++bfwoqT9Omo=",
         "owner": "numtide",
         "repo": "treefmt-nix",
-        "rev": "7388c3ae3a09b344ab13aed6c841ca4cad28d41e",
+        "rev": "0d6d739a833ba9a9c93034862e4a7b061a062a1c",
         "type": "github"
       },
       "original": {
