@@ -59,11 +59,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1790996401,
-        "narHash": "sha256-f+kOxEmOUnQazVAmGg0i8hzwgd1kX/geY+k/Dpheye8=",
+        "lastModified": 1792438572,
+        "narHash": "sha256-5mQQOcggBRBXB7NlzUxO0dbvQN4euJOISjNybrtfxPk=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "db7d5e2332710f5abb088f6b5de927d7f9511b35",
+        "rev": "24f8f8e786f87d6a818e1746cb2389bf922afdab",
         "type": "github"
       },
       "original": {
@@ -76,11 +76,11 @@
     "humanlayer-skills": {
       "flake": false,
       "locked": {
-        "lastModified": 1789646706,
-        "narHash": "sha256-BX9k5S3hwgik7AKxssUVm7VQRTjgjXVVcE2Jph88tS0=",
+        "lastModified": 1791496465,
+        "narHash": "sha256-W3dFEdIi4sz4CAZvaj1xjtN7xTRebF/WHOTQYCIe2Xo=",
         "ref": "main",
-        "rev": "ca7c8088db69e315a8b2deea43820270457f8f3c",
-        "revCount": 16,
+        "rev": "653b6411c1f70c275a18e37673b042ff99f67ceb",
+        "revCount": 28,
         "type": "git",
         "url": "https://github.com/humanlayer/skills"
       },
@@ -93,11 +93,11 @@
     "mattpocock-skills": {
       "flake": false,
       "locked": {
-        "lastModified": 1791294082,
-        "narHash": "sha256-c36sg+3AyW+iZ730QKXqwejpFOL+2neWlZhL5Jc7Rcs=",
+        "lastModified": 1792425100,
+        "narHash": "sha256-2FKfe3/Fwc4MmwBLa+d/oQW4/gtYIssdWapy2MPd39I=",
         "ref": "main",
-        "rev": "6fd947921b935b7e1e69293a200400f0fdd5c15f",
-        "revCount": 527,
+        "rev": "5beb35b040e3de97e54fa9e386d7e42d15c295c2",
+        "revCount": 546,
         "type": "git",
         "url": "https://github.com/mattpocock/skills"
       },
@@ -288,11 +288,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1791236051,
-        "narHash": "sha256-rUcjj1Wl4PbMcU43TE6W1wE3aeGuji5hAHx3XnNC9ks=",
+        "lastModified": 1791885023,
+        "narHash": "sha256-C3alQ2MEt0zVrUSho5NUDo3jmhbff72++bfwoqT9Omo=",
         "owner": "numtide",
         "repo": "treefmt-nix",
-        "rev": "7388c3ae3a09b344ab13aed6c841ca4cad28d41e",
+        "rev": "0d6d739a833ba9a9c93034862e4a7b061a062a1c",
         "type": "github"
       },
       "original": {
