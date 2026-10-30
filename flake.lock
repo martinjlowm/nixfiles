@@ -3,11 +3,11 @@
     "agent-skills": {
       "flake": false,
       "locked": {
-        "lastModified": 1791572958,
-        "narHash": "sha256-tdRMRWYkpqVZBhvonjU25xTgKYQLjeZ35JOBE9fWtIs=",
+        "lastModified": 1793398653,
+        "narHash": "sha256-+7DTknQvuNnWH0OEpeWVuoGbkaSj3BLF6uDmDUaiXLA=",
         "ref": "main",
-        "rev": "aac7d347da336513f5f79fc5e66cc0b53acdfcb8",
-        "revCount": 29,
+        "rev": "8d825e3e0f85bc3de995758ce10e86574496bc20",
+        "revCount": 54,
         "type": "git",
         "url": "https://github.com/FactbirdHQ/agent-skills"
       },
