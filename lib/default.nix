@@ -61,16 +61,21 @@
         [
           inputs.home-manager.darwinModules.home-manager
           {
-            home-manager.useUserPackages = true;
+            # Home packages go to ~/.nix-profile, as they do from
+            # mkHomeConfiguration. Each activation replaces the profile entry
+            # the other installed, so `sudo rebuild` and `rebuild home` can
+            # alternate without leaving commands on PATH that no longer exist.
+            home-manager.useUserPackages = false;
             home-manager.extraSpecialArgs = homeSpecialArgs;
+            # home-manager reads the home directory from here.
+            users.users.${username}.home = "/Users/${username}";
           }
         ]
         ++ modules;
     };
 
   # Create a standalone home-manager configuration, which the user activates
-  # without root. Its packages go to ~/.nix-profile rather than
-  # /etc/profiles/per-user, which only the system activation can write.
+  # without root.
   mkHomeConfiguration = {
     system ? "aarch64-darwin",
     username,
