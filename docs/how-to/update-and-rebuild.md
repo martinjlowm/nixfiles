@@ -21,13 +21,10 @@ rebuild home
 This builds `homeConfigurations.$USER` and activates it as you. Use it when `sudo` is not
 available and the change sits under `users/` or `modules/home/`.
 
-It installs your home-manager packages into `~/.nix-profile`, which comes before
-`/etc/profiles/per-user/$USER` on `PATH`. Everything under `modules/darwin/` stays at the
-last `sudo rebuild`: system packages, the `launchd.user.agents` such as yabai and
-sketchybar, Homebrew and macOS defaults.
-
-The next `sudo rebuild` takes the packages back into `/etc/profiles/per-user/$USER` and
-removes them from `~/.nix-profile`.
+It installs your home-manager packages into `~/.nix-profile`, the same profile `sudo rebuild`
+installs them into, so the two can alternate in either order. Everything under
+`modules/darwin/` stays at the last `sudo rebuild`: system packages, the
+`launchd.user.agents` such as yabai and sketchybar, Homebrew and macOS defaults.
 
 ## Check a change before switching
 
