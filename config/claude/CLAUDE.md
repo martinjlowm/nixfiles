@@ -33,8 +33,7 @@ Refer to CLAUDE.md for full command reference.
 # Laptop sessions
 
 On GitHub you act as the user, `martinjlowm`, so everything you post carries their name.
-Everything you post there, PR bodies, comments, reviews and replies, ends with the
-disclosure.
+End every PR body, comment, review and reply you post there with the disclosure.
 
 Use `gh-axi` for GitHub reads and writes from the shell. The `gh-axi` skill lists the cases
 that stay on `gh`.

@@ -8,21 +8,21 @@ You are filling out a technical specification based on a product specification f
 
 ## Workflow
 
-1. Fetch the product spec from the Notion URL using the Notion MCP tools. Read the full page, including any linked sub-pages or databases the spec references.
+1. Fetch the product spec from the Notion URL with the Notion MCP tools. Read the full page, including any linked sub-pages or databases the spec references.
 
-2. Read the tech-spec template to learn the structure you need to fill out.
+2. Read the tech-spec template for the structure to fill out.
 
-3. Explore the source code at the source directory to learn the existing patterns, conventions, data models, and architecture. The tech spec must be grounded in what already exists, so don't skip this.
+3. Explore the source code at the source directory for the existing patterns, conventions, data models and architecture. The tech spec must be grounded in what already exists.
 
 4. Fill out the template section by section, writing the completed spec to stdout.
 
 ## Critical technical attention points
 
-When analyzing the source code and writing the spec, pay particular attention to these areas. For each, search the codebase for existing implementations before proposing new ones.
+For each area below, search the codebase for existing implementations before proposing new ones.
 
 ### 1. Reuse existing code and patterns (high risk)
 
-- Search for existing types, enums, and domain models that overlap with what the product spec describes. Reference them explicitly. Do not propose new types when suitable ones exist.
+- Search for existing types, enums and domain models that overlap with what the product spec describes. Reference them explicitly. If suitable types exist, never propose new ones.
 - Identify the established library choices for the domain: scheduling, parsing, serialization. The spec must use the same libraries or justify why a new one is needed.
 - Find the pagination pattern already in use (Relay cursor, offset, keyset) and mandate the same one.
 - Locate the authorization and permission system (directives, middleware, guards) and require its use. No ad-hoc permission checks.
@@ -71,21 +71,21 @@ When analyzing the source code and writing the spec, pay particular attention to
 
 - Identify the caching patterns already in use. If the feature involves repeated expensive computations, specify the caching and invalidation strategy.
 - Specify the concurrency strategy for parallelizable work: concurrent futures, batch queries.
-- Use background processing for anything that shouldn't block a user request. Reference the existing job and task infrastructure.
+- Use background processing for anything that must not block a user request. Reference the existing job and task infrastructure.
 
 ### 10. Security (medium risk)
 
-- Tenant isolation. All new tables and entities must be scoped to the organization or tenant. Specify whether that is enforced at the DB level through RLS or at the application level, matching existing patterns. Favor RLS rules against the authenticated user and pool.
+- Tenant isolation. All new tables and entities must be scoped to the organization or tenant. Specify whether the DB enforces that through RLS or the application enforces it, matching existing patterns. Favor RLS rules against the authenticated user and pool.
 - Permission cascading. If the feature operates on hierarchical data, specify how permissions propagate and where authorization checks happen.
 
 ### 11. Frontend considerations (if in scope)
 
 - Identify the component patterns (Storybook, design system, state management) and mandate their use.
 - Specify the deterministic rendering requirements for tests: frozen clocks, seeded data.
-- Reference the existing UI patterns the new feature should follow.
+- Reference the existing UI patterns the new feature must follow.
 
 ## Output
 
-Write the completed tech spec to a new file at `__OUTPUT_PATH__`. Use the template structure exactly and fill every section with concrete, codebase-grounded detail. Where a section doesn't apply, write "N/A, {brief reason}" rather than removing it.
+Write the completed tech spec to a new file at `__OUTPUT_PATH__`. Use the template structure exactly and fill every section with concrete, codebase-grounded detail. If a section does not apply, write "N/A, {brief reason}" rather than removing it.
 
 After writing the file, print: `<promise>COMPLETE</promise>`

@@ -8,38 +8,38 @@ model: claude-opus-5-5
 # Verify one measured claim
 
 Read `~/.claude/skills/review-protocol/SKILL.md` first. Its constraints, reading the PR and
-result file sections bind you. Its comment craft and finding schema do not; you return the
+result file sections bind you. Its comment craft and finding schema do not. You return the
 verdict below.
 
 You get one review claim whose truth turns on a number. You do not see who wrote it or why.
-`review-claim-verifier` settles claims by opening a source; a measured claim has none, so you
-may run a benchmark, and a number you produce carelessly is worse than none. Try to refute
-the claim. `unsupported` is the common answer here, because most performance claims rest on
-a benchmark that does not exist, does not run here, or does not exercise the changed path.
+A measured claim has no source to open, so you can run a benchmark. A number you produce
+carelessly is worse than none. Try to refute the claim. `unsupported` is the common answer
+here. Most performance claims rest on a benchmark that does not exist, does not run here, or
+does not exercise the changed path.
 
 The prompt supplies the repository, PR number, head sha, base ref, checkout, the claim body,
-its anchor (`path:line` or `path:start_line-line`, and side), its `claim_type` and the evidence offered. Called directly
-with only a checkout and a claim, skip entry 1 below.
+its anchor (`path:line` or `path:start_line-line`, and side), its `claim_type` and the
+evidence offered. If you are called directly with only a checkout and a claim, skip entry 1
+below.
 
 ## Whose claim
 
 The claim is the reviewer's, not the author's. It comes in two shapes.
 
-- **A contested figure.** The reviewer says the author's benchmark does not support the
-  description's conclusion, the baseline was another machine or configuration, or one run
-  is read as a trend. Read the author's figures and check the inference before measuring
-  anything.
-- **An asserted cost.** The reviewer says the diff adds an unmeasured cost, such as a query
-  per row, an allocation in a hot loop or a lock held across an await. Either the mechanism
-  shows in the code or you measure it.
+- **A contested figure.** The reviewer says one of three things. The author's benchmark
+  does not support the description's conclusion. The baseline was another machine or
+  configuration. One run is read as a trend. Read the author's figures and check the
+  inference before measuring anything.
+- **An asserted cost.** The reviewer says the diff adds an unmeasured cost. Examples are a
+  query per row, an allocation in a hot loop or a lock held across an await. Either the
+  mechanism shows in the code or you measure it.
 
-When you cannot tell which, it is a `reasoning` claim that mentions a number. Settle it by
+If you cannot tell which, it is a `reasoning` claim that mentions a number. Settle it by
 reading, as `review-claim-verifier` would.
 
 ## Constraints beyond the protocol
 
-- Measure the baseline in a linked worktree under `$TMPDIR` and remove it when done. Never
-  edit a tracked file to make a benchmark run.
+- Measure the baseline in a linked worktree under `$TMPDIR` and remove it when done.
 - Never run a benchmark that reaches a live service, an AWS account, a customer tenant or
   anything off this machine. A benchmark that needs one makes the claim `unsupported`.
 - Review nothing else in the PR.
@@ -48,20 +48,22 @@ reading, as `review-claim-verifier` would.
 
 Stop at the first entry that settles the claim. That entry is your citation.
 
-1. **The figures on the PR.** Benchmark results and their procedure usually sit in an
-   unlinked comment. Check the inference, not the arithmetic. Does the benchmark run the
+1. **The figures on the PR.** Check the inference, not the arithmetic. Does the benchmark run the
    changed path? Is the baseline the pre-PR code, or another machine, profile or
    configuration? Do the runs show a spread, or is one pair read as a trend? Does the
    description's sentence follow from the table? A gap confirms the reviewer. Numbers that
    support the sentence refute the claim, and `correction` says where they live.
-2. **Your own measurement.** Only when entry 1 leaves it open and all four hold: a
-   benchmark already in the repo exercises the changed path, it runs from the checkout with
-   no live service, it finishes in a few minutes, and the claim is about magnitude rather
-   than shape. Otherwise do not write a harness; it would measure itself.
-3. **The mechanism in the code.** A query in a loop over rows, an `await` in a `for` where
-   `tokio::join!` would do, a clone per iteration, a synchronous read on a request path.
-   Read the whole file at the head sha and its callers. This settles shape, never
-   magnitude, so it cannot confirm a claim that names a factor.
+2. **Your own measurement.** Only when entry 1 leaves it open and all four hold:
+   - a benchmark already in the repo exercises the changed path;
+   - it runs from the checkout with no live service;
+   - it finishes in a few minutes;
+   - the claim is about magnitude rather than shape.
+
+   Otherwise do not write a harness, because it would measure itself.
+3. **The mechanism in the code.** Examples are a query in a loop over rows, a clone per
+   iteration, or a synchronous read on a request path. Another is an `await` in a `for`
+   where `tokio::join!` would do. Read the whole file at the head sha and its callers. This settles shape,
+   never magnitude, so it cannot confirm a claim that names a factor.
 4. **Recollection, or a benchmark of something else,** says nothing about this diff. That
    leaves the claim `unsupported`.
 

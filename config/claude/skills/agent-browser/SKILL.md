@@ -13,7 +13,7 @@ description: Drive a browser from the shell with agent-browser to navigate, fill
 2. `agent-browser snapshot -i` lists the interactive elements with refs such as `@e1`.
 3. Act on the refs: `click @e1`, `fill @e2 "text"` (clears first), `type @e2 "text"`,
    `press Enter`, `select @e1 "value"`, `check @e1`, `hover @e1`, `scroll down 500`.
-4. Snapshot again after any navigation or DOM change; refs do not survive it.
+4. After any navigation or DOM change, snapshot again. Refs do not survive it.
 
 ```bash
 agent-browser open https://example.com/form
@@ -43,12 +43,11 @@ agent-browser open <url> --headed             # show the window
 
 ## When a click lands but nothing happens
 
-A component library (MUI is the common case) often wraps the clickable
-element one or more ancestors above the node the snapshot labels by its
-visible text — `click @ref` or `find role button click --name "..."` then
-resolves to a `MuiTypography-root` span sitting inside a `MuiButtonBase-root`,
-and the span eats the click without firing the handler. Find the real target
-by coordinate instead of role, then click there directly:
+A component library, MUI most often, can put the clickable element one or more ancestors
+above the node the snapshot labels by its visible text. `click @ref` or
+`find role button click --name "..."` then hits a `MuiTypography-root` span inside a
+`MuiButtonBase-root`. The span eats the click without firing the handler. Find the real
+target by coordinate instead of role, then click there directly:
 
 ```bash
 agent-browser eval "(() => {

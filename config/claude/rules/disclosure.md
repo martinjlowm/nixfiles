@@ -7,5 +7,5 @@ line, on its own line, with the model named as your system prompt names it, such
 <sub>Made with ❤️ by Claude (<model>)</sub>
 ```
 
-The agent-guard hook refuses a post that carries no disclosure, and taking a PR out of draft
+The agent-guard hook refuses a post that carries no disclosure. Taking a PR out of draft
 appends `, reviewed` after the closing parenthesis.

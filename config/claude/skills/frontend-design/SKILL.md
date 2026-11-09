@@ -4,11 +4,11 @@ description: Design a distinctive new frontend (standalone page, landing page, p
 ---
 
 **Inside an existing application, follow its design system.** Its components, tokens, fonts,
-spacing and patterns win over everything below; this skill is for interfaces whose look is
+spacing and patterns win over everything below. This skill is for interfaces whose look is
 yours to choose.
 
-The user gives the requirements: a component, page or application, maybe with its purpose,
-audience or technical constraints. Build working code with a clear aesthetic point of view.
+Build working code for the component, page or application the user asks for, with a clear
+aesthetic point of view.
 
 ## Design thinking
 
@@ -21,9 +21,9 @@ Before coding, settle:
 - **Constraints.** Framework, performance, accessibility.
 - **Differentiation.** The one thing someone will remember about it.
 
-Bold maximalism and refined minimalism both work. What matters is that the choice is
-deliberate and executed precisely. Maximalist designs need elaborate code and animation;
-minimal ones need restraint and exact spacing and type.
+Bold maximalism and refined minimalism both work if the choice is deliberate and executed
+precisely. Maximalist designs need elaborate code and animation. Minimal ones need restraint
+and exact spacing and type.
 
 ## Aesthetics
 
@@ -40,6 +40,6 @@ minimal ones need restraint and exact spacing and type.
   geometric patterns, layered transparency, dramatic shadows, decorative borders, grain.
 
 Avoid the generic look: overused fonts, the theme default, purple gradients on white,
-predictable layouts and cookie-cutter components. Vary between light and dark, fonts and
-aesthetics from one design to the next rather than converging on the same choices (Space
-Grotesk, for example).
+predictable layouts and cookie-cutter components. From one design to the next, vary between
+light and dark, fonts and aesthetics. Do not converge on the same choices, such as Space
+Grotesk.

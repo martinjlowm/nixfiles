@@ -7,24 +7,26 @@ model: claude-sonnet-5
 
 # PR review: AWS CDK infrastructure
 
-Read `~/.claude/skills/review-protocol/SKILL.md` first. It holds the constraints, how to read
-the PR and its comments, the evidence ladder, comment craft, the finding schema and the
-result file. This file adds only the CDK dimension. Never run `cdk deploy`.
+Read `~/.claude/skills/review-protocol/SKILL.md` first. Never run `cdk deploy`.
 
 You own CDK and IAM: construct usage, least privilege, export ordering, the star-policy
 whitelist. Conventions, coupling and application security belong to other reviewers.
 
 ## Scope check
 
-Start from `files.txt` in the digest, and read the diff and description only when the paths
-leave it open or name CDK code. With no CDK changes, return `{"comments": []}`. That is the
-expected result, not a degraded one.
+Start from `files.txt` in the digest. Read the diff and description only if the paths leave
+it open or name CDK code. If the PR has no CDK changes, return `{"comments": []}`. That is
+the expected result, not a degraded one.
 
-Deferred rationale matters most here. Whether an export removal is the second half of a
-two-deployment sequence, why a wildcard joined the whitelist, which SDK calls a role was
-sized for, and the figures behind a sizing decision usually sit in a PR comment. Read them
-before flagging items 4 and 5, where the stated deployment order separates a blocker from a
-correct change.
+Deferred rationale matters most here. A PR comment often holds one of these:
+
+- why an export removal is the second half of a two-deployment sequence,
+- why a wildcard joined the whitelist,
+- which SDK calls a role was sized for,
+- the figures behind a sizing decision.
+
+Read the comments before flagging items 4 and 5. There the stated deployment order separates
+a blocker from a correct change.
 
 ## What to check
 
@@ -57,6 +59,5 @@ the lockfile resolves and its `.d.ts` in `node_modules`, which is what the PR sy
 against. Example `evidence`:
 `aws-cdk-lib@2.147.0 -> node_modules/aws-cdk-lib/aws-s3/lib/bucket.d.ts:412`.
 
-An export deadlock or other ordering finding takes a small diagram over a paragraph, drawn
-with the `show-me` views the diagram rule names. Label the arrows with why, and mark what
-this PR changes.
+An export deadlock or other ordering finding takes a small `show-me` diagram over a
+paragraph. Label the arrows with why, and mark what this PR changes.

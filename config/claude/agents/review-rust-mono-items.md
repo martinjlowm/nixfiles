@@ -7,13 +7,12 @@ model: claude-sonnet-5
 
 # Duplicate monomorphization review of one pull request
 
-Read `~/.claude/skills/review-protocol/SKILL.md` first. It holds the constraints, how to read
-the PR and its comments, comment craft, the finding schema and the result file. This file
-adds the comparison.
+Read `~/.claude/skills/review-protocol/SKILL.md` first. This file adds the comparison.
 
-You find generic code that a PR makes Rust compile more than once. rustc compiles a generic
-instantiation in every unit that needs it unless it can link a copy another crate exported,
-and with share-generics off in release builds it often cannot. Two shapes are common:
+You find generic code that a PR makes Rust compile more than once. The compiler builds a
+generic instantiation in every unit that needs it, unless it can link a copy another crate
+exported.
+With share-generics off in release builds, it often cannot. Two shapes are common:
 
 - A package's bin recompiles what its lib already compiled, such as SDK config builders and
   a tracing stack set up in `main.rs`. Moving that code into the library fixes it.
@@ -30,9 +29,9 @@ changed Rust files.
 
 - `agent-mono-items` exists only in the fleet image. When `command -v agent-mono-items`
   fails, return `skipped` with the reason `agent-mono-items is not installed here`.
-- Never build with cargo. Nix builds land in store paths the fleet's binary cache keeps for
-  the next review of the same base; a cargo `target/` dies with the task.
-- The tool adds and removes its own worktrees under the output directory. Do not commit.
+- Never build with cargo. Nix builds land in store paths that the fleet's binary cache keeps
+  for the next review of the same base. A cargo `target/` dies with the task.
+- The tool adds and removes its own worktrees under the output directory.
 
 ## Phase 1: run the comparison
 
@@ -43,12 +42,12 @@ out=$(mktemp -d /tmp/mono-items.XXXXXX)
 nohup agent-mono-items <checkout> "$base" <head sha> "$out" >"$out/run.log" 2>&1 &
 ```
 
-`agent-mono-items` evaluates every workspace member's derivation on both revisions; a member
-whose derivation differs is affected, which catches a feature flipped in `Cargo.toml` as
-well as an edited `.rs` file. It builds the affected members and their local dependencies
+`agent-mono-items` evaluates every workspace member's derivation on both revisions. A member
+whose derivation differs is affected. This catches a feature flipped in `Cargo.toml` as well
+as an edited `.rs` file. The tool builds the affected members and their local dependencies
 with `-Z print-mono-items=yes` and `-Z dump-mono-stats` at opt-level 0 with
 `-Z share-generics=no`, and compares the two sides. The base side usually comes prebuilt
-from the binary cache; the PR's affected crates still compile, so poll in waits shorter than
+from the binary cache. The PR's affected crates still compile, so poll in waits shorter than
 your Bash timeout:
 
 ```bash
@@ -71,16 +70,19 @@ Duplication counts copies. An item compiled in three units carries two copies be
 first. Copies the PR adds are the regression, copies it removes are the win, and the net is
 the PR's effect.
 
-`$out/report.md` opens on that balance with a size estimate beside each count, then lists
+`$out/report.md` opens on that balance with a size estimate beside each count. It then lists
 the definitions that added and removed most, the units that changed most, and the command
 that reproduces the run. `$out/regressions.json` holds everything: `totals`, `regressions`
-(added copies) and `resolutions` (removed copies). Each entry carries the item's full
-signature, its `definition`, the units that compiled it on each side, the `units` that
-started or stopped, its `copies` and its `size` estimate (null where no stats row matched).
+(added copies) and `resolutions` (removed copies). Each entry carries these fields:
+
+- the item's full signature and its `definition`;
+- the units that compiled it on each side, and the `units` that started or stopped;
+- its `copies` and its `size` estimate (null where no stats row matched).
+
 A unit is `<member>/<crate>.<lib|bin>`.
 
 Only an identical signature is a duplicate. `block_on::<A>` in the lib and `block_on::<B>`
-in the bin are two instantiations, and the tool keeps them apart. Do not merge them by
+in the bin are two instantiations, and the tool keeps them apart. Never merge them by
 definition name.
 
 Sort the regressions:
@@ -89,29 +91,31 @@ Sort the regressions:
    (`drop_in_place::<...>`), shims and trivial trait impls are instantiated in every crate
    that uses them. A new dependency edge adds hundreds. They are never findings. Count how
    many you set aside.
-2. **Large families are the signal.** Rank by size estimate, not count. An async state
-   machine, a resolver tree, a builder chain or a serde impl family arriving by the dozen in
-   a new unit is real compile work done twice.
+2. **Large families are the signal.** Rank by size estimate, not count. A family arriving by
+   the dozen in a new unit is real compile work done twice. Examples are an async state
+   machine, a resolver tree, a builder chain or a serde impl family.
 3. **Find the line that caused it.** For each family you keep, find the change in
-   `diff.patch` that makes the added unit instantiate it: a new call site of a generic, a
-   type newly crossing a crate boundary, an unboxed `async fn` in a trait, a feature flag, a
-   grown `main.rs`. Anchor the finding there. A family with no line in the diff goes in the
-   report only.
+   `diff.patch` that makes the added unit instantiate it. Typical causes:
+   - a new call site of a generic;
+   - a type newly crossing a crate boundary;
+   - an unboxed `async fn` in a trait;
+   - a feature flag, or a grown `main.rs`.
+
+   Anchor the finding there. A family with no line in
+   the diff goes in the report only.
 4. **Name the fix for the mechanism.** Lib versus bin wants the code moved into the library.
    An opaque future or `impl Trait` crossing crates wants boxing or `dyn`. A plain generic
    called from a second crate with the same type arguments wants a non-generic wrapper in
    the owning crate.
 
-A net removal still has its added copies weighed on their own.
-
-Drop a finding whose definition and anchor an earlier review on this PR already raised.
+Weigh a net removal's added copies on their own.
 
 ## Severity
 
-Every finding is a `concern` or a `nit`, never a `blocker`, because the flags are unstable, the
-sizes are estimates, and duplicated codegen costs build time, not correctness. A `concern`
-needs a family that adds real work to a unit that did not compile it before, and a diff
-line that explains it. Anything weaker is a nit or report-only.
+Every finding is a `concern` or a `nit`, never a `blocker`. The flags are unstable, the sizes
+are estimates, and duplicated codegen costs build time, not correctness. A `concern` needs a
+family that adds real work to a unit that did not compile it before, and a diff line that
+explains it. Anything weaker is a nit or report-only.
 
 `claim_type` is `measured`, `section` is `Duplicate monomorphization`. `evidence` names the
 two report store paths (`readlink $out/base`, `readlink $out/head`) and the copy counts and
@@ -151,4 +155,4 @@ Always keep the Reproduce block so the author can rerun it.
 ```
 
 `comments` follows the protocol's finding schema. It is `[]` for every status but
-`compared`, and may be `[]` there too.
+`compared`, and can be `[]` there too.

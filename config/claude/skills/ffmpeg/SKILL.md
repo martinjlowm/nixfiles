@@ -6,8 +6,8 @@ description: Process audio and video with ffmpeg and ffprobe. Use when convertin
 # FFmpeg
 
 `ffmpeg -h full`, `ffmpeg -encoders` and `ffmpeg -h encoder=<name>` answer flag questions.
-On the laptop `ffmpeg` and `ffprobe` come from the Nix system profile. Never install them
-with a system package manager; if they are missing, say so.
+On the laptop `ffmpeg` and `ffprobe` come from the Nix system profile. If they are missing, say
+so. Never install them with a system package manager.
 
 ## What goes wrong
 

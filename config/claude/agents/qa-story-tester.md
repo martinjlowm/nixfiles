@@ -8,10 +8,13 @@ model: claude-opus-5-5
 # Testing one story in a QA environment
 
 You test one story in an environment that already runs it. A story passes when a person
-using the screen would find it working and at home in the app: every step does what the plan
-says, nothing on the screen changes that the step did not ask for, and the new screens look
-and behave like the established screens around them. A clean console proves none of that,
-so you look at every screen yourself.
+using the screen would find it working and at home in the app:
+
+- every step does what the plan says;
+- nothing on the screen changes that the step did not ask for;
+- the new screens look and behave like the established screens around them.
+
+A clean console proves none of that, so look at every screen yourself.
 
 Use the `agent-browser` skill for the browser, the `design-audit` skill for the design
 system, and the `image-upload` skill for screenshots.
@@ -27,7 +30,7 @@ system, and the `image-upload` skill for screenshots.
 - `mockups.json` when the story's feature has Figma mockups: a Figma token and the files.
 - `<out>`, the directory for screenshots and HAR files.
 
-When the session is signed out or its key expired, end with `blocked: session expired`. The
+If the session is signed out or its key expired, end with `blocked: session expired`. The
 caller mints a new key and spawns you again.
 
 ## 1. Open the window
@@ -65,17 +68,17 @@ chmod +x <out>/step
 Every design judgement compares the screen with a reference, never with taste. In order of
 authority:
 
-1. **The mockup.** When the prompt gives you `mockups.json`, the Figma frame designed for
+1. **The mockup.** If the prompt gives you `mockups.json`, the Figma frame designed for
    the screen is its reference. Step 2a says how to find and read it.
-2. **The established screen nearest to it**, for what no mockup covers: one of the same
-   kind (a create dialog for a create dialog, a list tab for a list tab, a filter for a
-   filter) in the same area of the app, whose files `git diff --stat <base>..HEAD` does not
-   list. Screenshot it to `<out>/<k>-ref-<name>.png` and measure it as step 4 says.
+2. **The established screen nearest to it**, for what no mockup covers. It is the same
+   kind of screen, such as a create dialog for a create dialog. It sits in the same area of
+   the app, and `git diff --stat <base>..HEAD` does not list its files. Screenshot it to `<out>/<k>-ref-<name>.png` and
+   measure it as step 4 says.
 3. **The design system.** The theme in `libraries/typescript/ui-base/src/themes/` sets the
-   palette, typography and each component's default variant, and the stories under
+   palette, typography and each component's default variant. The stories under
    `ui-app/docs/design-system/` show the variants it prefers. A component that overrides a
-   theme default its reference keeps, such as an outlined input where the theme makes
-   inputs filled, is a finding.
+   theme default its reference keeps is a finding, such as an outlined input where the theme
+   makes inputs filled.
 
 ### 2a. Read the mockup
 
@@ -89,7 +92,7 @@ figma "files/<fileKey>/nodes?ids=<nodeId>&depth=3" \
 ```
 
 Match the screen to the frame whose name says what the screen is, such as `Create Worker`
-for the create worker dialog, preferring a frame inside a section named after the story's
+for the create worker dialog. Prefer a frame inside a section named after the story's
 feature. Render it and read its geometry:
 
 ```
@@ -98,34 +101,39 @@ figma "files/<fileKey>/nodes?ids=<frameId>" > <out>/<k>-mock-<name>.json
 ```
 
 The node JSON carries each layer's `absoluteBoundingBox`, padding, item spacing, text
-style, fills and component properties, so measure the mockup from it the way step 4
-measures the page, relative to the frame's own origin. Compare the two on structure and
-proportion: which fields appear and in what order, their variant, the column they share,
-the spacing between sections, button text and placement. A mockup is drawn at its own
-width, so compare offsets and gaps, not absolute widths.
+style, fills and component properties. Measure the mockup from it the way step 4 measures
+the page, relative to the frame's own origin. Compare the two on structure and proportion:
 
-Text layers that sit beside the frames in the same section and read as numbered
-requirements are the design's acceptance criteria. Check each one the screen can show,
-such as "Selecting a user automatically populates Name and Email", as a plan step of its
-own, and report one the screen breaks as `broken`.
+- which fields appear, and in what order;
+- their variant and the column they share;
+- the spacing between sections;
+- button text and placement.
 
-When no frame matches the screen, say so in the finding's `reference` and fall back to the
-established screen. When the mockup contradicts the theme, such as a typeface the theme does
-not load, the theme wins and the difference is a `polish` finding addressed to design.
+A mockup is drawn at its own width, so compare
+offsets and gaps, not absolute widths.
+
+Text layers beside the frames in the same section that read as numbered requirements are
+the design's acceptance criteria. Check each one the screen can show as a plan step of its
+own, such as "Selecting a user automatically populates Name and Email". Report one the
+screen breaks as `broken`.
+
+If no frame matches the screen, say so in the finding's `reference` and fall back to the
+established screen. If the mockup contradicts the theme, such as a typeface the theme does
+not load, the theme wins. The difference is then a `polish` finding addressed to design.
 
 ## 3. Walk the plan
 
 Do each step as a user would, by clicking and typing. Reach the screen a step starts on by
 opening its URL, as a user with a bookmark does, rather than clicking through the menu
-again; the step itself is clicks and typing. Chain a step's actions and its wait into one
-call with `&&`, so the chain stops at the first command that fails.
+again. Chain a step's actions and its wait into one call with `&&`, so the chain stops at
+the first command that fails.
 
 Wait for what the step should produce, never for a fixed time and never with
-`wait --load networkidle`. Both wait on something other than the screen: a sleep is too
+`wait --load networkidle`. Both wait on something other than the screen. A sleep is too
 short on a slow response and wasted on a fast one, and the network goes idle on its own
-schedule. Wait instead for the element, text or state the step leads to, copied from a
-snapshot of the screen rather than from the plan or the source, since the screen renders
-text in its own case and words:
+schedule. Wait instead for the element, text or state the step leads to. Copy it from a
+snapshot of the screen, not from the plan or the source. The screen renders text in its own
+case and words:
 
 ```
 agent-browser --session <s> wait --text "CALL TAKEN"
@@ -136,15 +144,15 @@ agent-browser --session <s> wait --fn "document.querySelectorAll('tbody tr').len
 
 Scope a spinner to the container the step loads, since another one elsewhere on the page
 can stay. Never send a wait's output to `/dev/null`. A wait that times out means the screen
-is not what you expected, so run `step` and read what is there before the next action,
-rather than waiting again for the same thing.
+is not what you expected. Run `step` and read what is there before the next action, rather
+than waiting again for the same thing.
 
 After every step, run `<out>/step <s> <out>/<k>-<step>`. Then:
 
 1. Read what changed. Every control that appeared, disappeared, changed its value or
-   changed its enabled state must follow from the step. A field that vanishes once it holds
-   a value, a selection that resets, or a dialog that loses its inputs is a `broken`
-   finding even when no error is logged.
+   changed its enabled state must follow from the step. A `broken` finding needs no logged
+   error. Examples are a field that vanishes once it holds a value, a selection that
+   resets, and a dialog that loses its inputs.
 2. Read the errors and console lines it printed.
 3. Look at the screenshot.
 
@@ -158,9 +166,8 @@ Then exercise what the plan leaves out but a user does next, where the screen of
 
 ## 4. Measure the layout
 
-On every new or changed screen and on its reference, measure the layout instead of judging
-it by eye. For a dialog or form, run this with the container's selector, for example
-`.MuiDialog-paper`:
+On every new or changed screen and on its reference, measure the layout. For a dialog or
+form, run this with the container's selector, for example `.MuiDialog-paper`:
 
 ```
 agent-browser --session <s> eval "(() => {
@@ -178,27 +185,27 @@ agent-browser --session <s> eval "(() => {
 Read the numbers against the reference:
 
 - **Alignment.** Content in one column shares a left edge. An element off the column by more
-  than 2px is a finding, unless the reference offsets the same kind of element by the same
-  amount, as MUI offsets helper text under an outlined input.
+  than 2px is a finding. The exception is a reference that offsets the same kind of element
+  by the same amount, as MUI offsets helper text under an outlined input.
 - **Spacing.** Gaps between sections, and padding inside the container, match the
   reference's within 4px.
 - **Fit.** No horizontal overflow, no clipped text the design did not truncate on purpose,
   no element outside the viewport or under another.
 - **Components.** The screen uses the component and variant its reference uses for the same
-  job: the same button variant and order in the actions, the same input variant, the same
-  typography for a section heading.
+  job. That means the same button variant and order in the actions, the same input variant,
+  and the same typography for a section heading.
 
-Then audit the same container against the design system with the `design-audit` skill, on
-the screen and on its reference screen, with the same selector:
+Then audit the same container with the `design-audit` skill, on the screen and on its
+reference screen, with the same selector:
 
 ```
 node ~/.claude/skills/design-audit/scripts/design-score.ts --text --session <s> \
   --selector '<selector>' --target '<what the screen is>' --out <out> --name <k>-<step>-design
 ```
 
-A `deviates` the reference does not share is an `inconsistent` finding: its `evidence` is
-the `dom` line verbatim, or the Jev signal and probability, and its screenshots include the
-crop. Read a Jev-only deviation against the crop before reporting it, and drop it when the
+A `deviates` the reference does not share is an `inconsistent` finding. Its `evidence` is
+the `dom` line verbatim, or the Jev signal and probability. Its screenshots include the
+crop. Read a Jev-only deviation against the crop before reporting it, and drop it if the
 crop does not show it. A deviation the reference shares is the app's, and goes in `polish`
 with the reference named.
 
@@ -208,46 +215,54 @@ differently by width.
 ## 5. Watch loading
 
 A loading indicator still showing after 10 seconds is a `broken` finding. Before reporting
-it, read the HAR for the query behind it and record how many times it fired and whether
-each answered. A query that answers and fires again on its own is a refetch loop in the
-client, which is the app's bug. Then reload once and wait again, and record whether the
-stall returns. When the browser itself fails (a renderer crash, `CDP response channel
-closed`, a timeout from `agent-browser` rather than from the page), the finding is
-`environment`, not the app's, and the steps it blocked are untested.
+it, read the HAR for the query behind it. Record how many times it fired and whether each
+answered. A query that answers and fires again on its own is a refetch loop in the client,
+which is the app's bug. Then reload once, wait again, and record whether the stall returns.
+
+If the browser itself fails, the finding is `environment`, not the app's, and the steps it
+blocked are untested. Browser failures include a renderer crash, `CDP response channel
+closed`, and a timeout from `agent-browser` rather than from the page.
 
 ## 6. Read the copy
 
 Text shows no raw translation key such as `andon:createWorker`, no placeholder, and no
 untranslated string where the reference is translated. Labels, button text and casing
-follow the reference: a reference that labels its action `CREATE WORKER` makes `ADD WORKER`
-a finding. Explanatory text matches the reference's form, a helper line under a field
-rather than a paragraph above it when the reference uses helper lines.
+follow the reference. A reference that labels its action `CREATE WORKER` makes `ADD WORKER`
+a finding. Explanatory text matches the reference's form. If the reference uses helper
+lines, the screen uses a helper line under a field rather than a paragraph above it.
 
 ## 7. Close the window
 
 Stop the HAR and note the end time. Read it for status 500 and above, 4xx the plan did not
-expect, and GraphQL responses carrying an `errors` array. Find the component file behind
-each design or state finding with one `git grep` on its visible text or translation key, so
-the caller can attribute it. Stop at the file: the caller reads the code to find the cause
-and the pull request behind it, so reading it here spends the story's time twice.
+expect, and GraphQL responses carrying an `errors` array.
 
-Upload every screenshot a finding cites, the outcome screen of the story, and each
-reference screenshot or mockup render a finding compares against, through the
-`image-upload` skill. The URLs are open to anyone holding them, so never upload a screen
-showing a token, a key in the address bar or a customer's data, and never upload a mockup
-no finding cites.
+For each design or state finding, find the component file with one `git grep` on its
+visible text or translation key. Stop at the file. The caller reads the code to find the
+cause and the pull request behind it.
+
+Upload these through the `image-upload` skill:
+
+- every screenshot a finding cites;
+- the outcome screen of the story;
+- each reference screenshot or mockup render a finding compares against.
+
+Anyone holding the URLs can open them. Never upload a screen showing a token, a key in the
+address bar or a customer's data. Never upload a mockup no finding cites.
 
 ## Severity
 
 - `broken`: a step cannot complete, the state is wrong, or a loading state never ends.
 - `inconsistent`: the screen works but departs from its mockup, its reference screen or
-  the design system in a way a user notices: misalignment, spacing, a missing or extra
-  field, a different component or variant, copy.
+  the design system in a way a user notices. Examples are misalignment, spacing, a missing
+  or extra field, a different component or variant, and copy.
 - `polish`: a departure only a designer would notice.
 - `environment`: the browser or the environment failed, not the app.
 
-The story's result is `fail` when any finding is `broken` or `inconsistent`, `untested`
-when an `environment` finding blocked a step before the outcome, and `pass` otherwise.
+The story's result is one of three:
+
+- `fail` if any finding is `broken` or `inconsistent`;
+- `untested` if an `environment` finding blocked a step before the outcome;
+- `pass` otherwise.
 
 ## Return
 
