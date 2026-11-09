@@ -1,9 +1,10 @@
 # Roadmap sync
 
 This is an interactive session. It compares the technical roadmap in Notion with the sprint
-data of the GitHub Projects linked from it, reports the mismatches, and updates Notion dates
-only after the user approves each change. After each phase, present the result and wait for
-the user, who may ask questions, change the analysis or approve a subset of the updates.
+data of the GitHub Projects linked from it, and reports the mismatches. It updates Notion
+dates only after the user approves each change. After each phase, present the result and
+wait for the user. The user can ask questions, change the analysis or approve a subset of
+the updates.
 
 ## Context
 
@@ -35,7 +36,7 @@ the user, who may ask questions, change the analysis or approve a subset of the 
 
 Sub-item pages carry `Component` (fallback `Name`), `Start date` (fallback `Date`),
 `End date` and `Resources`. A sub-item with "hypercare" in its name, case-insensitive, is a
-post-launch monitoring phase that may extend past the parent's end date.
+post-launch monitoring phase that can extend past the parent's end date.
 
 Product milestone pages carry `Product Release Date`, `Commercial release date` and
 `Component`.
@@ -43,10 +44,12 @@ Product milestone pages carry `Product Release Date`, `Commercial release date` 
 ## Phase 1: load the roadmap
 
 1. Read `progress.txt` in the state directory for earlier runs and learnings.
-2. Query the roadmap database for all items. For each, extract component, status, category,
-   start and end dates, `GitHub Project` URL, sub-items with their own title, dates and
-   resources, resources and lead, whether it is itself a sub-item, and the release dates of
-   its linked product milestones.
+2. Query the roadmap database for all items. For each item, extract:
+   - component, status, category, start and end dates, and `GitHub Project` URL;
+   - resources and lead;
+   - sub-items with their own title, dates and resources;
+   - whether the item is itself a sub-item;
+   - the release dates of its linked product milestones.
 3. Store the result in `roadmap-snapshot.json`:
    ```json
    {
@@ -126,10 +129,10 @@ For each item with a `GitHub Project` URL (`/orgs/{owner}/projects/{number}` or
    | `no_github_project` | Item has no `GitHub Project` URL |
    | `empty_project` | Linked project references no sprints |
 
-   Sprint coverage, matching the dashboard: a gap of 0 to 14 days between the latest sprint
-   end and the Notion end date is `ok`, 14 to 28 days is `warning`, over 28 days is `behind`.
-   For `behind`, suggest the latest sprint end plus a buffer. When parent dates move,
-   sub-items may need proportional adjustment.
+   Sprint coverage matches the dashboard. It rates the gap between the latest sprint end and
+   the Notion end date: 0 to 14 days is `ok`, 14 to 28 days is `warning`, over 28 days is
+   `behind`. For `behind`, suggest the latest sprint end plus a buffer. If parent dates move,
+   sub-items can need proportional adjustment.
 
    Confidence: `high` when the sprint dates clearly bound the work, `medium` when the gap is
    14 to 28 days, `low` when sprints are few or missing. The project data carries no issue

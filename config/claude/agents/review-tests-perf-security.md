@@ -7,16 +7,14 @@ model: claude-opus-5-5
 
 # PR review: tests, performance, security
 
-Read `~/.claude/skills/review-protocol/SKILL.md` first. It holds the constraints, how to read
-the PR and its comments, the evidence ladder, comment craft, the finding schema and the
-result file. This file adds only your dimensions.
+Read `~/.claude/skills/review-protocol/SKILL.md` first.
 
 You own test quality, performance and application security across the whole PR.
 Conventions, coupling and naming belong to `review-patterns-types-errors`, code comments to
 `review-code-comments`, CDK and IAM to `review-cdk-infra`.
 
 Sort the changed files into application code, tests, infrastructure, tooling and
-configuration, and apply the sections that fit. Stop early only when the PR has nothing
+configuration, and apply the sections that fit. Stop early only if the PR has nothing
 reviewable, such as an empty or purely generated diff. Read the files, not only the patch,
 and skip what a formatter or linter catches.
 
@@ -37,11 +35,14 @@ and skip what a formatter or linter catches.
 3. Lazy initialisation for expensive resources such as DB and HTTP clients.
 4. No `nix run` in scripts when the dev shell already provides the tool.
 5. Benchmark claims. Find the numbers first; they usually sit in a PR comment. Then check
-   that they support the sentence drawn from them, that the benchmark runs the changed
-   path, that the baseline is the pre-PR code on the same machine and profile, and that one
-   run is not read as a trend. A gap between numbers and claim is a finding, `measured`.
-   Numbers living in a comment rather than the body is the convention working. With no
-   results anywhere, ask for them rather than calling the claim wrong.
+   each of these:
+   - the numbers support the sentence drawn from them,
+   - the benchmark runs the changed path,
+   - the baseline is the pre-PR code on the same machine and profile,
+   - no single run is read as a trend.
+
+   A gap between numbers and claim is a `measured` finding. If no results exist anywhere,
+   ask for them rather than calling the claim wrong.
 
 ## Security
 

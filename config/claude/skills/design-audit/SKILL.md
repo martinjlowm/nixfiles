@@ -5,21 +5,19 @@ description: Audit one rendered component against the nest design system, its sp
 
 # Design audit
 
-A component complies when its spacing sits on the theme's grid and it looks like the
-established app: the theme's typeface, input variant, palette and corner radius, and nothing
-clipped. The theme in nest's `libraries/typescript/ui-base/src/themes/` is the standard, and
-`scripts/rubric.json` holds the numbers this skill checks from it.
+A component complies when its spacing sits on the theme's grid. It must also use the theme's
+typeface, input variant, palette and corner radius, with nothing clipped. The theme in nest's `libraries/typescript/ui-base/src/themes/` is the
+standard. `scripts/rubric.json` holds the numbers this skill checks from it.
 
 Two sources measure, and you decide.
 
 - **The DOM probe** reads computed padding, margin, gap, corner radius, typeface and input
-  variant from the live page, and the position of every field, text block and action. Code
-  settles these, so a probe violation is a deviation.
+  variant from the live page. It also reads the position of every field, text block and
+  action. Code settles these, so a probe violation is a deviation.
 - **Jev** (Jev 1.14, images) answers four yes/no questions about a crop of the component:
   a typeface other than the theme's sans-serif, outlined text fields, clipped or overlapping
   text, and a colour outside the palette. Jev cannot see a spacing difference of a few pixels
-  in a screenshot. It scored two touching fields as evenly spaced on a test dialog, so it is
-  never asked about spacing or alignment.
+  in a screenshot, so it is never asked about spacing or alignment.
 
 ## 1. Score
 
@@ -33,23 +31,23 @@ node ~/.claude/skills/design-audit/scripts/design-score.ts --text \
 ```
 
 Pick the selector of the component the change renders, such as `.MuiDialog-paper` for a
-dialog or the card's `data-testid`, not `body`. The probe scrolls it into view, and the
-screenshot and crop are written to `<dir>/<name>-screen.png` and `<dir>/<name>-crop.png`.
+dialog or the card's `data-testid`, not `body`. The probe scrolls it into view. The
+screenshot and crop go to `<dir>/<name>-screen.png` and `<dir>/<name>-crop.png`.
 
-From a screenshot alone, when no session holds the page:
+If no session holds the page, score from a screenshot alone:
 
 ```
 node ~/.claude/skills/design-audit/scripts/design-score.ts --text \
   --screenshot <png> --target '<what the component is>' --out <dir> --name <file stem>
 ```
 
-Jev finds the component with a Box question, so only the Jev half runs. When Jev does not see
-the target the script exits 1 and says so. Name the target more specifically or pass the
-session.
+Jev finds the component with a Box question, so only the Jev half runs. If Jev does not see
+the target, the script exits 1 and says so. Then name the target more specifically or pass
+the session.
 
 Drop `--text` for JSON, which is also written to `<dir>/<name>-design.json`. The script reads
-`TYPESAFE_API_KEY`. When the key is missing or Jev fails, the probe's result still stands, the
-report says `jev did not run`, and the verdict is `review` when the probe found nothing.
+`TYPESAFE_API_KEY`. If the key is missing or Jev fails, the probe's result still stands and the
+report says `jev did not run`. The verdict is then `review` if the probe found nothing.
 
 ## 2. Read the verdict
 
@@ -76,39 +74,37 @@ and text). Each `jev` line names the signal and its probability.
 | `jev overflow` | Text cut off, clipped or overlapping. |
 | `jev offPalette` | A button, link or accent in a colour outside the palette. |
 
-The thresholds come from four test dialogs, not from the app's own screens. Read a Jev
-`deviates` against the crop before acting on it: a probability says how sure Jev is, not that
-the screen is wrong.
+Before you act on a Jev `deviates`, read it against the crop. The thresholds come from four
+test dialogs, not the app's own screens, and a probability says how sure Jev is.
 
 ## 3. Decide each deviation
 
 1. **Compare with the baseline.** Run the same audit on the reference: the established
-   screen of the same kind, or X in a visual comparison. A deviation the reference shares is
-   the app's, not the change's, and is reported as pre-existing.
+   screen of the same kind, or X in a visual comparison. If the reference shares a
+   deviation, report it as pre-existing, because it is the app's and not the change's.
 2. **Find the source.** `git grep` the element's test id, text or translation key to reach
-   the component file, then the `sx`, `styled` or prop that sets the value. A spacing
+   the component file. Then find the `sx`, `styled` or prop that sets the value. A spacing
    violation names the property, so search for it near the component: `mt: 2.75` gives 22px.
-3. **Name the fix.** The nearest grid value the reference uses (`mt: 2` or `mt: 3`, never a
-   raw px value), the theme's variant (drop `variant="outlined"`), or the palette token
+3. **Name the fix.** Use the nearest grid value the reference uses (`mt: 2` or `mt: 3`, never
+   a raw px value), the theme's variant (drop `variant="outlined"`), or the palette token
    (`color="primary"`). A clipped label usually wants the container to grow or the text to
    wrap, not a smaller font.
 
 A deviation becomes a finding with its evidence: the `dom` line verbatim, or the Jev signal
-and probability with the crop. Which findings get fixed, and where, is the caller's rule.
+and probability with the crop. The caller's rule decides which findings get fixed, and where.
 
 ## Placing a new component
 
-The audit checks these after the fact; follow them while building a view in nest. They are
-read from nest's `ui-app` dialogs and its theme, so the established screens already agree.
+Follow these rules while building a view in nest. The audit checks them after the fact.
 
-- **Space with the theme.** Fields in a form sit 16px apart (`spacing={2}` on the `Stack` or
-  `Grid`, the value in 31 of about 50 dialog layouts), 8px (`spacing={1}`) inside a compact
-  group. Never a raw px value, and never a margin on one field to push it away from the next.
+- **Space with the theme.** Fields in a form sit 16px apart, with `spacing={2}` on the
+  `Stack` or `Grid`, the value in 31 of about 50 dialog layouts. Inside a compact group they sit 8px apart, with `spacing={1}`. Never use
+  a raw px value, or a margin on one field to push it away from the next.
 - **One column, one edge.** Everything in a column starts at the container's content edge.
   Indent only on purpose and by more than 24px, never a few pixels.
 - **Group with headings, not gaps.** A new group of fields gets a heading or a divider, so the
   gaps within each group stay equal.
-- **Actions at the end, confirm last.** A dialog's actions sit at its bottom right: the dismiss
-  action (Cancel, Close) first, the confirming one last and contained when the dialog has one.
-  A destructive action that is not the confirm, such as Delete in an edit dialog, sits alone
-  at the left with `justifyContent: 'space-between'`.
+- **Actions at the end, confirm last.** A dialog's actions sit at its bottom right. The
+  dismiss action (Cancel, Close) comes first. The confirming action comes last, contained if
+  the dialog has one. A destructive action that is not the confirm, such as Delete in an edit
+  dialog, sits alone at the left with `justifyContent: 'space-between'`.

@@ -6,9 +6,9 @@ user-invocable: false
 
 # gh-axi
 
-`gh-axi` is on PATH in every sandboxed session. It runs the sandbox's `gh`, so it shares that
-binary's auth and flag filtering, and prints compact TOON with totals and `help:` lines that
-name the next command to run.
+`gh-axi` is on PATH in every sandboxed session. It runs the sandbox's `gh` and shares its auth
+and flag filtering. It prints compact TOON with totals and `help:` lines that name the next
+command.
 
 ## Discover commands from the CLI
 
@@ -18,7 +18,7 @@ gh-axi --help               # command index and global flags
 gh-axi <command> --help     # flags and examples for one command
 ```
 
-Follow the `help:` lines in each output instead of guessing flags. Unknown flags fail with a
+Follow the `help:` lines instead of guessing flags. An unknown flag fails with a
 `VALIDATION_ERROR` that lists the supported ones.
 
 ## Common calls
@@ -34,8 +34,8 @@ gh-axi pr comment 42 --body-file reply.md
 gh-axi search issues "flaky test" --repo owner/name
 ```
 
-Long bodies, diffs and logs are truncated with a size hint. Pass `--full` when the elided part
-matters.
+Long bodies, diffs and logs are truncated with a size hint. If the elided part matters, pass
+`--full`.
 
 ## When to use `gh` instead
 

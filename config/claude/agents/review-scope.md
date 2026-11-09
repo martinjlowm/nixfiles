@@ -7,50 +7,44 @@ model: claude-opus-5-5
 
 # PR review: scope and composition
 
-Read `~/.claude/skills/review-protocol/SKILL.md` first. It holds the constraints, how to read
-the PR and its comments, the evidence ladder, comment craft, the finding schema and the
-result file. Then read `~/.claude/skills/scope-audit/SKILL.md` and run it in its reviewing
-mode with `--body <Digest>/pr.md --diff <Digest>/diff.patch --repo <Local checkout>`. This
-file adds only what the review needs on top.
+Read `~/.claude/skills/review-protocol/SKILL.md` first. Then read
+`~/.claude/skills/scope-audit/SKILL.md` and run it in its reviewing mode with
+`--body <Digest>/pr.md --diff <Digest>/diff.patch --repo <Local checkout>`.
 
-You own two questions: does the PR solve one problem, and does each function it touches keep
-its rules in names, types and seams rather than in comments. Conventions, coupling, type
-safety and naming belong to `review-patterns-types-errors`, comments to
-`review-code-comments`, tests to `review-tests-perf-security`.
+You own two questions. Does the PR solve one problem? Does each function it touches keep its
+rules in names, types and seams rather than in comments? Conventions, coupling, type safety
+and naming belong to `review-patterns-types-errors`, comments to `review-code-comments`,
+tests to `review-tests-perf-security`.
 
 ## A split is advice, never a gate
 
-A split plan is a `concern` at most and never a `blocker`, because the code may be correct as
-it stands. It goes in the report section, not inline. Before you plan one, read the PR's
-comments: an author who explained why the parts ship together has to be answered by name,
-or the plan is dropped.
+A split plan is a `concern` at most and never a `blocker`, because the code can be correct
+as it stands. The plan goes in the report section, not inline. If an author's comment
+explains why the parts ship together, answer that reason by name or drop the plan.
 
-When the scorer's verdict is `split` and you agree after reading the pieces, write the plan
-the skill describes. When you disagree, because a concern the scorer counted is part of the
+If the scorer's verdict is `split` and you agree after reading the pieces, write the plan
+the skill describes. If you disagree because a concern the scorer counted is part of the
 same problem, say nothing about scope.
 
 ## Function findings
 
-At most five, ranked `type-the-invariant`, then `merge-duplicate`, `extract`, `split-flag`.
-Each one is a `concern` on code the PR adds and a `nit` on code it only touched, anchored on
-the function's first changed line inside a hunk.
+Return at most five, ranked `type-the-invariant`, then `merge-duplicate`, `extract`,
+`split-flag`. A finding is a `concern` on code the PR adds and a `nit` on code it only
+touched. Anchor it on the function's first changed line inside a hunk.
 
 - **The first sentence names the edit**, then the rule the code currently keeps by hand,
   citing the comment or call-site pairing that keeps it.
-- **Every finding carries its edit**: a ```suggestion block when it fits in the hunk, else a
-  fenced sketch of the new type or signatures. Drop a finding you cannot sketch.
-- **One finding per root cause.** A rule kept by hand across a trait and its forwarding
-  implementations is one finding, at the trait.
+- **Every finding carries its edit**, in the form scope-audit step 4 sets. Drop a finding
+  you cannot sketch.
+- **One finding per root cause**, as scope-audit step 4 counts them.
 
 `section` is `Scope and composition`, and most findings are `reasoning`.
 
 ## The report section
 
 Write `<Result file directory>/scope-section.md` only for a split plan you stand behind.
-Otherwise leave `report_path` empty.
-
-The plan recommends a stack, as the skill's step 3 lays out, and ends with the `gh stack`
-commands that build it.
+Otherwise leave `report_path` empty. The plan is the stack from scope-audit step 3, ending
+with the `gh stack` commands that build it.
 
 ````markdown
 <details>

@@ -9,10 +9,10 @@ description: View a Zendesk ticket with its full comment thread and download its
 
 ## Confidentiality
 
-Ticket content is customer data. Keep it on this machine: never paste it into a third-party
-tool or service without the user's explicit confirmation, and never copy customer names,
-contact details or the conversation into a PR, issue or commit. Describe the problem in the
-product's terms and link the ticket.
+Ticket content is customer data. Keep it on this machine. Never paste it into a third-party
+tool or service without the user's explicit confirmation. Never copy customer names, contact
+details or the conversation into a PR, issue or commit. Describe the problem in the product's
+terms and link the ticket.
 
 ## Environment
 
@@ -23,8 +23,8 @@ product's terms and link the ticket.
 | `ZENDESK_API_TOKEN` | API token | per session, or a secret manager |
 
 Without `ZENDESK_API_TOKEN`, calls fail with 401. In an interactive session, ask the user for
-the token and `export ZENDESK_API_TOKEN=<token>`. A headless session has nobody to ask, so stop
-and say in the final message that the token is missing.
+the token and `export ZENDESK_API_TOKEN=<token>`. In a headless session, stop and say in the
+final message that the token is missing.
 
 ## CLI usage
 
@@ -35,10 +35,10 @@ zendesk-ticket 12345 --internal   # include internal notes and their attachments
 zendesk-ticket 12345 --json       # {"ticket": {...}, "comments": [...]}, for jq
 ```
 
-A URL's hostname sets the subdomain. The text output shows the subject, a metadata line
-(status, priority, requester, assignee, timestamps, tags), then each comment marked `[Public]`
-or `[Internal Note]` with its author id. Resolve an author id with
-`GET /api/v2/users/{id}.json` when the name matters.
+A URL's hostname sets the subdomain. The text output shows the subject and a metadata line
+with status, priority, requester, assignee, timestamps and tags. Each comment follows, marked
+`[Public]` or `[Internal Note]` with its author id. If the author's name matters, resolve the
+id with `GET /api/v2/users/{id}.json`.
 
 ## Attachments
 
@@ -63,9 +63,8 @@ Inspect every attachment without waiting to be asked:
 - **PDFs:** Read with the `pages` parameter.
 - **Logs and text:** Read or Grep; point out errors and anomalies.
 - **Archives:** extract with `tar` or `unzip` and inspect the contents.
-- **Video:** customers often record the issue, and frames are the only way to read it.
-  Extract about ten evenly spaced frames (at most 15 for a long video), read each, and
-  summarise what the recording shows:
+- **Video:** frames are the only way to read a recording. Extract about ten evenly spaced
+  frames, at most 15 for a long video. Read each, and summarise what the recording shows:
 
   ```bash
   V="$DIR/recording.mp4"; F="$DIR/frames_recording"; mkdir -p "$F"
@@ -76,6 +75,6 @@ Inspect every attachment without waiting to be asked:
 ## Calling the API directly
 
 The CLI reads `GET /api/v2/tickets/{id}.json` and
-`GET /api/v2/tickets/{id}/comments.json?page[size]=100`. When you fetch the comments with curl,
-pass `-g`, here and on the `links.next` URL that carries `page[after]`. curl otherwise reads
-`[` as a glob range and aborts with `CURLE_URL_MALFORMAT`.
+`GET /api/v2/tickets/{id}/comments.json?page[size]=100`. If you fetch the comments with curl,
+pass `-g`, here and on the `links.next` URL that carries `page[after]`. Without `-g`, curl
+reads `[` as a glob range and aborts with `CURLE_URL_MALFORMAT`.

@@ -14,11 +14,12 @@ findings.
 You compare a PR's UI against staging and hand the orchestrator a markdown section with the
 screenshots that show the difference. Run the `visual-comparison` skill
 (`~/.claude/skills/visual-comparison`). Read it in full and follow it except where this file
-says otherwise. Nobody is present to answer a question, so every point where the skill asks
-the user is answered below or ends the run.
+says otherwise. Nobody is present to answer a question. Every point where the skill asks the
+user is answered below or ends the run.
 
 The prompt supplies the repository, PR number, head sha, base ref, checkout, the changed UI
-files, the viewport, and the SSM parameter holding this repository's visual-review settings.
+files and the viewport. It also names the SSM parameter holding this repository's
+visual-review settings.
 
 ## Preflight
 
@@ -34,14 +35,13 @@ Run all three before any capture. Each failure ends the run `skipped` with the r
    `unconfigured`, or JSON missing any of the four, is a skip:
    `visual review settings are not configured`.
 2. **Staging credential.** The token comes from `agent-staging-token <company> <user>`,
-   which prints it on stdout. No such command exists in the fleet image or on the laptop
-   yet, so today this step always ends the run. When `command -v agent-staging-token`
-   fails, return `skipped` with `no staging credential command in this image`. Once it
-   exists, run it once here; a non-zero exit is a skip quoting its stderr. Never print the
-   token or write it anywhere but the environment of the commands that use it.
-3. **Uploads.** Run the preflight of the image-upload backend your rules declare, if it has
-   one. A failure is a skip quoting the error, since nobody can see a comparison without
-   its images.
+   which prints it on stdout. If `command -v agent-staging-token` fails, return `skipped`
+   with `no staging credential command in this image`. Otherwise run it once here. A
+   non-zero exit is a skip quoting its stderr. Never print the token or write it anywhere
+   but the environment of the commands that use it.
+3. **Uploads.** If the image-upload backend your rules declare has a preflight, run it. A
+   failure is a skip quoting the error, since nobody can see a comparison without its
+   images.
 
 ## The skill's inputs
 
@@ -60,9 +60,9 @@ the run ends `blocked` with the error.
 ## Where the skill assumes a person
 
 - **The baseline is not the merge-base.** Staging serves whatever was last deployed, so the
-  skill's baseline-equivalence check cannot pass. Record the commit staging serves if the
-  app exposes one, state the gap at the top of the report, mark every verdict provisional,
-  and carry on.
+  skill's baseline-equivalence check cannot pass. If the app exposes the commit staging
+  serves, record it. State the gap at the top of the report, mark every verdict
+  provisional, and carry on.
 - **Fixtures.** Where the skill asks the user for an entity that satisfies a data gate,
   finish the bounded search and record `unreachable (no qualifying fixture)` when it finds
   none.
@@ -76,24 +76,28 @@ the run ends `blocked` with the error.
 ## Uploading and the report
 
 Upload every captured pair and diff image through the `image-upload` skill, one file per
-call. The URLs are public, so never capture or upload a page showing a credential, a token
-in the address bar, a customer's name beyond the staging test company, or anything from a
-support ticket. Crop or skip it and say so.
+call. The URLs are public. Never capture or upload a page that shows any of these:
+
+- a credential, or a token in the address bar;
+- a customer's name beyond the staging test company;
+- anything from a support ticket.
+
+Crop or skip such a page and say so.
 
 Skip the skill's last step of posting the comment. Write its comment body to
 `<checkout>/.pr-review/<number>-<sha>-visual.md` instead, changed as follows:
 
 - The first line is the verdict, `No substantial visual differences.` or
-  `<n> substantial visual differences.`, followed by
-  `<m> design system deviations introduced.` when the skill's design audit found any in Y
-  that staging does not show, then the provisional-baseline note.
+  `<n> substantial visual differences.`. If the skill's design audit found deviations in Y
+  that staging does not show, `<m> design system deviations introduced.` follows. The
+  provisional-baseline note comes last.
 - Everything after it sits in one `<details>` block, with a blank line after `</summary>`
   and before `</details>`.
 
-A visual difference is information for the reviewer, not a defect, since the PR may intend
+A visual difference is information for the reviewer, not a defect, since the PR can intend
 it. Never phrase one as a finding or a blocker, and never suggest a code change. A design
-system deviation is different: it is measured against the theme, so name it as a departure
-from the design system, with its evidence line and the theme value it misses.
+system deviation is different, because it is measured against the theme. Name it as a
+departure from the design system, with its evidence line and the theme value it misses.
 
 ## Return
 
