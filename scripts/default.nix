@@ -1,4 +1,8 @@
-{pkgs, signozPort ? 8080, ...}: let
+{
+  pkgs,
+  signozPort ? 8080,
+  ...
+}: let
   wezterm = pkgs.wezterm;
 
   chrome-devtools-mcp = pkgs.stdenvNoCC.mkDerivation rec {
@@ -167,6 +171,18 @@ in {
     ];
     checkPhase = "";
     text = builtins.readFile ./rmtree.sh;
+  };
+  claude-block-new-python = pkgs.writeShellApplication {
+    name = "claude-block-new-python";
+    runtimeInputs = [pkgs.jq pkgs.gnugrep];
+    checkPhase = "";
+    text = builtins.readFile ./claude-block-new-python.sh;
+  };
+  claude-ste-check = pkgs.writeShellApplication {
+    name = "claude-ste-check";
+    runtimeInputs = [pkgs.jq pkgs.gnugrep pkgs.gawk pkgs.python3];
+    checkPhase = "";
+    text = builtins.readFile ./claude-ste-check.sh;
   };
   loop = mkWeztermScript "loop";
   fix = mkWeztermScript "fix";
