@@ -84,7 +84,7 @@ in {
         # copies skill directories, not marketplace plugins, so this stays a
         # directory reference rather than extraKnownMarketplaces, and the
         # laptop and the fleet run identical skill text either way.
-        asd-ste100 = inputs.asd-ste100-skill;
+        asd-ste100 = "${inputs.asd-ste100-skill}";
       };
     settings = {
       model = "opus";
