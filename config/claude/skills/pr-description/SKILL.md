@@ -152,7 +152,9 @@ the diff and, a year later, see why it exists.
   scope follow under headings, then the trailers.
 - **Wrap the body at 80 columns.** Markdown joins the lines, so the width only serves the
   raw text under `git log` and in the editor. Leave fenced blocks, tables and links
-  unwrapped.
+  unwrapped. If an edit changes the length of one line, re-wrap the whole paragraph.
+  Before `pr create` or `pr edit`, run `awk 'length > 80' <file>`. Every hit must be a
+  fenced block, a table or a link.
 - **Answer "what" once.** Do not walk through every case or call site that follows; a reader
   who needs that reads the diff.
 - **A summary of the diff is not a description.** Listing touched files and renamed
