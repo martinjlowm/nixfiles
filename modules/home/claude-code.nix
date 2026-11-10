@@ -29,6 +29,7 @@
     retro = "engineering/retro";
     writing-for-agents = "productivity/writing-for-agents";
   };
+  scripts = pkgs.callPackage ../../scripts {};
 in {
   # CLI on PATH for manual use (codegraph status/query/impact ...). The MCP
   # server itself is injected via pkgs.codegraph-mcp-servers: the claude-code
@@ -40,7 +41,12 @@ in {
   # rtk must resolve by bare name: the hook below rewrites commands to
   # literal `rtk ...`, and rtk's self-check warns daily unless the hook
   # command in settings.json is exactly "rtk hook claude".
-  home.packages = [pkgs.codegraph pkgs.rtk];
+  home.packages = [
+    pkgs.codegraph
+    pkgs.rtk
+    scripts.claude-block-new-python
+    scripts.claude-ste-check
+  ];
 
   programs.claude-code = {
     enable = true;
@@ -101,12 +107,29 @@ in {
               }
             ];
           }
+          # Blocks a newly generated Python script (Write/Edit, or a Bash
+          # redirect into a .py path). Running or editing an existing .py
+          # file, such as a vendored dependency's own script, is unaffected:
+          # the rule is about what this session authors, not every file that
+          # happens to be Python.
+          {
+            matcher = "Write|Edit|Bash";
+            hooks = [
+              {
+                type = "command";
+                command = "claude-block-new-python";
+              }
+            ];
+          }
+          # Lints a gh/git commit's --body-file (or -F) text against
+          # ASD-STE100's structural rules before the post happens. No-ops
+          # until the asd-ste100-skill plugin is installed.
           {
             matcher = "Bash";
             hooks = [
               {
                 type = "command";
-                command = "jq -re '.tool_input.command' | grep -q 'python3' && { echo 'ERROR: Python is not allowed. Use Node.js instead.' >&2; exit 2; } || true";
+                command = "claude-ste-check";
               }
             ];
           }
@@ -146,6 +169,7 @@ in {
         "aws-cdk@aws-skills" = true;
         "aws-cost-ops@aws-skills" = true;
         "document-skills@anthropic-agent-skills" = true;
+        "asd-ste100@asd-ste100-skill" = true;
       };
       skipDangerousModePermissionPrompt = true;
       attribution = {
@@ -157,6 +181,16 @@ in {
           source = {
             source = "github";
             repo = "pbakaus/impeccable";
+          };
+        };
+        # Simplified Technical English (ASD-STE100) rewrite skill. The
+        # Style rule in config/claude/rules/writing.md states this
+        # package's always-on subset; run the skill itself for a full
+        # structural pass.
+        asd-ste100-skill = {
+          source = {
+            source = "github";
+            repo = "danyuchn/asd-ste100-skill";
           };
         };
       };

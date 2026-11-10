@@ -1,12 +1,36 @@
 # Writing
 
-## Run `unslop` over everything a person reads
+## Style
 
-Commit messages, PR and issue titles and bodies, comments and replies, Slack drafts,
-documentation, the prose in code comments, and your final message. Run it before handing the
-text over and again after any substantial rewrite. These six bind whether or not the skill
-is open:
+One style governs everything you write to an agent or a person. It follows ASD-STE100,
+Simplified Technical English, the aerospace standard built to keep one sentence from reading
+two ways. It applies to:
 
+- Commit messages, PR and issue titles and bodies, comments and replies, Slack drafts.
+- Documentation and the prose in code comments.
+- A skill, agent file or prompt.
+- Every message you send the user.
+
+Run the `unslop` skill for tone. Run the `asd-ste100` skill for a full structural pass. Do
+both before sending text, and again after a substantial rewrite. These bind whether or not
+either skill is open:
+
+- Write one instruction, fact or claim per sentence, at most 20 words. A sentence that
+  describes something runs to at most 25 words. A paragraph holds one topic.
+- State an instruction in the imperative. Put a condition first: "If the PR is a draft, skip
+  it."
+- Use a list, not a prose run, for three or more items or steps.
+- No semicolon. Split into two sentences instead.
+- No phrasal verb: "start" not "kick off", "contact" not "reach out", "read" not "dive into".
+- No noun cluster past three words stacked: "fuel pump valve" is fine, "high pressure fuel
+  pump inlet valve" is not. Split it with "of" or a clause.
+- No ellipsis. Keep the subject, verb and article, even where the sentence reads longer for
+  it.
+- Keep a hedge: "may have failed" is not "failed".
+- Repeat the noun where "it", "this" or "they" could mean two things.
+- Write "must" for an obligation, "can" for a possibility and "if" for a condition.
+  "Should" and "may" read as either.
+- Call one thing by one name in every file that mentions it.
 - No em dashes, and no parentheses or en dash in their place. End the sentence or use a comma.
 - A colon introduces a list or an example, never a second clause.
 - No opener that agrees before it says anything: "You're right", "Good catch".
@@ -14,18 +38,6 @@ is open:
 - Sentence-case headings and no decorative emoji.
 - A concrete noun in every claim. A sentence that would fit another project unchanged says
   nothing about this one.
-
-## Instructions an agent follows
-
-A prompt, agent file, skill or subagent brief reaches a reader with none of your context.
-
-- Write one instruction per sentence, in the imperative, at most 20 words.
-- Keep a sentence that describes to at most 25 words, and a paragraph to one topic.
-- Put the condition first: "If the PR is a draft, skip it."
-- Repeat the noun where "it", "this" or "they" could mean two things.
-- Write "must" for an obligation, "can" for a possibility and "if" for a condition.
-  "Should" and "may" read as either.
-- Call one thing by one name in every file that mentions it.
 
 A code span, a quote or a parenthesis counts as one word.
 
