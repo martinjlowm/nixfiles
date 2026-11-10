@@ -146,6 +146,7 @@ in {
         "aws-cdk@aws-skills" = true;
         "aws-cost-ops@aws-skills" = true;
         "document-skills@anthropic-agent-skills" = true;
+        "asd-ste100@asd-ste100-skill" = true;
       };
       skipDangerousModePermissionPrompt = true;
       attribution = {
@@ -157,6 +158,16 @@ in {
           source = {
             source = "github";
             repo = "pbakaus/impeccable";
+          };
+        };
+        # Simplified Technical English (ASD-STE100) rewrite skill. The
+        # Style rule in config/claude/rules/writing.md states this
+        # package's always-on subset; run the skill itself for a full
+        # structural pass.
+        asd-ste100-skill = {
+          source = {
+            source = "github";
+            repo = "danyuchn/asd-ste100-skill";
           };
         };
       };

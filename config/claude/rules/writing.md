@@ -2,16 +2,31 @@
 
 ## Style
 
-One style governs everything you write, an instruction to an agent and a word to a person
-alike: commit messages, PR and issue titles and bodies, comments and replies, Slack drafts,
-documentation, the prose in code comments, a skill, agent file or prompt, and every message
-you send the user. Run the `unslop` skill over it before handing it over, and again after a
-substantial rewrite. These bind whether or not the skill is open:
+One style governs everything you write to an agent or a person. It follows ASD-STE100,
+Simplified Technical English, the aerospace standard built to keep one sentence from reading
+two ways. It applies to:
 
-- Write one instruction, fact or claim per sentence, at most 20 words. Keep a sentence that
-  describes something to at most 25 words, and a paragraph to one topic.
+- Commit messages, PR and issue titles and bodies, comments and replies, Slack drafts.
+- Documentation and the prose in code comments.
+- A skill, agent file or prompt.
+- Every message you send the user.
+
+Run the `unslop` skill for tone. Run the `asd-ste100` skill for a full structural pass. Do
+both before sending text, and again after a substantial rewrite. These bind whether or not
+either skill is open:
+
+- Write one instruction, fact or claim per sentence, at most 20 words. A sentence that
+  describes something runs to at most 25 words. A paragraph holds one topic.
 - State an instruction in the imperative. Put a condition first: "If the PR is a draft, skip
   it."
+- Use a list, not a prose run, for three or more items or steps.
+- No semicolon. Split into two sentences instead.
+- No phrasal verb: "start" not "kick off", "contact" not "reach out", "read" not "dive into".
+- No noun cluster past three words stacked: "fuel pump valve" is fine, "high pressure fuel
+  pump inlet valve" is not. Split it with "of" or a clause.
+- No ellipsis. Keep the subject, verb and article, even where the sentence reads longer for
+  it.
+- Keep a hedge: "may have failed" is not "failed".
 - Repeat the noun where "it", "this" or "they" could mean two things.
 - Write "must" for an obligation, "can" for a possibility and "if" for a condition.
   "Should" and "may" read as either.
