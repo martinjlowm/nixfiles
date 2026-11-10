@@ -29,7 +29,7 @@
     retro = "engineering/retro";
     writing-for-agents = "productivity/writing-for-agents";
   };
-  scripts = pkgs.callPackage ../../scripts {};
+  scripts = pkgs.callPackage ../../scripts {asd-ste100-skill = inputs.asd-ste100-skill;};
 in {
   # CLI on PATH for manual use (codegraph status/query/impact ...). The MCP
   # server itself is injected via pkgs.codegraph-mcp-servers: the claude-code
@@ -76,7 +76,16 @@ in {
         (builtins.attrNames (builtins.readDir "${claudeDirectory}/skills")))
       // lib.genAttrs sharedSkills (name: "${inputs.agent-skills}/${name}")
       // lib.genAttrs humanlayerSkills (name: "${inputs.humanlayer-skills}/plugins/${name}/skills/${name}")
-      // lib.mapAttrs (_: path: "${inputs.mattpocock-skills}/skills/${path}") mattpocockSkills;
+      // lib.mapAttrs (_: path: "${inputs.mattpocock-skills}/skills/${path}") mattpocockSkills
+      // {
+        # danyuchn/asd-ste100-skill ships as a marketplace plugin, but its
+        # whole payload is one ordinary skill directory with SKILL.md at the
+        # repo root, the same shape show-me and typesafe-ai are in. The fleet
+        # copies skill directories, not marketplace plugins, so this stays a
+        # directory reference rather than extraKnownMarketplaces, and the
+        # laptop and the fleet run identical skill text either way.
+        asd-ste100 = inputs.asd-ste100-skill;
+      };
     settings = {
       model = "opus";
       # model = "fable";
@@ -122,8 +131,7 @@ in {
             ];
           }
           # Lints a gh/git commit's --body-file (or -F) text against
-          # ASD-STE100's structural rules before the post happens. No-ops
-          # until the asd-ste100-skill plugin is installed.
+          # ASD-STE100's structural rules before the post happens.
           {
             matcher = "Bash";
             hooks = [
@@ -169,7 +177,6 @@ in {
         "aws-cdk@aws-skills" = true;
         "aws-cost-ops@aws-skills" = true;
         "document-skills@anthropic-agent-skills" = true;
-        "asd-ste100@asd-ste100-skill" = true;
       };
       skipDangerousModePermissionPrompt = true;
       attribution = {
@@ -181,16 +188,6 @@ in {
           source = {
             source = "github";
             repo = "pbakaus/impeccable";
-          };
-        };
-        # Simplified Technical English (ASD-STE100) rewrite skill. The
-        # Style rule in config/claude/rules/writing.md states this
-        # package's always-on subset; run the skill itself for a full
-        # structural pass.
-        asd-ste100-skill = {
-          source = {
-            source = "github";
-            repo = "danyuchn/asd-ste100-skill";
           };
         };
       };
