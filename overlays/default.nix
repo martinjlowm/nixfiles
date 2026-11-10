@@ -334,6 +334,16 @@
         (allow file-read* (home-subpath "/.config/nix"))
       '';
 
+      # ~/.nix-profile/bin sits on PATH ahead of /etc/profiles/per-user, and
+      # node's spawn aborts on the first EPERM in a PATH lookup instead of
+      # trying the next entry. The links resolve into /nix, which is already
+      # readable, so reading the links themselves is all a lookup needs.
+      nixUserProfileProfile = final.writeText "nix-user-profile.sb" ''
+        (allow file-read*
+          (home-literal "/.nix-profile")
+          (home-subpath "/.local/state/nix/profiles"))
+      '';
+
       opnix = final.opnix;
       coreutils = final.coreutils;
       opnixEnvConfig = final.writeText "claude-opnix-env.json" (builtins.toJSON {
@@ -524,6 +534,7 @@
           --add-dirs-ro="$ro_dirs" \
           --append-profile=${nixRunProfile} \
           --append-profile=${nixUserConfProfile} \
+          --append-profile=${nixUserProfileProfile} \
           --append-profile=${denyGhConfig} \
           --enable agent-browser \
           --add-dirs="$rw_dirs" \
