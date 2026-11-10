@@ -1,12 +1,21 @@
 # Writing
 
-## Run `unslop` over everything a person reads
+## Style
 
-Commit messages, PR and issue titles and bodies, comments and replies, Slack drafts,
-documentation, the prose in code comments, and your final message. Run it before handing the
-text over and again after any substantial rewrite. These six bind whether or not the skill
-is open:
+One style governs everything you write, an instruction to an agent and a word to a person
+alike: commit messages, PR and issue titles and bodies, comments and replies, Slack drafts,
+documentation, the prose in code comments, a skill, agent file or prompt, and every message
+you send the user. Run the `unslop` skill over it before handing it over, and again after a
+substantial rewrite. These bind whether or not the skill is open:
 
+- Write one instruction, fact or claim per sentence, at most 20 words. Keep a sentence that
+  describes something to at most 25 words, and a paragraph to one topic.
+- State an instruction in the imperative. Put a condition first: "If the PR is a draft, skip
+  it."
+- Repeat the noun where "it", "this" or "they" could mean two things.
+- Write "must" for an obligation, "can" for a possibility and "if" for a condition.
+  "Should" and "may" read as either.
+- Call one thing by one name in every file that mentions it.
 - No em dashes, and no parentheses or en dash in their place. End the sentence or use a comma.
 - A colon introduces a list or an example, never a second clause.
 - No opener that agrees before it says anything: "You're right", "Good catch".
@@ -14,18 +23,6 @@ is open:
 - Sentence-case headings and no decorative emoji.
 - A concrete noun in every claim. A sentence that would fit another project unchanged says
   nothing about this one.
-
-## Instructions an agent follows
-
-A prompt, agent file, skill or subagent brief reaches a reader with none of your context.
-
-- Write one instruction per sentence, in the imperative, at most 20 words.
-- Keep a sentence that describes to at most 25 words, and a paragraph to one topic.
-- Put the condition first: "If the PR is a draft, skip it."
-- Repeat the noun where "it", "this" or "they" could mean two things.
-- Write "must" for an obligation, "can" for a possibility and "if" for a condition.
-  "Should" and "may" read as either.
-- Call one thing by one name in every file that mentions it.
 
 A code span, a quote or a parenthesis counts as one word.
 
