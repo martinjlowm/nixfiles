@@ -34,6 +34,13 @@
     mattpocock-skills.url = "git+https://github.com/mattpocock/skills?ref=main";
     mattpocock-skills.flake = false;
 
+    # danyuchn's ASD-STE100 (Simplified Technical English) rewrite skill,
+    # with its ste-lint.py structural linter. The Style rule states this
+    # repo's always-on subset; the skill runs the full pass. Skill folder
+    # only, no flake.
+    asd-ste100-skill.url = "github:danyuchn/asd-ste100-skill";
+    asd-ste100-skill.flake = false;
+
     treefmt-nix.url = "github:numtide/treefmt-nix";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
@@ -52,6 +59,7 @@
     agent-skills,
     humanlayer-skills,
     mattpocock-skills,
+    asd-ste100-skill,
     treefmt-nix,
   }: let
     # Import overlays

@@ -1,6 +1,10 @@
 {
   pkgs,
   signozPort ? 8080,
+  # The asd-ste100-skill flake input's source tree, for claude-ste-check's
+  # ste-lint.py. Only claude-code.nix passes this; it is unused, so unforced,
+  # wherever else this file is called.
+  asd-ste100-skill ? null,
   ...
 }: let
   wezterm = pkgs.wezterm;
@@ -182,7 +186,10 @@ in {
     name = "claude-ste-check";
     runtimeInputs = [pkgs.jq pkgs.gnugrep pkgs.gawk pkgs.python3];
     checkPhase = "";
-    text = builtins.readFile ./claude-ste-check.sh;
+    text = ''
+      export STE_LINT_SCRIPT=${asd-ste100-skill}/scripts/ste-lint.py
+      ${builtins.readFile ./claude-ste-check.sh}
+    '';
   };
   loop = mkWeztermScript "loop";
   fix = mkWeztermScript "fix";
