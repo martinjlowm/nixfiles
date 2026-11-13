@@ -71,16 +71,27 @@
     # deps — no native addons.
     codegraph = final.buildNpmPackage rec {
       pname = "codegraph";
-      version = "0.9.9";
+      version = "1.6.2";
       src = final.fetchFromGitHub {
         owner = "colbymchenry";
         repo = "codegraph";
         rev = "v${version}";
-        hash = "sha256-Oy0WpllYQDmKpVhf+xI3Y18s+0x2bzkN8DDgTOJf4B4=";
+        hash = "sha256-G/rBBP1dk1JB17Y4+xubUlPd3iDU2oKLuoiaxZh6Lnw=";
       };
-      npmDepsHash = "sha256-PnD1POY39S/qaS4fOwJyYnRsCxbJ9pm49yVVAGlGt/E=";
+      npmDepsHash = "sha256-J8viY38M/loCoJmpxEOIApN6cpf6sU2aa80knVNRSvI=";
       # Upstream bundles Node 24; Node 25 is hard-blocked (V8 wasm JIT bug).
       nodejs = final.nodejs_24;
+      # The `ui` workspace pins vite 7 in its own node_modules, but npm in the
+      # build sandbox does not put that bin directory on PATH. Without it,
+      # `vite build` resolves the root vite 5 and fails on the svelte plugin.
+      preBuild = ''
+        export PATH="$PWD/ui/node_modules/.bin:$PATH"
+      '';
+      # The package ships the built viewer in dist/viewer, not the ui/ source
+      # that this workspace link points at.
+      postInstall = ''
+        rm $out/lib/node_modules/@colbymchenry/codegraph/node_modules/@colbymchenry/codegraph-ui
+      '';
       meta = {
         description = "Semantic code intelligence for coding agents";
         homepage = "https://github.com/colbymchenry/codegraph";
