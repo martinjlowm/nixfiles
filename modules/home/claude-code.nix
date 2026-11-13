@@ -29,7 +29,10 @@
     retro = "engineering/retro";
     writing-for-agents = "productivity/writing-for-agents";
   };
-  scripts = pkgs.callPackage ../../scripts {asd-ste100-skill = inputs.asd-ste100-skill;};
+  scripts = pkgs.callPackage ../../scripts {
+    asd-ste100-skill = inputs.asd-ste100-skill;
+    claude-code = nextPkgsClaude.claude-code;
+  };
 in {
   # CLI on PATH for manual use (codegraph status/query/impact ...). The MCP
   # server itself is injected via pkgs.codegraph-mcp-servers: the claude-code
@@ -46,6 +49,7 @@ in {
     pkgs.rtk
     scripts.claude-block-new-python
     scripts.claude-ste-check
+    scripts.claude-system-prompt
   ];
 
   programs.claude-code = {

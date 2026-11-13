@@ -109,6 +109,30 @@ overrides it.
 `tech-spec.md`, which the `tech-spec` package reads through `TECH_SPEC_TEMPLATE`, and
 `ESTIMATION.md`, which no package or prompt reads.
 
+## System prompt
+
+| File | Role |
+| --- | --- |
+| `config/claude/system-prompt.md` | The `claude` wrapper passes it with `--append-system-prompt-file` to every session, after the user arguments. Subcommands such as `claude mcp` do not get it. Claude Code appends it to the end of its main system block. |
+| `config/claude/upstream-system-prompt.md` | The output of `claude-system-prompt` for the `nextPkgsClaude` binary. No package reads it. |
+
+`claude-system-prompt [<claude-binary>]` is a home-manager package. It prints the system
+blocks and the tool descriptions that an interactive session of the binary sends, as
+Markdown. The default binary is the unwrapped `nextPkgsClaude.claude-code`, so the output
+does not contain `system-prompt.md`.
+
+The capture runs the binary in an empty temporary home under `script`, which supplies a
+pseudo-terminal. The binary sends its requests to a local stand-in for the Messages API.
+The stand-in records the first request that carries tools and answers each request with
+HTTP 400. The capture needs no network and no account. It fails after 60 seconds without a
+request that carries tools. If `CLAUDE_SYSTEM_PROMPT_DEBUG` is set, the stand-in writes the
+method, path and body length of each request to stderr.
+
+The output leaves out the billing header block. It replaces the temporary home with
+`$HOME`. `--exclude-dynamic-system-prompt-sections` moves the working directory, the
+environment and the git status out of the system blocks. The output does not contain
+settings, plugins, skills, MCP servers or `CLAUDE.md`, because the temporary home has none.
+
 ## Settings
 
 | Setting | Value |

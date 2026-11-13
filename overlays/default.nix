@@ -512,18 +512,21 @@
           esac
         done
 
-        # Enable codegraph, the TypeSafe agent skill and the agent-guard hook
-        # for every session.
+        # Enable codegraph, the TypeSafe agent skill, the agent-guard hook and
+        # the working-style prompt in config/claude/system-prompt.md for every
+        # session.
         # Trailing placement is load-bearing: --mcp-config and --plugin-dir
         # are variadic, so ahead of the user args they swallow positional
         # prompts as config paths. Subcommands (claude mcp list, claude
         # doctor, ...) reject the flags outright, so skip those.
         mcp_args=(--mcp-config ${codegraphMcpConfig})
         plugin_args=(--plugin-dir ${typesafePlugin} --plugin-dir ${agentGuardPlugin})
+        prompt_args=(--append-system-prompt-file ${../config/claude/system-prompt.md})
         case "''${claude_args[0]:-}" in
           agents|auth|auto-mode|config|doctor|install|mcp|migrate-installer|plugin|plugins|project|setup-token|ultrareview|update|upgrade)
             mcp_args=()
             plugin_args=()
+            prompt_args=()
             ;;
         esac
 
@@ -551,7 +554,7 @@
           --enable agent-browser \
           --add-dirs="$rw_dirs" \
           --env-pass=${envPassMacOS} \
-          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}" "''${mcp_args[@]}" "''${plugin_args[@]}"
+          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}" "''${mcp_args[@]}" "''${plugin_args[@]}" "''${prompt_args[@]}"
         '' else ''
         sandbox_args=()
 
@@ -582,7 +585,7 @@
         sandbox_args+=(--unshare-all --share-net)
 
         exec ${final.bubblewrap}/bin/bwrap "''${sandbox_args[@]}" \
-          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}" "''${mcp_args[@]}" "''${plugin_args[@]}"
+          -- ${unwrapped}/bin/claude --dangerously-skip-permissions "''${claude_args[@]}" "''${mcp_args[@]}" "''${plugin_args[@]}" "''${prompt_args[@]}"
         ''}
       '';
     in
@@ -590,6 +593,7 @@
         name = "claude-code-safehouse";
         paths = [unwrapped];
         inherit (unwrapped) meta;
+        passthru.unwrapped = unwrapped;
         postBuild = ''
           rm $out/bin/claude
           ln -s ${wrapper} $out/bin/claude
