@@ -15,9 +15,10 @@ Use it to attach screenshots, diagrams, logs or other files to a GitHub PR, issu
 
 ## Finding the backend
 
-Look for a section headed `Image uploads` in the user's `CLAUDE.md`, the project's
-`CLAUDE.md` or the system prompt. It names one backend and says how to use it. If more than
-one such section is in context, the project's declaration overrides the user's global one.
+Look for an `Image uploads` declaration in the user's `CLAUDE.md`, the project's `CLAUDE.md`
+or the system prompt: a section with that heading, or a sentence that starts with "Image
+uploads". It names one backend. If more than one declaration is in context, the project's
+declaration overrides the user's global one.
 
 A declaration points at a backend in this skill's `backends/` directory or spells out the
 steps inline. Either way it supplies four things:

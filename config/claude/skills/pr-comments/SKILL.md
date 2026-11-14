@@ -5,7 +5,7 @@ description: Address the review threads on a PR, then reply, resolve or summaris
 
 # PR comments: fix every thread, then route by author
 
-The "Review threads" rule in `github.md` decides what is posted. This skill adds the
+The "Review threads" rule in the GitHub rules decides what is posted. This skill adds the
 mechanics, when to resolve, and the summary the user reads before answering colleagues.
 
 ```
