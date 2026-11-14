@@ -5,6 +5,9 @@
   # ste-lint.py. Only claude-code.nix passes this; it is unused, so unforced,
   # wherever else this file is called.
   asd-ste100-skill ? null,
+  # The wrapped claude-code package, for claude-system-prompt, which captures
+  # the prompt of the binary inside it. Only claude-code.nix passes this.
+  claude-code ? null,
   ...
 }: let
   wezterm = pkgs.wezterm;
@@ -181,6 +184,13 @@ in {
     runtimeInputs = [pkgs.jq pkgs.gnugrep];
     checkPhase = "";
     text = builtins.readFile ./claude-block-new-python.sh;
+  };
+  claude-system-prompt = pkgs.writeShellApplication {
+    name = "claude-system-prompt";
+    runtimeInputs = [pkgs.nodejs_24] ++ pkgs.lib.optional pkgs.stdenv.isLinux pkgs.util-linux;
+    text = ''
+      exec node --no-warnings ${./claude-system-prompt}/claude-system-prompt.ts "''${1:-${claude-code.unwrapped}/bin/claude}"
+    '';
   };
   claude-ste-check = pkgs.writeShellApplication {
     name = "claude-ste-check";

@@ -55,6 +55,20 @@ nix flake update nixpkgs
 The three `nextNixpkgs*` inputs are pinned to explicit revisions rather than a branch, so
 `nix flake update` will not move them. Bump the revision in `flake.nix` to move one.
 
+## Review the system prompt of a Claude Code upgrade
+
+After you move `nextPkgsClaude` to a new Claude Code version, rebuild your home directory.
+Then capture the new system prompt over the committed one:
+
+```bash
+rebuild home
+claude-system-prompt > config/claude/upstream-system-prompt.md
+git diff config/claude/upstream-system-prompt.md
+```
+
+If the diff conflicts with `config/claude/system-prompt.md`, change that file in the same
+commit as the version bump.
+
 ## Roll back
 
 ```bash
