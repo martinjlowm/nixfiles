@@ -150,11 +150,11 @@ the diff and, a year later, see why it exists.
 - **Past a short paragraph, or more than one behavioural change:** a one-line summary of
   what changed and why, then the changes one per bullet. The detail and anything out of
   scope follow under headings, then the trailers.
-- **Wrap the body at 80 columns.** Markdown joins the lines, so the width only serves the
-  raw text under `git log` and in the editor. Leave fenced blocks, tables and links
-  unwrapped. If an edit changes the length of one line, re-wrap the whole paragraph.
-  Before `pr create` or `pr edit`, run `awk 'length > 80' <file>`. Every hit must be a
-  fenced block, a table or a link.
+- **Wrap the body at 72 columns**, the git commit-message width. Markdown joins the lines,
+  so the width only serves the raw text under `git log` and in the editor. Leave fenced
+  blocks, tables and links unwrapped. If an edit changes the length of one line, re-wrap
+  the whole paragraph. Before `pr create` or `pr edit`, run `awk 'length > 72' <file>`.
+  Every hit must be a fenced block, a table or a link.
 - **Answer "what" once.** Do not walk through every case or call site that follows; a reader
   who needs that reads the diff.
 - **A summary of the diff is not a description.** Listing touched files and renamed
@@ -225,7 +225,7 @@ and carries what is worth keeping for the reviewer but not for `git log`:
 - worked examples, sample payloads, and diagrams too large for the body.
 
 When you open a PR, move such material out of the body into this comment rather than
-deleting it. Wrap the comment at 80 columns like the body. The comment ends with the same
+deleting it. Wrap the comment at 72 columns like the body. The comment ends with the same
 disclosure as the body, or with the session footer if the instructions in context define
 one.
 

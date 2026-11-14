@@ -28,9 +28,8 @@ to prose people read, not to the imperative change sentence of a PR body or comm
 
 ## Patterns to detect and fix
 
-Two patterns moved out: synonym rotation and passive voice. The `asd-ste100` skill owns both
-now, and its `ste-lint.py` checks them mechanically. Flag them in STE mode; here, scan for the
-rest.
+The `asd-ste100` skill owns synonym rotation and passive voice, and its `ste-lint.py` checks
+them. Flag them in STE mode. Here, scan for the rest.
 
 ### Content
 

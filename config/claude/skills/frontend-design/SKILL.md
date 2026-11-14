@@ -39,7 +39,7 @@ and exact spacing and type.
 - **Backgrounds and detail.** Atmosphere instead of flat colour: gradient meshes, noise,
   geometric patterns, layered transparency, dramatic shadows, decorative borders, grain.
 
-Avoid the generic look: overused fonts, the theme default, purple gradients on white,
-predictable layouts and cookie-cutter components. From one design to the next, vary between
-light and dark, fonts and aesthetics. Do not converge on the same choices, such as Space
-Grotesk.
+Unless the brief asks for them, avoid these defaults: a cream or off-white background,
+purple gradients on white, italic accent words in headlines, numbered "01/02/03" section
+labels, monospace labels, pill-shaped buttons, and Inter or Space Grotesk. From one design
+to the next, vary between light and dark, fonts and aesthetics.
