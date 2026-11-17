@@ -77,6 +77,11 @@ const QUESTIONS = {
   duplicate: {
     type: 'noul',
     instructions: 'Does an entry in `other_comments` already state the main fact that `comment` states?',
+    criteria: {
+      true: 'An entry states the same fact about the same thing, so deleting one of the two loses nothing.',
+      false:
+        'Every entry is about a different item, site or behaviour, or states a different fact about it, even when it shares names, words or topic with `comment`.',
+    },
   },
   value: {
     type: 'score',
@@ -263,8 +268,14 @@ async function audit(repo: string, diff: string) {
 // decide. Any other non-zero status means the scorer itself failed.
 const EXIT_NEEDS_DECISION = 3;
 
-function needsDecision(scored: { actions: readonly string[]; uncertain: readonly unknown[] }): boolean {
-  return !scored.actions.includes('keep') || scored.uncertain.length > 0;
+// An uncertain signal on a kept comment asks the author to look again, and the
+// author decides that, so it does not block a commit.
+function needsDecision(scored: { actions: readonly string[] }): boolean {
+  return !scored.actions.includes('keep');
+}
+
+function worthReading(scored: { actions: readonly string[]; uncertain: readonly unknown[] }): boolean {
+  return needsDecision(scored) || scored.uncertain.length > 0;
 }
 
 function renderText(report: Awaited<ReturnType<typeof audit>>): string {
@@ -278,7 +289,7 @@ function renderText(report: Awaited<ReturnType<typeof audit>>): string {
     '',
   ];
   for (const comment of report.comments) {
-    if (!needsDecision(comment)) {
+    if (!worthReading(comment)) {
       continue;
     }
     const { restates, history, alternative, intoCode, duplicate, value } = comment.signals;

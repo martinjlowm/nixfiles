@@ -170,7 +170,7 @@ describe('verdict', () => {
     });
   });
 
-  it('trims a comment longer than the code it governs', () => {
-    assert.deepEqual(verdict(quiet, { commentLines: 9, codeLines: 2 }).actions, ['trim']);
+  it('marks a kept comment longer than the code it governs', () => {
+    assert.deepEqual(verdict(quiet, { commentLines: 9, codeLines: 2 }), { actions: ['keep'], uncertain: ['length'] });
   });
 });

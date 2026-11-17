@@ -1,0 +1,76 @@
+--- a/config/claude/skills/comment-audit/scripts/comment-score.ts
++++ b/config/claude/skills/comment-audit/scripts/comment-score.ts
+@@ -69,14 +69,19 @@
+     instructions:
+       'Could the code carry what `comment` says without the comment, through a more descriptive name, an extracted function or constant with a descriptive name, a more precise type, or an assertion?',
+     criteria: {
+-      true: 'A specific rename, extraction, type or assertion would make the comment unnecessary.',
++      true: 'A specific new name, extracted function or constant, type or assertion would say everything the comment says, so a reader would not miss the comment once the code changed.',
+       false:
+-        'The comment carries knowledge no name, type or assertion can express, such as the behaviour of an external system or why a constraint exists.',
++        'No name of reasonable length could carry the comment in full: it states what a value means, its unit or bounds, why it is set this way, how an external system behaves, or why a constraint exists. A name that could only abbreviate the comment does not count.',
+     },
+   },
+   duplicate: {
+     type: 'noul',
+     instructions: 'Does an entry in `other_comments` already state the main fact that `comment` states?',
++    criteria: {
++      true: 'An entry states the same fact about the same thing, so deleting one of the two loses nothing.',
++      false:
++        'Every entry is about a different item, site or behaviour, or states a different fact about it, even when it shares names, words or topic with `comment`.',
++    },
+   },
+   value: {
+     type: 'score',
+diff --git a/config/claude/skills/comment-audit/SKILL.md b/config/claude/skills/comment-audit/SKILL.md
+index fb95e9c..2e593eb 100644
+--- a/config/claude/skills/comment-audit/SKILL.md
++++ b/config/claude/skills/comment-audit/SKILL.md
+@@ -60,6 +60,7 @@ Read `uncertain` as "decide yourself". It lists only signals that could flip the
+ - a near-threshold signal on a kept comment
+ - a history marker the model scored low
+ - a removal that rests on an unsure `value` alone
++- `length`: a kept comment much longer than the code it governs
+ 
+ Two kinds of comment are measured against a different reader:
+ 
+diff --git a/config/claude/skills/comment-audit/scripts/comments.test.ts b/config/claude/skills/comment-audit/scripts/comments.test.ts
+index 983ee91..91bc245 100644
+--- a/config/claude/skills/comment-audit/scripts/comments.test.ts
++++ b/config/claude/skills/comment-audit/scripts/comments.test.ts
+@@ -170,7 +170,7 @@ describe('verdict', () => {
+     });
+   });
+ 
+-  it('trims a comment longer than the code it governs', () => {
+-    assert.deepEqual(verdict(quiet, { commentLines: 9, codeLines: 2 }).actions, ['trim']);
++  it('marks a kept comment longer than the code it governs', () => {
++    assert.deepEqual(verdict(quiet, { commentLines: 9, codeLines: 2 }), { actions: ['keep'], uncertain: ['length'] });
+   });
+ });
+diff --git a/config/claude/skills/comment-audit/scripts/comments.ts b/config/claude/skills/comment-audit/scripts/comments.ts
+index cfb4b92..39e8b13 100644
+--- a/config/claude/skills/comment-audit/scripts/comments.ts
++++ b/config/claude/skills/comment-audit/scripts/comments.ts
+@@ -368,9 +368,8 @@ export function verdict(
+     actions.add('remove');
+   }
+   const valueUnsure = signals.value.confidence < thresholds.valueConfidenceFloor;
+-  if (shape.commentLines > 3 && shape.commentLines > thresholds.essayRatio * Math.max(1, shape.codeLines)) {
+-    actions.add('trim');
+-  }
++  const longerThanItsCode =
++    shape.commentLines > 3 && shape.commentLines > thresholds.essayRatio * Math.max(1, shape.codeLines);
+   if (actions.has('remove')) {
+     actions.delete('trim');
+     actions.delete('dedupe');
+@@ -379,6 +378,9 @@ export function verdict(
+     if (valueUnsure) {
+       uncertain.push('value');
+     }
++    if (longerThanItsCode) {
++      uncertain.push('length');
++    }
+     if (signals.historyMarkers.length > 0 && !uncertain.includes('history')) {
+       uncertain.push('history');
+     }

@@ -1,0 +1,30 @@
+diff --git a/config/claude/skills/comment-audit/scripts/comment-score.ts b/config/claude/skills/comment-audit/scripts/comment-score.ts
+index 0645b41..7503a3b 100644
+--- a/config/claude/skills/comment-audit/scripts/comment-score.ts
++++ b/config/claude/skills/comment-audit/scripts/comment-score.ts
+@@ -263,8 +263,14 @@ async function audit(repo: string, diff: string) {
+ // decide. Any other non-zero status means the scorer itself failed.
+ const EXIT_NEEDS_DECISION = 3;
+ 
+-function needsDecision(scored: { actions: readonly string[]; uncertain: readonly unknown[] }): boolean {
+-  return !scored.actions.includes('keep') || scored.uncertain.length > 0;
++// An uncertain signal on a kept comment asks the author to look again, and the
++// author decides that, so it does not block a commit.
++function needsDecision(scored: { actions: readonly string[] }): boolean {
++  return !scored.actions.includes('keep');
++}
++
++function worthReading(scored: { actions: readonly string[]; uncertain: readonly unknown[] }): boolean {
++  return needsDecision(scored) || scored.uncertain.length > 0;
+ }
+ 
+ function renderText(report: Awaited<ReturnType<typeof audit>>): string {
+@@ -278,7 +284,7 @@ function renderText(report: Awaited<ReturnType<typeof audit>>): string {
+     '',
+   ];
+   for (const comment of report.comments) {
+-    if (!needsDecision(comment)) {
++    if (!worthReading(comment)) {
+       continue;
+     }
+     const { restates, history, alternative, intoCode, duplicate, value } = comment.signals;

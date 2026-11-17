@@ -8,3 +8,4 @@
 .claude/hillclimb/**/state.json
 .claude/hillclimb/**/trajectory/
 .claude/hillclimb/**/inputs.md
+.claude/hillclimb/**/*.ts
