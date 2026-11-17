@@ -3,7 +3,7 @@
 // are composed, with Jev. Usage and the reasoning that follows a run are in
 // ../SKILL.md.
 //
-//   node scope-score.ts [--base <ref>] [--diff <file>] [--repo <dir>] [--body <file>] [--concerns <json>] [--text]
+//   node scope-score.ts [--base <ref>] [--diff <file>] [--repo <dir>] [--body <file>] [--concerns <json>] [--text] [--check]
 //   node scope-score.ts --calibrate <labelled.json>
 //
 // Node strips the types itself, so this runs from the store with no build step.
@@ -325,6 +325,14 @@ async function audit(repo: string, diff: string, body: string | undefined, conce
   };
 }
 
+// Exit status of `--check` when the report holds a finding the agent must
+// decide. Any other non-zero status means the scorer itself failed.
+const EXIT_NEEDS_DECISION = 3;
+
+function needsDecision(scored: { actions: readonly string[]; uncertain: readonly unknown[] }): boolean {
+  return !scored.actions.includes('keep') || scored.uncertain.length > 0;
+}
+
 function renderText(report: Awaited<ReturnType<typeof audit>>): string {
   const summary = report.summary;
   const fmt = (value: number | null) => (value === null ? '-' : value.toFixed(2));
@@ -352,7 +360,7 @@ function renderText(report: Awaited<ReturnType<typeof audit>>): string {
   }
   out.push('', 'Functions:');
   for (const unit of report.functions) {
-    if (unit.actions.includes('keep') && unit.uncertain.length === 0) {
+    if (!needsDecision(unit)) {
       continue;
     }
     const { severalJobs, invariantInProse, flagParameter, duplicate } = unit.signals;
@@ -424,6 +432,7 @@ const { values } = parseArgs({
     body: { type: 'string' },
     concerns: { type: 'string' },
     text: { type: 'boolean', default: false },
+    check: { type: 'boolean', default: false },
     calibrate: { type: 'string' },
   },
 });
@@ -438,4 +447,7 @@ if (values.calibrate) {
     values.concerns ? (JSON.parse(readFileSync(values.concerns, 'utf8')) as Concern[]) : undefined,
   );
   process.stdout.write(`${values.text ? renderText(report) : JSON.stringify(report, null, 2)}\n`);
+  if (values.check && (report.summary.verdict !== 'one-problem' || report.functions.some(needsDecision))) {
+    process.exitCode = EXIT_NEEDS_DECISION;
+  }
 }

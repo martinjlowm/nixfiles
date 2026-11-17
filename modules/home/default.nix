@@ -5,6 +5,7 @@
   imports = [
     ./aws-sso.nix
     ./claude-code.nix
+    ./claude-commit-audit.nix
     ./zsh.nix
     ./nushell.nix
     ./git.nix
