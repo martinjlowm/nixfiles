@@ -2,7 +2,7 @@
 // Scores the comments a diff adds with Jev and prints what each one should
 // become. Usage and the reasoning that follows a run are in ../SKILL.md.
 //
-//   node comment-score.ts [--base <ref>] [--diff <file>] [--repo <dir>] [--text]
+//   node comment-score.ts [--base <ref>] [--diff <file>] [--repo <dir>] [--text] [--check]
 //   node comment-score.ts --calibrate <labelled.json>
 //
 // Node strips the types itself, so this runs from the store with no build step.
@@ -259,6 +259,14 @@ async function audit(repo: string, diff: string) {
   };
 }
 
+// Exit status of `--check` when the report holds a finding the agent must
+// decide. Any other non-zero status means the scorer itself failed.
+const EXIT_NEEDS_DECISION = 3;
+
+function needsDecision(scored: { actions: readonly string[]; uncertain: readonly unknown[] }): boolean {
+  return !scored.actions.includes('keep') || scored.uncertain.length > 0;
+}
+
 function renderText(report: Awaited<ReturnType<typeof audit>>): string {
   const out: string[] = [
     `${report.summary.comments} added comment blocks, ${report.summary.flagged} flagged, ${report.summary.uncertain} with uncertain signals.`,
@@ -270,7 +278,7 @@ function renderText(report: Awaited<ReturnType<typeof audit>>): string {
     '',
   ];
   for (const comment of report.comments) {
-    if (comment.actions.includes('keep') && comment.uncertain.length === 0) {
+    if (!needsDecision(comment)) {
       continue;
     }
     const { restates, history, alternative, intoCode, duplicate, value } = comment.signals;
@@ -316,6 +324,7 @@ const { values } = parseArgs({
     diff: { type: 'string' },
     repo: { type: 'string', default: '.' },
     text: { type: 'boolean', default: false },
+    check: { type: 'boolean', default: false },
     calibrate: { type: 'string' },
   },
 });
@@ -325,4 +334,7 @@ if (values.calibrate) {
 } else {
   const report = await audit(values.repo!, readDiff(values.repo!, values.base, values.diff));
   process.stdout.write(`${values.text ? renderText(report) : JSON.stringify(report, null, 2)}\n`);
+  if (values.check && report.comments.some(needsDecision)) {
+    process.exitCode = EXIT_NEEDS_DECISION;
+  }
 }
