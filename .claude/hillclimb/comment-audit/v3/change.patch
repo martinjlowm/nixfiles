@@ -1,0 +1,14 @@
+--- a/config/claude/skills/comment-audit/scripts/comment-score.ts
++++ b/config/claude/skills/comment-audit/scripts/comment-score.ts
+@@ -69,9 +69,9 @@
+     instructions:
+       'Could the code carry what `comment` says without the comment, through a more descriptive name, an extracted function or constant with a descriptive name, a more precise type, or an assertion?',
+     criteria: {
+-      true: 'A specific new name, extracted function or constant, type or assertion would say everything the comment says, so a reader would not miss the comment once the code changed.',
++      true: 'A specific rename, extraction, type or assertion would make the comment unnecessary.',
+       false:
+-        'No name of reasonable length could carry the comment in full: it states what a value means, its unit or bounds, why it is set this way, how an external system behaves, or why a constraint exists. A name that could only abbreviate the comment does not count.',
++        'The comment carries knowledge no name, type or assertion can express, such as the behaviour of an external system or why a constraint exists.',
+     },
+   },
+   duplicate: {

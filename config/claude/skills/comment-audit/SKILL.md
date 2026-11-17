@@ -60,6 +60,7 @@ Read `uncertain` as "decide yourself". It lists only signals that could flip the
 - a near-threshold signal on a kept comment
 - a history marker the model scored low
 - a removal that rests on an unsure `value` alone
+- `length`: a kept comment much longer than the code it governs
 
 Two kinds of comment are measured against a different reader:
 

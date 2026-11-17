@@ -368,9 +368,8 @@ export function verdict(
     actions.add('remove');
   }
   const valueUnsure = signals.value.confidence < thresholds.valueConfidenceFloor;
-  if (shape.commentLines > 3 && shape.commentLines > thresholds.essayRatio * Math.max(1, shape.codeLines)) {
-    actions.add('trim');
-  }
+  const longerThanItsCode =
+    shape.commentLines > 3 && shape.commentLines > thresholds.essayRatio * Math.max(1, shape.codeLines);
   if (actions.has('remove')) {
     actions.delete('trim');
     actions.delete('dedupe');
@@ -378,6 +377,9 @@ export function verdict(
   if (actions.size === 0) {
     if (valueUnsure) {
       uncertain.push('value');
+    }
+    if (longerThanItsCode) {
+      uncertain.push('length');
     }
     if (signals.historyMarkers.length > 0 && !uncertain.includes('history')) {
       uncertain.push('history');
