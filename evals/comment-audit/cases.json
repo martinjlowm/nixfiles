@@ -309,6 +309,336 @@
       "expect": [
         "keep"
       ]
+    },
+    {
+      "id": "h27",
+      "repo": "FactbirdHQ/nest",
+      "sha": "6b17739ea1b8cda6cbbd862130b0ee21d709f07e",
+      "path": "ms-provision/deployment/cdk/constructs/model-deployment-groups-role.ts",
+      "start_line": 97,
+      "end_line": 101,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h28",
+      "repo": "FactbirdHQ/nest",
+      "sha": "67db4976c7f5b3ded6463e10140ed497cb5e7408",
+      "path": "libraries/rust/fb-customizable-reports/src/domain.rs",
+      "start_line": 1355,
+      "end_line": 1356,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h29",
+      "repo": "FactbirdHQ/nest",
+      "sha": "c52e5d94e2a4eb13ba367a622831ad29990bcffb",
+      "path": "mgmt/ms-device-provisioner/deployment/cdk/lambda-stack.ts",
+      "start_line": 645,
+      "end_line": 645,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h30",
+      "repo": "FactbirdHQ/nest",
+      "sha": "521598ca30df031f66d78f4831af2cdb28a1c3de",
+      "path": "ms-provision/src/handlers/claim_migration_ecc_proxy.rs",
+      "start_line": 54,
+      "end_line": 54,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h31",
+      "repo": "FactbirdHQ/nest",
+      "sha": "67db4976c7f5b3ded6463e10140ed497cb5e7408",
+      "path": "rust-backend/web-api/src/customizable_reports/query.rs",
+      "start_line": 4014,
+      "end_line": 4037,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h32",
+      "repo": "FactbirdHQ/nest",
+      "sha": "521598ca30df031f66d78f4831af2cdb28a1c3de",
+      "path": "infrastructure/fleet-management/fleet-api/api/src/v1/commands.rs",
+      "start_line": 493,
+      "end_line": 494,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h33",
+      "repo": "FactbirdHQ/nest",
+      "sha": "d2dcc36ce109bcf953aeea209bc0becacafff789",
+      "path": "apps/fleet-console/api/src/groups.rs",
+      "start_line": 1568,
+      "end_line": 1569,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h34",
+      "repo": "FactbirdHQ/nest",
+      "sha": "02f6ac59530ba9df61b5d5a0defa278e7d1ee9fe",
+      "path": "ms-graphql-andon/src/routines/call/reopen.ts",
+      "start_line": 33,
+      "end_line": 35,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h35",
+      "repo": "FactbirdHQ/nest",
+      "sha": "01816a09e1bf968c4688984472c69ce7765fcf31",
+      "path": "apps/fleet-console/web/src/annotator/app.tsx",
+      "start_line": 346,
+      "end_line": 347,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h36",
+      "repo": "FactbirdHQ/nest",
+      "sha": "05e727ffcd0eb33453a35cd3dd87bc47b0479987",
+      "path": "ui-app/src/components/dialogs/andon/assign-call/assign-call-dialog.stories.tsx",
+      "start_line": 44,
+      "end_line": 44,
+      "expect": [
+        "remove"
+      ]
+    },
+    {
+      "id": "h37",
+      "repo": "FactbirdHQ/nest",
+      "sha": "02f6ac59530ba9df61b5d5a0defa278e7d1ee9fe",
+      "path": "ms-graphql-andon/test/calls/queries.spec.ts",
+      "start_line": 184,
+      "end_line": 184,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h38",
+      "repo": "FactbirdHQ/nest",
+      "sha": "2dd447512ffd4eac906c65b3ea9c8284f8340dd7",
+      "path": "ui-app/src/customizable-reports/components/dialogs/create-report-dialog.stories.tsx",
+      "start_line": 107,
+      "end_line": 107,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h39",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "0c06e44e820525b74c6ac01fcc7e849249373a7b",
+      "path": "services/rust/agent-runner/src/gate.rs",
+      "start_line": 179,
+      "end_line": 185,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h40",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "6f4649f3869b8de5a0e670de36f00aa3810a7ad4",
+      "path": "infrastructure/claude-agents/lib/claude-agents-stack.ts",
+      "start_line": 541,
+      "end_line": 545,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h41",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "204098a720550ef93d3d8129878ec3c45b7c76ec",
+      "path": "infrastructure/claude-agents/lib/broker-stack.ts",
+      "start_line": 16,
+      "end_line": 16,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h42",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "a7a1b36c2623fafa0289e2f376a9ca968819dc50",
+      "path": "infrastructure/claude-agents/lib/handlers/notion-signal.ts",
+      "start_line": 1,
+      "end_line": 17,
+      "expect": [
+        "trim"
+      ]
+    },
+    {
+      "id": "h43",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "a9dbd2c72f258d35b791f9ce9ef901d64b5bbcdd",
+      "path": "infrastructure/claude-agents/lib/claude-agents-data-stack.ts",
+      "start_line": 715,
+      "end_line": 725,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h44",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "258faffe99bc662c2eec277b71f8218136110177",
+      "path": "services/rust/broker/src/proxy.rs",
+      "start_line": 523,
+      "end_line": 524,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h45",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "4457f1a81d0dd6324c1bd676485c92f9d1ece1a0",
+      "path": "services/rust/broker/src/visitor.rs",
+      "start_line": 179,
+      "end_line": 180,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h46",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "a7a1b36c2623fafa0289e2f376a9ca968819dc50",
+      "path": "infrastructure/claude-agents/lib/constructs/notion-signals.ts",
+      "start_line": 23,
+      "end_line": 34,
+      "expect": [
+        "trim"
+      ]
+    },
+    {
+      "id": "h47",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "bd0bb25f1af1552bea1ecf907761f72ecf367c97",
+      "path": "devenv.nix",
+      "start_line": 610,
+      "end_line": 611,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h48",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "5f00e723a35dfb2a2053531c430ee70254e706c8",
+      "path": "services/rust/broker/src/lib.rs",
+      "start_line": 1,
+      "end_line": 2,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h49",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "2142f83f65204e5b56b04badcfa5ca117cc14660",
+      "path": "services/rust/console/src/github_oauth.rs",
+      "start_line": 209,
+      "end_line": 209,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h50",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "204098a720550ef93d3d8129878ec3c45b7c76ec",
+      "path": "justfile",
+      "start_line": 47,
+      "end_line": 49,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h51",
+      "repo": "martinjlowm/nixfiles",
+      "sha": "5f2ddcb1dbed883c450ca650d9052e439d6f42aa",
+      "path": "scripts/mono-items/cli.ts",
+      "start_line": 2,
+      "end_line": 9,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h52",
+      "repo": "martinjlowm/nixfiles",
+      "sha": "f673a743f2e7ed2450d4a6d938448f130d49d597",
+      "path": ".github/cdk/main.ts",
+      "start_line": 38,
+      "end_line": 38,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h53",
+      "repo": "martinjlowm/nixfiles",
+      "sha": "1c63d65250bf5be2ad3bb2808610c571daa423b1",
+      "path": "config/claude/skills/comment-audit/scripts/comments.ts",
+      "start_line": 311,
+      "end_line": 311,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h54",
+      "repo": "martinjlowm/nixfiles",
+      "sha": "2b6e8d3ea98952e8bec7eedcd8a76784ceb1206b",
+      "path": "scripts/claude-block-new-python.sh",
+      "start_line": 1,
+      "end_line": 4,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h55",
+      "repo": "martinjlowm/nixfiles",
+      "sha": "2ac08bf0dc72dcf5ecb7712ae8520d237de64561",
+      "path": "scripts/prq/prq.ts",
+      "start_line": 2,
+      "end_line": 6,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h56",
+      "repo": "martinjlowm/nixfiles",
+      "sha": "4e009dcd9d831d62956a6c7e4a959e1d40f73995",
+      "path": "modules/darwin/homebrew.nix",
+      "start_line": 1,
+      "end_line": 1,
+      "expect": [
+        "keep"
+      ]
     }
   ]
 }
