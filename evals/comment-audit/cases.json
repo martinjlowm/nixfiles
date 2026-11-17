@@ -1,0 +1,314 @@
+{
+  "snippet_paths": {
+    "doc restates fn name (fleet-provisioning iot.rs)": "src/case.rs",
+    "field doc restates field name (provision.rs)": "src/case.rs",
+    "field doc restates field name (webhooks query.rs)": "src/case.rs",
+    "test step narrates the request below (webhooks test)": "src/case.rs",
+    "history: same calls as before (provision.rs)": "src/case.rs",
+    "history: as the legacy reactor did (legacy_endpoint.rs)": "src/case.rs",
+    "module doc narrating a migration (legacy_endpoint.rs)": "src/case.rs",
+    "CI step citing an incident and a finding id (main.ts)": "src/case.ts",
+    "defends a rejected alternative (fb-webhooks signing)": "src/case.rs",
+    "same fact explained at a second site (ota.rs OtaUpdate.from_version)": "src/case.rs",
+    "CDK comment restating a module doc in another file (dynamo.ts)": "src/case.ts",
+    "constant doc restates its name (nest AGENTS.md, pre-reset)": "src/case.ts",
+    "comment restates the condition (nest AGENTS.md, pre-reset)": "src/case.ts",
+    "step label that wants to be a function (nest AGENTS.md kept it)": "src/case.ts",
+    "shorthand name explained by a comment": "src/case.ts",
+    "narrates an increment": "src/case.ts",
+    "keep: external broker behaviour": "src/case.rs",
+    "keep: why an expect cannot fire (fb-webhooks signing)": "src/case.rs",
+    "keep: an AWS limit forces the wildcard (rust-backend main.ts)": "src/case.ts",
+    "keep: key choice that survives rotation (nixfiles writing rule)": "src/case.ts",
+    "keep: guard against a concurrent edit (nest AGENTS.md, pre-reset)": "src/case.ts",
+    "keep: firmware parser limit behind a placeholder": "src/case.rs"
+  },
+  "harvested": [
+    {
+      "id": "h01",
+      "repo": "FactbirdHQ/nest",
+      "sha": "ead2565e202f7f1ca7dc84411c2f34271344cae1",
+      "path": "apps/fleet-console/justfile",
+      "start_line": 96,
+      "end_line": 97,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h02",
+      "repo": "FactbirdHQ/nest",
+      "sha": "8f27ebeb3cb065f59e7743964dca3aead11d5d84",
+      "path": "ui-app/src/customizable-reports/test/test-utils.ts",
+      "start_line": 299,
+      "end_line": 299,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h03",
+      "repo": "FactbirdHQ/nest",
+      "sha": "67db4976c7f5b3ded6463e10140ed497cb5e7408",
+      "path": "rust-backend/web-api/src/graphql/test/customizable_reports/line_windows_tests.rs",
+      "start_line": 201,
+      "end_line": 202,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h04",
+      "repo": "FactbirdHQ/nest",
+      "sha": "521598ca30df031f66d78f4831af2cdb28a1c3de",
+      "path": "infrastructure/fleet-management/fleet-api/api/src/v1/mod.rs",
+      "start_line": 122,
+      "end_line": 124,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h05",
+      "repo": "FactbirdHQ/nest",
+      "sha": "14b98906a7f5f65ab4549617626d72a189c6e659",
+      "path": "libraries/rust/fb-andon/src/aurora/call_history/mod.rs",
+      "start_line": 95,
+      "end_line": 95,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h06",
+      "repo": "FactbirdHQ/nest",
+      "sha": "ead2565e202f7f1ca7dc84411c2f34271344cae1",
+      "path": "apps/fleet-console/web/test/e2e/support/global-setup.ts",
+      "start_line": 1,
+      "end_line": 5,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h07",
+      "repo": "FactbirdHQ/nest",
+      "sha": "8f27ebeb3cb065f59e7743964dca3aead11d5d84",
+      "path": "ui-app/src/customizable-reports/components/widgets/widget-content-base.tsx",
+      "start_line": 15,
+      "end_line": 15,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h08",
+      "repo": "FactbirdHQ/nest",
+      "sha": "9b5191f950bc033216520d27f061b2148efe07bf",
+      "path": "infrastructure/fleet-management/fleet-api/deployment/cdk/constructs/event-queues.ts",
+      "start_line": 74,
+      "end_line": 76,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h09",
+      "repo": "FactbirdHQ/nest",
+      "sha": "f1754a4ee9d6640ccc40761ffb6ad106857e9db3",
+      "path": "ui-app/src/components/dialogs/andon/worker-selection/worker-selection-dialog-view.tsx",
+      "start_line": 228,
+      "end_line": 228,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h10",
+      "repo": "FactbirdHQ/nest",
+      "sha": "14b98906a7f5f65ab4549617626d72a189c6e659",
+      "path": "rust-backend/web-api/src/andon/graphql/types.rs",
+      "start_line": 20,
+      "end_line": 21,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h11",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "a7a1b36c2623fafa0289e2f376a9ca968819dc50",
+      "path": "infrastructure/claude-agents/lib/handlers/notion-signal.ts",
+      "start_line": 52,
+      "end_line": 54,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h12",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "4457f1a81d0dd6324c1bd676485c92f9d1ece1a0",
+      "path": "infrastructure/claude-agents/lib/handlers/event-visitor-grant.ts",
+      "start_line": 16,
+      "end_line": 18,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h13",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "4457f1a81d0dd6324c1bd676485c92f9d1ece1a0",
+      "path": "services/rust/agent-runner/src/session.rs",
+      "start_line": 159,
+      "end_line": 160,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h14",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "4457f1a81d0dd6324c1bd676485c92f9d1ece1a0",
+      "path": "services/rust/agent-runner/src/gate.rs",
+      "start_line": 200,
+      "end_line": 200,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h15",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "1b8667bb1806513f3c1806e62116497b40a12565",
+      "path": "services/rust/agent-runner/src/broker.rs",
+      "start_line": 30,
+      "end_line": 30,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h16",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "5f00e723a35dfb2a2053531c430ee70254e706c8",
+      "path": "services/rust/broker/src/github/classify.rs",
+      "start_line": 59,
+      "end_line": 59,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h17",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "5f00e723a35dfb2a2053531c430ee70254e706c8",
+      "path": "services/rust/broker/src/github/mod.rs",
+      "start_line": 258,
+      "end_line": 258,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h18",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "6f4649f3869b8de5a0e670de36f00aa3810a7ad4",
+      "path": "services/rust/broker/src/github/mod.rs",
+      "start_line": 26,
+      "end_line": 29,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h19",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "3db89769ba6b5366f282d6879db951115b91dd59",
+      "path": "services/rust/broker/src/credentials.rs",
+      "start_line": 1,
+      "end_line": 6,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h20",
+      "repo": "FactbirdHQ/factbird-software-factory",
+      "sha": "a20ef37e0e37b613b3da7627ced57b481f48aa0b",
+      "path": "services/rust/console/src/visitor_identity.rs",
+      "start_line": 1,
+      "end_line": 16,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h21",
+      "repo": "martinjlowm/nixfiles",
+      "sha": "990c45f44ab2f09cc1db5fd822271a0ed794de51",
+      "path": "modules/home/claude-code.nix",
+      "start_line": 81,
+      "end_line": 86,
+      "expect": [
+        "trim"
+      ]
+    },
+    {
+      "id": "h22",
+      "repo": "martinjlowm/nixfiles",
+      "sha": "1fee67b4edd764e5929fcb872b9e1e32d4d84516",
+      "path": "lib/default.nix",
+      "start_line": 33,
+      "end_line": 33,
+      "expect": [
+        "remove"
+      ]
+    },
+    {
+      "id": "h23",
+      "repo": "martinjlowm/nixfiles",
+      "sha": "2ac08bf0dc72dcf5ecb7712ae8520d237de64561",
+      "path": "scripts/prq/prq.ts",
+      "start_line": 388,
+      "end_line": 389,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h24",
+      "repo": "martinjlowm/nixfiles",
+      "sha": "c6cbd51fe9b295e313204105e235941dfd1400ab",
+      "path": "scripts/claude-system-prompt/claude-system-prompt.ts",
+      "start_line": 108,
+      "end_line": 110,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h25",
+      "repo": "martinjlowm/nixfiles",
+      "sha": "dc9832328f3e3f103dec19122b605d7420662934",
+      "path": "config/claude/skills/scope-audit/scripts/scope-score.ts",
+      "start_line": 164,
+      "end_line": 164,
+      "expect": [
+        "keep"
+      ]
+    },
+    {
+      "id": "h26",
+      "repo": "martinjlowm/nixfiles",
+      "sha": "1b7154136e320beaca80b2342f9e8a1880a75ec3",
+      "path": "config/claude/skills/design-audit/scripts/design.ts",
+      "start_line": 229,
+      "end_line": 230,
+      "expect": [
+        "keep"
+      ]
+    }
+  ]
+}
