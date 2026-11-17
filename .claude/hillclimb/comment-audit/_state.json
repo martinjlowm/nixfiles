@@ -1,0 +1,37 @@
+{
+  "metrics": [
+    {
+      "id": "gate_correct",
+      "label": "Gate correct",
+      "kind": "binary"
+    },
+    {
+      "id": "verdict_agree",
+      "label": "Verdict agree",
+      "kind": "binary"
+    },
+    {
+      "id": "action_match",
+      "label": "Action match",
+      "kind": "binary"
+    }
+  ],
+  "perf_fields": [
+    {
+      "id": "latency_s",
+      "label": "Latency",
+      "unit": "s"
+    },
+    {
+      "id": "uncertain_signals",
+      "label": "Uncertain"
+    }
+  ],
+  "harness_paths": [
+    "evals/comment-audit/cases.json",
+    "config/claude/skills/comment-audit/scripts/comment-score.ts",
+    "config/claude/skills/comment-audit/scripts/comments.ts",
+    "config/claude/skills/comment-audit/scripts/labelled.json"
+  ],
+  "harness_sha": "92e53ee7c6d002f35e49e32b1c43001c3318d4380c9dc28abd360236c18f0e22"
+}

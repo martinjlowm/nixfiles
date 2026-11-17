@@ -1,1 +1,10 @@
 .state/
+# Eval output: derived, bulky, or holding excerpts of private repositories.
+.claude/hillclimb/**/traces/
+.claude/hillclimb/**/ref/
+.claude/hillclimb/**/errors.jsonl
+.claude/hillclimb/**/progress.txt
+.claude/hillclimb/**/report.html
+.claude/hillclimb/**/state.json
+.claude/hillclimb/**/trajectory/
+.claude/hillclimb/**/inputs.md
