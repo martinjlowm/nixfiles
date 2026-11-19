@@ -43,6 +43,7 @@ Every file in `config/claude/agents/` is a subagent with YAML frontmatter.
 | `review-cdk-infra` | Reviews AWS CDK changes |
 | `review-claim-verifier` | Verifies one review claim against dependency source and docs |
 | `review-code-comments` | Reviews the code comments a PR adds or leaves |
+| `review-datafusion` | Reviews DataFusion code against the docs for the lockfile's version |
 | `review-patterns-types-errors` | Reviews patterns, types, error handling and naming |
 | `review-perf-claim-verifier` | Verifies one review claim that rests on a measurement |
 | `review-rust-mono-items` | Compares monomorphization output between a Rust PR and its base |
