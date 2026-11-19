@@ -20,8 +20,10 @@ thread author?
  +- colleague ----------------> fix -> no reply -> entry in the summary
 ```
 
-"The user" is `martinjlowm`. In the fleet you post as `martinjlowm-s-botler[bot]`, so your
-own earlier replies carry that login and the user's threads still carry `martinjlowm`.
+"The user" is `martinjlowm`. In the fleet you post as `factbird-botler[bot]`, and the user's
+threads carry `martinjlowm`. The fleet's earlier app is deleted, so GitHub shows its comments
+under `ghost`, or with a null `author` in GraphQL and review JSON. In the fleet, a `ghost` or
+null author is your own earlier work.
 
 Match the `Botler` prefix literally at the start of the body. It applies to a thread the
 user opens, a reply they add to any thread, a review body and a top-level comment. Any other
@@ -70,8 +72,9 @@ gh pr view <number> --json number,title,url,headRefOid,comments,reviews
 ```
 
 - Skip resolved threads. Keep outdated ones; the code moved, the point may not have.
-- The deciding author is `comments.nodes[0].author.login`. A login ending in `[bot]` is a
-  bot; any other login except the user's is a colleague.
+- The deciding author is `comments.nodes[0].author.login`. A login ending in `[bot]`, the
+  login `ghost` and a null author are a bot. Any other login except the user's is a
+  colleague.
 - **Skip the user's thread unless it asks.** If no comment of theirs in it starts with
   `Botler`, leave the thread exactly as it is, resolution state included. Keep it out of the
   report.

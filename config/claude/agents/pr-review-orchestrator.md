@@ -77,13 +77,15 @@ the command fails, record `digest` in `degraded_angles` and dispatch without the
 Then stop early in two cases, returning a handoff with `mode: "skipped"` and the reason in
 `degraded_angles`:
 
-- **This head sha already has a submitted review** by the review owner or by
-  `martinjlowm-s-botler[bot]` (`already_reviewed`):
+- **This head sha already has a submitted review** by the review owner or by the fleet
+  (`already_reviewed`). The fleet is `factbird-botler[bot]`, and its deleted earlier app
+  shows as a null user:
 
   ```
   jq -r --arg sha <head sha> --arg owner <review owner> '.[]
+    | (.user.login // "ghost") as $login
     | select(.commit_id == $sha and .state != "PENDING" and (.body // "") != ""
-             and (.user.login == $owner or .user.login == "martinjlowm-s-botler[bot]"))
+             and ($login == $owner or $login == "factbird-botler[bot]" or $login == "ghost"))
     | .id' <digest>/raw/reviews.json
   ```
 
