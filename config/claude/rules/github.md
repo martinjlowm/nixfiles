@@ -54,8 +54,8 @@ Who opened a thread decides what you post on it.
   and never offer to write one. An unanswered colleague thread is the finished state, not a
   loose end. Name what you changed for it and leave it off any list of open items. Post on
   one only if the user points at it and asks for a reply.
-- **The user's own thread and every bot's** (`claude[bot]`, `martinjlowm-s-botler[bot]`,
-  `dependabot[bot]` and the rest) get a reply naming what changed. That reply is the only
+- **The user's own thread and every bot's** (`claude[bot]`, `factbird-botler[bot]`,
+  `dependabot[bot]`, `ghost` and the rest) get a reply naming what changed. That reply is the only
   thing tying the finding to the fix.
 - **The user asks with `Botler`.** A comment of the user's is a request only if its body
   starts with the word `Botler`. Any other comment of theirs explains the code to a reader:
