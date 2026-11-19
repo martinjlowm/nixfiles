@@ -164,7 +164,11 @@ describe('alignmentViolations', () => {
 describe('gapViolations', () => {
   it('flags uneven gaps between stacked blocks of one kind', () => {
     const violations = gapViolations(
-      [block('MuiFormControl-root', 40, 0), block('MuiFormControl-root', 40, 70), block('MuiFormControl-root', 40, 118)],
+      [
+        block('MuiFormControl-root', 40, 0),
+        block('MuiFormControl-root', 40, 70),
+        block('MuiFormControl-root', 40, 118),
+      ],
       checks,
     );
     assert.equal(violations.length, 1);
@@ -185,7 +189,10 @@ describe('gapViolations', () => {
 
 describe('actionViolations', () => {
   it('accepts dismiss then a contained confirm at the end of the group', () => {
-    assert.deepEqual(actionViolations([actions([button('Cancel', 500), button('Create worker', 590, true)])], checks), []);
+    assert.deepEqual(
+      actionViolations([actions([button('Cancel', 500), button('Create worker', 590, true)])], checks),
+      [],
+    );
   });
 
   it('flags a contained action that is not last and a dismiss action that closes the group', () => {

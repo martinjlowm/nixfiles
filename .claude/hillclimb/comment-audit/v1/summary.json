@@ -1,1 +1,5 @@
-{"description":"Stop blocking a commit on uncertain signals when the verdict is keep","label":"keep ignores uncertain","target":"code"}
+{
+  "description": "Stop blocking a commit on uncertain signals when the verdict is keep",
+  "label": "keep ignores uncertain",
+  "target": "code"
+}

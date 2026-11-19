@@ -9,7 +9,7 @@
 // Structural properties this encodes (so you don't have to remember them):
 //   - parameterized by --variant / --model / --reps (no hardcoded A/B pair)
 //   - rep-aware filenames + resume (traces/<id>_rep<k>.json)
-//   - reads _state.json, never writes it (loop state belongs to the orchestrator) - 
+//   - reads _state.json, never writes it (loop state belongs to the orchestrator) -
 //     the ONE exception is --approve-harness recording `harness_sha` (see below)
 //   - refuses to run when the harness (this file + _state.json.harness_paths) has
 //     changed since the sha a human last approved with --approve-harness, so a
@@ -27,7 +27,20 @@
 //     (original id kept in meta.original_id when sanitization changed it)
 
 import { createHash } from 'node:crypto';
-import { closeSync, constants as FS, existsSync, fstatSync, ftruncateSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, writeFileSync, writeSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  constants as FS,
+  fstatSync,
+  ftruncateSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+  writeSync,
+} from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -41,15 +54,22 @@ const WIN = process.platform === 'win32';
 const NOFOLLOW = WIN ? 0 : FS.O_NOFOLLOW;
 // A guard that cannot tell must refuse: only "no such entry" reads as absent;
 // any other lstat failure (EACCES, ENAMETOOLONG, ...) is rethrown, never "no".
-const lstatOrNull = p => { try { return lstatSync(p); } catch (e) { if (e?.code === 'ENOENT') return null; throw e; } };
-const isSymlink = p => lstatOrNull(p)?.isSymbolicLink() === true;
+const lstatOrNull = (p) => {
+  try {
+    return lstatSync(p);
+  } catch (e) {
+    if (e?.code === 'ENOENT') return null;
+    throw e;
+  }
+};
+const isSymlink = (p) => lstatOrNull(p)?.isSymbolicLink() === true;
 // Stderr lines interpolate model-influenced bytes (case ids, error text that
 // can echo model output, JSON.parse messages). Strip escape sequences and
 // control characters, as build-report-lite.mjs's eprint does, so a planted
 // OSC/CSI can't retitle the terminal or forge output lines.
-const ESC_SEQ = /\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b[@-_]/g;
+const ESC_SEQ = /\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b[@-_]/g;
 const CONTROL = /[\x00-\x1f\x7f-\x9f]/g;
-const termSafe = s => String(s).replace(ESC_SEQ, '').replace(CONTROL, '');
+const termSafe = (s) => String(s).replace(ESC_SEQ, '').replace(CONTROL, '');
 const eprint = (...a) => console.error(...a.map(termSafe));
 // The leaf checks above can't see a symlink on an INTERMEDIATE component
 // (lstat and open both resolve those silently), so every open is also bound
@@ -78,8 +98,14 @@ function openNoFollow(p, flags) {
     // O_NOFOLLOW and lstat cannot see a hard link: a second name for a file
     // outside the flow dir opens as an ordinary regular file. Nothing the
     // runner creates has more than one link, so refuse any that does.
-    if (st.nlink > 1) throw new Error(`refusing to use ${p}: it has a second hard link (another name for the same file); replace it with a plain copy if it is yours`);
-  } catch (e) { closeSync(fd); throw e; }
+    if (st.nlink > 1)
+      throw new Error(
+        `refusing to use ${p}: it has a second hard link (another name for the same file); replace it with a plain copy if it is yours`,
+      );
+  } catch (e) {
+    closeSync(fd);
+    throw e;
+  }
   return fd;
 }
 // writeFileSync on the fd loops until every byte lands (a bare writeSync is
@@ -89,7 +115,12 @@ function openNoFollow(p, flags) {
 // refused file keeps its bytes.
 function writeFileNoFollow(p, data) {
   const fd = openNoFollow(p, FS.O_WRONLY | FS.O_CREAT);
-  try { ftruncateSync(fd, 0); writeFileSync(fd, data); } finally { closeSync(fd); }
+  try {
+    ftruncateSync(fd, 0);
+    writeFileSync(fd, data);
+  } finally {
+    closeSync(fd);
+  }
 }
 // POSIX appends atomically under O_APPEND with no position. On Windows, Bun
 // writes an O_APPEND handle at offset 0 unless given a position, so there the
@@ -97,29 +128,43 @@ function writeFileNoFollow(p, data) {
 function appendFileNoFollow(p, data) {
   const fd = openNoFollow(p, FS.O_WRONLY | FS.O_CREAT | FS.O_APPEND);
   try {
-    if (!WIN) { writeFileSync(fd, data); return; }
+    if (!WIN) {
+      writeFileSync(fd, data);
+      return;
+    }
     const buf = Buffer.from(data);
     const start = fstatSync(fd).size;
-    for (let off = 0; off < buf.length;) {
+    for (let off = 0; off < buf.length; ) {
       const n = writeSync(fd, buf, off, buf.length - off, start + off);
       if (n <= 0) throw new Error(`append to ${p} made no progress`);
       off += n;
     }
-  } finally { closeSync(fd); }
+  } finally {
+    closeSync(fd);
+  }
 }
 // Reads of the frozen pairwise refs get the same discipline as writes (same
 // open guard): the flow dir is model-influenced, so `baseline/ref/<id> ->
 // ~/.ssh/id_rsa` planted after the startup preflight must not be read into
 // the judge prompt. lexists probes with lstat so a planted symlink still
 // counts as "present" at the freeze guard (never overwritten - or followed).
-const lexists = p => lstatOrNull(p) != null;
+const lexists = (p) => lstatOrNull(p) != null;
 function readFileNoFollow(p) {
   const fd = openNoFollow(p, FS.O_RDONLY);
-  try { return readFileSync(fd, 'utf8'); } finally { closeSync(fd); }
+  try {
+    return readFileSync(fd, 'utf8');
+  } finally {
+    closeSync(fd);
+  }
 }
 // null when the file is absent; any other failure (a planted link included) throws.
 function readIfPresent(p) {
-  try { return readFileNoFollow(p); } catch (e) { if (e?.code === 'ENOENT') return null; throw e; }
+  try {
+    return readFileNoFollow(p);
+  } catch (e) {
+    if (e?.code === 'ENOENT') return null;
+    throw e;
+  }
 }
 function mkdirNoFollow(dir) {
   if (isSymlink(dir)) throw new Error(`refusing to use symlinked directory: ${dir}`);
@@ -156,7 +201,11 @@ const commentPrefix = (path) => (/\.(nix|sh)$|(^|\/)justfile$/.test(path) ? '#' 
 
 function snippetFile(path, labelled) {
   const prefix = commentPrefix(path);
-  const asComment = (text) => text.split('\n').map((line) => (line ? `${prefix} ${line}` : prefix)).join('\n');
+  const asComment = (text) =>
+    text
+      .split('\n')
+      .map((line) => (line ? `${prefix} ${line}` : prefix))
+      .join('\n');
   const head = (labelled.other_comments ?? []).map((other) => `${asComment(other)}\nlet placeholder = 0;\n`).join('\n');
   const headLines = (head.match(/\n/g) ?? []).length;
   const comment = asComment(labelled.comment);
@@ -198,29 +247,38 @@ async function loadCases() {
 }
 
 async function fileAtCommit({ repo, sha, path, start_line, end_line }) {
-  const { stdout } = await execFileAsync('gh', ['api', `repos/${repo}/contents/${path}?ref=${sha}`, '--jq', '.content'],
-    { maxBuffer: 1 << 26 });
+  const { stdout } = await execFileAsync(
+    'gh',
+    ['api', `repos/${repo}/contents/${path}?ref=${sha}`, '--jq', '.content'],
+    { maxBuffer: 1 << 26 },
+  );
   return { content: Buffer.from(stdout.replace(/\s/g, ''), 'base64').toString('utf8'), start_line, end_line };
 }
 
 function addOnlyPatch(path, content, start_line, end_line) {
   const lines = content.split('\n').slice(start_line - 1, end_line);
-  return `--- a/${path}\n+++ b/${path}\n@@ -${start_line - 1},0 +${start_line},${lines.length} @@\n`
-    + lines.map((line) => `+${line}`).join('\n') + '\n';
+  return (
+    `--- a/${path}\n+++ b/${path}\n@@ -${start_line - 1},0 +${start_line},${lines.length} @@\n` +
+    lines.map((line) => `+${line}`).join('\n') +
+    '\n'
+  );
 }
 
 async function runCase(input) {
-  const file = input.file ?? await fileAtCommit(input.source);
+  const file = input.file ?? (await fileAtCommit(input.source));
   const workdir = mkdtempSync(join(tmpdir(), 'comment-audit-eval-'));
   try {
     mkdirSync(join(workdir, dirname(input.path)), { recursive: true });
     writeFileSync(join(workdir, input.path), file.content);
     const patch = join(workdir, 'case.patch');
     writeFileSync(patch, addOnlyPatch(input.path, file.content, file.start_line, file.end_line));
-    let stdout, exit = 0;
+    let stdout,
+      exit = 0;
     try {
-      ({ stdout } = await execFileAsync('node', [SCORER, '--check', '--diff', patch, '--repo', workdir],
-        { maxBuffer: 1 << 26, env: process.env }));
+      ({ stdout } = await execFileAsync('node', [SCORER, '--check', '--diff', patch, '--repo', workdir], {
+        maxBuffer: 1 << 26,
+        env: process.env,
+      }));
     } catch (error) {
       if (error.code !== EXIT_NEEDS_DECISION) {
         const failure = new Error(`comment-score.ts exited ${error.code}: ${String(error.stderr).slice(0, 400)}`);
@@ -239,7 +297,10 @@ async function runCase(input) {
     }
     const [comment] = scored;
     const verdict = { exit, actions: comment.actions, uncertain: comment.uncertain, signals: comment.signals };
-    const excerpt = file.content.split('\n').slice(Math.max(0, file.start_line - 5), file.end_line + 14).join('\n');
+    const excerpt = file.content
+      .split('\n')
+      .slice(Math.max(0, file.start_line - 5), file.end_line + 14)
+      .join('\n');
     return {
       output: verdict,
       status: 'ok',
@@ -270,17 +331,23 @@ async function gradeCase(input, run) {
   };
 }
 
-function perfFrom(run) { return { uncertain_signals: run.output.uncertain.length }; }
+function perfFrom(run) {
+  return { uncertain_signals: run.output.uncertain.length };
+}
 
 let ctxCaseFilter = null;
 
 function printGateRates(resultsPath) {
-  const rows = (readIfPresent(resultsPath) ?? '').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  const rows = (readIfPresent(resultsPath) ?? '')
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
   const wilson = (pass, n) => {
     if (!n) return 'n/a';
-    const z = 1.96, p = pass / n;
-    const centre = (p + z * z / (2 * n)) / (1 + z * z / n);
-    const half = (z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))) / (1 + z * z / n);
+    const z = 1.96,
+      p = pass / n;
+    const centre = (p + (z * z) / (2 * n)) / (1 + (z * z) / n);
+    const half = (z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))) / (1 + (z * z) / n);
     return `${(100 * p).toFixed(1)}% [${(100 * (centre - half)).toFixed(1)}, ${(100 * (centre + half)).toFixed(1)}] n=${n}`;
   };
   const cell = (filter) => {
@@ -295,12 +362,25 @@ function printGateRates(resultsPath) {
 // --- harness (you usually won't need to touch below this line) --------------
 
 function parseArgs(argv) {
-  const a = { flow: '.claude/hillclimb/flow', variant: 'baseline',
-              model: undefined, reps: 1, concurrency: 4, timeoutS: 1800,
-              approveHarness: false };
+  const a = {
+    flow: '.claude/hillclimb/flow',
+    variant: 'baseline',
+    model: undefined,
+    reps: 1,
+    concurrency: 4,
+    timeoutS: 1800,
+    approveHarness: false,
+  };
   // A flag at the end of argv would otherwise consume undefined - which for
   // --model equals the default and silently disables the served-model check.
-  const val = (i) => { if (argv[i] === undefined) { eprint(`missing value for ${argv[i - 1]}`); usage(); process.exit(2); } return argv[i]; };
+  const val = (i) => {
+    if (argv[i] === undefined) {
+      eprint(`missing value for ${argv[i - 1]}`);
+      usage();
+      process.exit(2);
+    }
+    return argv[i];
+  };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--flow') a.flow = val(++i);
@@ -311,24 +391,41 @@ function parseArgs(argv) {
     else if (k === '--timeout-s') a.timeoutS = +val(++i);
     else if (k === '--approve-harness') a.approveHarness = true;
     else if (k === '--cases') a.cases = val(++i).split(',');
-    else if (k === '-h' || k === '--help') { usage(); process.exit(0); }
-    else { eprint(`unknown argument: ${k}`); usage(); process.exit(2); }
+    else if (k === '-h' || k === '--help') {
+      usage();
+      process.exit(0);
+    } else {
+      eprint(`unknown argument: ${k}`);
+      usage();
+      process.exit(2);
+    }
   }
   if (!/^(baseline|v[1-9]\d*)$/.test(a.variant)) {
     // The report only reads directories named 'baseline' or 'v<N>' - any other
     // name runs to completion but spends the pass into a directory the Summary,
     // trajectory, and budget arithmetic never see.
     eprint(`--variant must be 'baseline' or 'v<N>', got '${a.variant}'`);
-    usage(); process.exit(2);
+    usage();
+    process.exit(2);
   }
-  if (!Number.isFinite(a.timeoutS) || a.timeoutS < 0
-      || a.timeoutS * 1000 > 2147483647 // setTimeout clamps >2^31-1 ms to 1 ms - the ceiling would fire instantly
-      || !Number.isInteger(a.reps) || a.reps < 1
-      || !Number.isInteger(a.concurrency) || a.concurrency < 1) { usage(); process.exit(2); }
+  if (
+    !Number.isFinite(a.timeoutS) ||
+    a.timeoutS < 0 ||
+    a.timeoutS * 1000 > 2147483647 || // setTimeout clamps >2^31-1 ms to 1 ms - the ceiling would fire instantly
+    !Number.isInteger(a.reps) ||
+    a.reps < 1 ||
+    !Number.isInteger(a.concurrency) ||
+    a.concurrency < 1
+  ) {
+    usage();
+    process.exit(2);
+  }
   return a;
 }
 function usage() {
-  eprint('usage: node run-eval.mjs --flow DIR --variant ID [--model ID] [--reps N] [--concurrency N] [--timeout-s N (0 = no ceiling)] [--cases ID,ID] [--approve-harness]');
+  eprint(
+    'usage: node run-eval.mjs --flow DIR --variant ID [--model ID] [--reps N] [--concurrency N] [--timeout-s N (0 = no ceiling)] [--cases ID,ID] [--approve-harness]',
+  );
 }
 
 // Harness integrity gate. The hillclimb loop gets this runner command
@@ -356,16 +453,21 @@ function usage() {
 function checkHarness(statePath, st, approve) {
   const self = fileURLToPath(import.meta.url);
   const listed = Array.isArray(st.harness_paths) ? st.harness_paths.map(String) : [];
-  const lockfiles = [...new Set([dirname(self), process.cwd()].flatMap(d =>
-    ['package-lock.json', 'bun.lock', 'bun.lockb', 'yarn.lock', 'pnpm-lock.yaml'].map(f => join(d, f))))]
-    .filter(f => existsSync(f));
-  const paths = [...new Set([self, ...lockfiles, ...listed.map(p => resolve(p))])].sort();
+  const lockfiles = [
+    ...new Set(
+      [dirname(self), process.cwd()].flatMap((d) =>
+        ['package-lock.json', 'bun.lock', 'bun.lockb', 'yarn.lock', 'pnpm-lock.yaml'].map((f) => join(d, f)),
+      ),
+    ),
+  ].filter((f) => existsSync(f));
+  const paths = [...new Set([self, ...lockfiles, ...listed.map((p) => resolve(p))])].sort();
   const h = createHash('sha256');
   const hashed = [];
   for (const p of paths) {
     let buf;
-    try { buf = readFileSync(p); }
-    catch (e) {
+    try {
+      buf = readFileSync(p);
+    } catch (e) {
       if (p === self) throw e;
       eprint(`warning: harness path '${relative(process.cwd(), p)}' not readable (${e?.code || 'error'}) - skipped`);
       continue;
@@ -376,7 +478,10 @@ function checkHarness(statePath, st, approve) {
   const sha = h.digest('hex');
   if (st.harness_sha === sha) return;
   // Said only here, where a person is about to approve or is being refused.
-  if (!lockfiles.length) eprint('note: no lockfile beside the runner or in the current directory - dependency changes are outside the harness sha');
+  if (!lockfiles.length)
+    eprint(
+      'note: no lockfile beside the runner or in the current directory - dependency changes are outside the harness sha',
+    );
   if (approve) {
     st.harness_sha = sha;
     writeFileNoFollow(statePath, JSON.stringify(st, null, 2) + '\n');
@@ -387,8 +492,10 @@ function checkHarness(statePath, st, approve) {
     eprint(`no approved harness sha in ${statePath} (computed ${sha.slice(0, 12)} over: ${hashed.join(', ')}).`);
     eprint('Review the harness, then run once with --approve-harness to record it.');
   } else {
-    eprint(`harness changed since last approved run (files: ${hashed.join(', ')}); `
-      + `approved ${String(st.harness_sha).slice(0, 12)}, now ${sha.slice(0, 12)}.`);
+    eprint(
+      `harness changed since last approved run (files: ${hashed.join(', ')}); ` +
+        `approved ${String(st.harness_sha).slice(0, 12)}, now ${sha.slice(0, 12)}.`,
+    );
     eprint('Re-run with --approve-harness after reviewing the diff.');
   }
   process.exit(2);
@@ -409,17 +516,22 @@ async function withBackoff(fn, retry, deadline = Infinity, tries = 5) {
       e.failure_class = 'timeout';
       throw e;
     }
-    try { return await fn(); } catch (e) {
+    try {
+      return await fn();
+    } catch (e) {
       const status = e?.status ?? e?.response?.status;
-      const transient = status === 429 || status === 529 || (status >= 500 && status < 600)
-        || /overloaded|rate.?limit/i.test(String(e?.message ?? ''));
+      const transient =
+        status === 429 ||
+        status === 529 ||
+        (status >= 500 && status < 600) ||
+        /overloaded|rate.?limit/i.test(String(e?.message ?? ''));
       if (!transient || attempt >= tries - 1) throw e;
       const delay = Math.min(60_000, 1000 * 2 ** attempt) * (0.5 + Math.random());
-      // Never start a retry that would outlive the case's wall-clock ceiling - 
+      // Never start a retry that would outlive the case's wall-clock ceiling -
       // otherwise an abandoned chain keeps issuing API calls after the case failed.
       if (Date.now() + delay >= deadline) throw e;
       retry.count++;
-      await new Promise(r => setTimeout(r, delay));
+      await new Promise((r) => setTimeout(r, delay));
     }
   }
 }
@@ -448,7 +560,7 @@ function pathSafeId(id) {
   const raw = String(id);
   const cleaned = raw.replace(/[^\w.-]/g, '_');
   // Idempotent by construction: anything already path-safe and within the
-  // length bound - including this function's own truncated+suffixed output - 
+  // length bound - including this function's own truncated+suffixed output -
   // passes through unchanged. Long ids (URLs, prompt text as id) truncate to
   // 120 chars plus an 8-hex hash of the full original, so they fail here, not
   // at the trace write after the spend, and distinct ids stay distinct.
@@ -469,17 +581,28 @@ async function main() {
   // planted link at the flow root - while join() collapses it and the absolute
   // branch skips the ancestor walk. Refuse dot segments outright
   // (absolute --flow stays supported).
-  if (flowSegments.some(seg => seg === '.' || seg === '..')) {
+  if (flowSegments.some((seg) => seg === '.' || seg === '..')) {
     eprint(`refusing to run: --flow must not contain '.' or '..' segments, got '${args.flow}'`);
     process.exit(2);
   }
   const vdir = join(args.flow, args.variant);
   // Preflight every output path before the first model call: a planted
   // symlink would otherwise fail each case after its (billed) run.
-  for (const p of [args.flow, join(args.flow, 'baseline'), vdir, join(vdir, 'traces'),
-                   join(vdir, 'results.jsonl'), join(vdir, 'errors.jsonl'),
-                   join(vdir, 'progress.txt'), join(args.flow, 'baseline', 'ref'), join(args.flow, '_state.json')])
-    if (isSymlink(p)) { eprint(`refusing to run: ${p} is a symlink (the flow dir must hold regular files)`); process.exit(2); }
+  for (const p of [
+    args.flow,
+    join(args.flow, 'baseline'),
+    vdir,
+    join(vdir, 'traces'),
+    join(vdir, 'results.jsonl'),
+    join(vdir, 'errors.jsonl'),
+    join(vdir, 'progress.txt'),
+    join(args.flow, 'baseline', 'ref'),
+    join(args.flow, '_state.json'),
+  ])
+    if (isSymlink(p)) {
+      eprint(`refusing to run: ${p} is a symlink (the flow dir must hold regular files)`);
+      process.exit(2);
+    }
   // A relative --flow (the documented `.claude/hillclimb/<name>` layout) is
   // also lstat-walked component by component from the cwd: a pre-planted
   // link at an ancestor (`.claude/hillclimb -> elsewhere`) would otherwise
@@ -491,7 +614,10 @@ async function main() {
     let walk = '';
     for (const part of flowSegments.filter(Boolean).slice(0, -1)) {
       walk = walk ? join(walk, part) : part;
-      if (isSymlink(walk)) { eprint(`refusing to run: ${walk} is a symlink (ancestor of --flow)`); process.exit(2); }
+      if (isSymlink(walk)) {
+        eprint(`refusing to run: ${walk} is a symlink (ancestor of --flow)`);
+        process.exit(2);
+      }
     }
   }
   // Every later open/mkdir is bound to this resolved root (see assertInFlow):
@@ -510,8 +636,12 @@ async function main() {
   // parse message is not echoed (it can quote the file's first bytes).
   const stateText = readIfPresent(statePath);
   if (stateText != null) {
-    try { st = JSON.parse(stateText) || {}; }
-    catch { eprint(`${statePath} exists but is not valid JSON - fix it before spending a pass`); process.exit(2); }
+    try {
+      st = JSON.parse(stateText) || {};
+    } catch {
+      eprint(`${statePath} exists but is not valid JSON - fix it before spending a pass`);
+      process.exit(2);
+    }
   }
   checkHarness(statePath, st, args.approveHarness);
   const ctx = { ...args, state: st };
@@ -522,13 +652,16 @@ async function main() {
   const done = new Set();
   for (const ln of (readIfPresent(resultsPath) ?? '').split('\n')) {
     if (!ln.trim()) continue;
-    try { const r = JSON.parse(ln); done.add(`${r.prompt_id}\0${r.rep}`); } catch {}
+    try {
+      const r = JSON.parse(ln);
+      done.add(`${r.prompt_id}\0${r.rep}`);
+    } catch {}
   }
   // Rows key on the path-safe id (see pathSafeId), so resume must too.
 
   const cases = await loadCases();
-  // Validate the id space before spending anything: duplicate path-safe ids - 
-  // including case-insensitive twins, which macOS/Windows filesystems collapse - 
+  // Validate the id space before spending anything: duplicate path-safe ids -
+  // including case-insensitive twins, which macOS/Windows filesystems collapse -
   // would silently overwrite traces and frozen refs; and a _state.json split id
   // that matches no case would silently shrink the scored denominator.
   const seen = new Map();
@@ -540,16 +673,21 @@ async function main() {
     }
     seen.set(k, c.id);
   }
-  const safeIds = new Set(cases.map(c => pathSafeId(c.id)));
+  const safeIds = new Set(cases.map((c) => pathSafeId(c.id)));
   for (const k of ['train_ids', 'val_ids', 'test_ids'])
-    if (st[k] != null && !Array.isArray(st[k])) { eprint(`_state.json ${k} must be a list of ids`); process.exit(2); }
+    if (st[k] != null && !Array.isArray(st[k])) {
+      eprint(`_state.json ${k} must be a list of ids`);
+      process.exit(2);
+    }
   for (const sid of [...(st.train_ids ?? []), ...(st.val_ids ?? []), ...(st.test_ids ?? [])]) {
     const s = String(sid); // the adapter joins with String() on both sides - numeric ids are fine
     if (safeIds.has(s)) continue; // matches a loaded case - definitionally valid
     if (s !== pathSafeId(s)) {
       // Can never match a row: rows key on path-safe ids. This is the silent
       // shrunken-denominator bug - fail before anything is spent.
-      eprint(`_state.json split id '${s}' is not a path-safe id - record split ids exactly as they appear in results.jsonl's prompt_id`);
+      eprint(
+        `_state.json split id '${s}' is not a path-safe id - record split ids exactly as they appear in results.jsonl's prompt_id`,
+      );
       process.exit(2);
     }
     // Well-formed but absent is legitimate (a trimmed top-K subset run) - note it, don't fail.
@@ -557,13 +695,16 @@ async function main() {
   }
   const refDir = join(args.flow, 'baseline', 'ref');
   const tasks = [];
-  for (const c of cases) for (let rep = 0; rep < args.reps; rep++) {
-    if (done.has(`${pathSafeId(c.id)}\0${rep}`)) continue;
-    tasks.push({ c, rep });
-  }
+  for (const c of cases)
+    for (let rep = 0; rep < args.reps; rep++) {
+      if (done.has(`${pathSafeId(c.id)}\0${rep}`)) continue;
+      tasks.push({ c, rep });
+    }
   eprint(`[${args.variant}] ${tasks.length} of ${cases.length * args.reps} (id,rep) to run`);
 
-  let i = 0, ok = 0, fail = 0;
+  let i = 0,
+    ok = 0,
+    fail = 0;
   const errorsPath = join(vdir, 'errors.jsonl');
   // A hard crash (power loss, ENOSPC) can leave a torn final line with no
   // trailing newline; the next append would merge two rows into one permanently
@@ -577,84 +718,112 @@ async function main() {
       const { c, rep } = tasks[i++];
       const safeId = pathSafeId(c.id);
       const t0 = Date.now();
-      let lastRun = null;    // survives into the catch - billed spend on a failed attempt
+      let lastRun = null; // survives into the catch - billed spend on a failed attempt
       let rowWritten = false; // set once the results row lands - the attempt is scored
       const deadline = args.timeoutS > 0 ? t0 + args.timeoutS * 1000 : Infinity;
-      const appRetry = { count: 0 }, judgeRetry = { count: 0 };
+      const appRetry = { count: 0 },
+        judgeRetry = { count: 0 };
       try {
-        // One ceiling over the whole case - app call, identity check, and grading - 
+        // One ceiling over the whole case - app call, identity check, and grading -
         // so a hung judge stream can't hold the slot either.
-        const { run, g, latency_s } = await withTimeout((async () => {
-          let tAttempt = t0;
-          const run = await withBackoff(() => { tAttempt = Date.now(); return runCase(c, ctx); },
-            appRetry, deadline);
-          lastRun = run;
-          // latency_s = the final app attempt only; backoff sleeps, failed
-          // attempts, and judge time are excluded (retry counts are in meta).
-          const latency_s = (Date.now() - tAttempt) / 1000;
-          // Serving identity: fail loudly when the response was served by a model
-          // other than the one requested. Accept exact match or a documented
-          // alias->snapshot resolution - 'foo-latest'/'foo-0'/'foo' served as
-          // 'foo-20250101', 'foo@20250101', or 'foo-2025-01-01'. Anything else - 
-          // another snapshot of the requested pin, a sibling model, or the bare
-          // base id ('foo-latest' served as 'foo', an unversioned echo that can
-          // hide snapshot drift across rounds) - fails the attempt. Non-Anthropic
-          // id schemes (e.g. Bedrock's 'anthropic.claude-...-v1:0') need their own
-          // rule here.
-          if (ctx.model && run.model && run.model !== ctx.model) {
-            const base = ctx.model.replace(/-latest$|-0$/, '');
-            const rest = String(run.model).startsWith(base)
-              ? String(run.model).slice(base.length) : null;
-            if (!(rest != null && /^[-@](\d{8}|\d{4}-\d{2}-\d{2})$/.test(rest))) {
-              const e = new Error(`served model ${run.model} != requested ${ctx.model}`);
-              e.failure_class = 'serving_substitution';
-              throw e;
+        const { run, g, latency_s } = await withTimeout(
+          (async () => {
+            let tAttempt = t0;
+            const run = await withBackoff(
+              () => {
+                tAttempt = Date.now();
+                return runCase(c, ctx);
+              },
+              appRetry,
+              deadline,
+            );
+            lastRun = run;
+            // latency_s = the final app attempt only; backoff sleeps, failed
+            // attempts, and judge time are excluded (retry counts are in meta).
+            const latency_s = (Date.now() - tAttempt) / 1000;
+            // Serving identity: fail loudly when the response was served by a model
+            // other than the one requested. Accept exact match or a documented
+            // alias->snapshot resolution - 'foo-latest'/'foo-0'/'foo' served as
+            // 'foo-20250101', 'foo@20250101', or 'foo-2025-01-01'. Anything else -
+            // another snapshot of the requested pin, a sibling model, or the bare
+            // base id ('foo-latest' served as 'foo', an unversioned echo that can
+            // hide snapshot drift across rounds) - fails the attempt. Non-Anthropic
+            // id schemes (e.g. Bedrock's 'anthropic.claude-...-v1:0') need their own
+            // rule here.
+            if (ctx.model && run.model && run.model !== ctx.model) {
+              const base = ctx.model.replace(/-latest$|-0$/, '');
+              const rest = String(run.model).startsWith(base) ? String(run.model).slice(base.length) : null;
+              if (!(rest != null && /^[-@](\d{8}|\d{4}-\d{2}-\d{2})$/.test(rest))) {
+                const e = new Error(`served model ${run.model} != requested ${ctx.model}`);
+                e.failure_class = 'serving_substitution';
+                throw e;
+              }
             }
-          }
-          // Frozen pairwise reference (never regenerated): baseline/ref/<id>.*
-          let ref = null;
-          if (args.variant !== 'baseline') {
-            const p = join(refDir, safeId);
-            // A planted symlink throws (ELOOP) rather than feeding the judge
-            // its target; the case then fails loudly instead of leaking.
-            for (const ext of REF_EXTS) {
-              try { ref = readFileNoFollow(p + ext); break; }
-              catch (e) { if (e?.code !== 'ENOENT') throw e; }
+            // Frozen pairwise reference (never regenerated): baseline/ref/<id>.*
+            let ref = null;
+            if (args.variant !== 'baseline') {
+              const p = join(refDir, safeId);
+              // A planted symlink throws (ELOOP) rather than feeding the judge
+              // its target; the case then fails loudly instead of leaking.
+              for (const ext of REF_EXTS) {
+                try {
+                  ref = readFileNoFollow(p + ext);
+                  break;
+                } catch (e) {
+                  if (e?.code !== 'ENOENT') throw e;
+                }
+              }
             }
-          }
-          const g = await withBackoff(() => gradeCase(c, run, ref, ctx), judgeRetry, deadline);
-          return { run, g, latency_s };
-        })(), args.timeoutS, `${c.id} rep${rep}`);
+            const g = await withBackoff(() => gradeCase(c, run, ref, ctx), judgeRetry, deadline);
+            return { run, g, latency_s };
+          })(),
+          args.timeoutS,
+          `${c.id} rep${rep}`,
+        );
         const row = {
-          prompt_id: safeId, rep, prompt: c.prompt ?? c.input ?? c.id,
-          tags: c.tags, attachments: c.attachments,
-          meta: safeId !== String(c.id) || appRetry.count || judgeRetry.count
-            ? { ...(c.meta ?? {}),
-                ...(safeId !== String(c.id) ? { original_id: String(c.id) } : {}),
-                ...(appRetry.count ? { retries: appRetry.count } : {}),
-                ...(judgeRetry.count ? { judge_retries: judgeRetry.count } : {}) }
-            : c.meta,
-          model: run.model, usage: run.usage, stop_reason: run.stop_reason,
+          prompt_id: safeId,
+          rep,
+          prompt: c.prompt ?? c.input ?? c.id,
+          tags: c.tags,
+          attachments: c.attachments,
+          meta:
+            safeId !== String(c.id) || appRetry.count || judgeRetry.count
+              ? {
+                  ...(c.meta ?? {}),
+                  ...(safeId === String(c.id) ? {} : { original_id: String(c.id) }),
+                  ...(appRetry.count ? { retries: appRetry.count } : {}),
+                  ...(judgeRetry.count ? { judge_retries: judgeRetry.count } : {}),
+                }
+              : c.meta,
+          model: run.model,
+          usage: run.usage,
+          stop_reason: run.stop_reason,
           // The report keys on `status`, not stop_reason: a clipped answer is
           // counted and shown but kept out of the means. runCase may set
           // run.status to override the max_tokens rule.
           status: run.status ?? (run.stop_reason === 'max_tokens' ? 'truncated' : 'ok'),
           judge_model: g.judge_model ?? run.judge_model,
           judge_usage: g.judge_usage ?? run.judge_usage,
-          latency_s, ...perfFrom(run),
-          grade: g.grade, explanation: g.explanation,
+          latency_s,
+          ...perfFrom(run),
+          grade: g.grade,
+          explanation: g.explanation,
         };
         appendFileNoFollow(resultsPath, JSON.stringify(row) + '\n');
         rowWritten = true; // past this point the attempt is scored - a later throw (trace write, ref freeze) must not also append an error row
         if (run.transcript)
-          writeFileNoFollow(join(vdir, 'traces', `${safeId}_rep${rep}.json`),
-            JSON.stringify(run.transcript, null, 2));
+          writeFileNoFollow(join(vdir, 'traces', `${safeId}_rep${rep}.json`), JSON.stringify(run.transcript, null, 2));
         // For pairwise: on the baseline run, freeze the reference output once.
-        if (args.variant === 'baseline' && run.output != null
-            && !REF_EXTS.some(ext => lexists(join(refDir, safeId) + ext))) {
+        if (
+          args.variant === 'baseline' &&
+          run.output != null &&
+          !REF_EXTS.some((ext) => lexists(join(refDir, safeId) + ext))
+        ) {
           mkdirNoFollow(refDir);
-          writeFileNoFollow(join(refDir, safeId),
-            typeof run.output === 'string' ? run.output : JSON.stringify(run.output));
+          writeFileNoFollow(
+            join(refDir, safeId),
+            typeof run.output === 'string' ? run.output : JSON.stringify(run.output),
+          );
         }
         ok++;
       } catch (e) {
@@ -667,20 +836,26 @@ async function main() {
         }
         // Failed attempts are data too - but they must not occupy the (case, rep)
         // slot in results.jsonl, or resume would never re-run them.
-        appendFileNoFollow(errorsPath, JSON.stringify({
-          prompt_id: safeId, rep,
-          ...(safeId !== String(c.id) ? { original_id: String(c.id) } : {}),
-          failure_class: e?.failure_class ?? 'error',
-          error: String(e?.message || e),
-          retries: appRetry.count, judge_retries: judgeRetry.count,
-          // Billed-but-failed spend stays countable: when the app call completed
-          // before the failure (e.g. a served-model mismatch, a judge-stage
-          // ceiling), carry its identity and usage on the error row.
-          model: lastRun?.model, usage: lastRun?.usage,
-          judge_model: e?.judge_model ?? lastRun?.judge_model,
-          judge_usage: e?.judge_usage ?? lastRun?.judge_usage,
-          latency_s: (Date.now() - t0) / 1000,
-        }) + '\n');
+        appendFileNoFollow(
+          errorsPath,
+          JSON.stringify({
+            prompt_id: safeId,
+            rep,
+            ...(safeId === String(c.id) ? {} : { original_id: String(c.id) }),
+            failure_class: e?.failure_class ?? 'error',
+            error: String(e?.message || e),
+            retries: appRetry.count,
+            judge_retries: judgeRetry.count,
+            // Billed-but-failed spend stays countable: when the app call completed
+            // before the failure (e.g. a served-model mismatch, a judge-stage
+            // ceiling), carry its identity and usage on the error row.
+            model: lastRun?.model,
+            usage: lastRun?.usage,
+            judge_model: e?.judge_model ?? lastRun?.judge_model,
+            judge_usage: e?.judge_usage ?? lastRun?.judge_usage,
+            latency_s: (Date.now() - t0) / 1000,
+          }) + '\n',
+        );
         eprint(`  [${args.variant}] ${c.id} rep${rep} FAILED: ${e?.message || e}`);
       }
     }
@@ -691,18 +866,24 @@ async function main() {
   // rate extrapolation from this pass.
   const t0 = Date.now();
   const progress = () => {
-    const done = ok + fail, total = tasks.length;
+    const done = ok + fail,
+      total = tasks.length;
     const el = (Date.now() - t0) / 1000;
     const eta = done ? Math.round((el / done) * (total - done)) : null;
-    const line = `[${args.variant}] ${done}/${total} done (${ok} ok, ${fail} failed), `
-      + `${Math.round(el)}s elapsed` + (eta != null ? `, ~${eta}s left` : '');
+    const line =
+      `[${args.variant}] ${done}/${total} done (${ok} ok, ${fail} failed), ` +
+      `${Math.round(el)}s elapsed` +
+      (eta == null ? '' : `, ~${eta}s left`);
     eprint(line);
-    try { writeFileNoFollow(join(vdir, 'progress.txt'), line + '\n'); } catch {}
+    try {
+      writeFileNoFollow(join(vdir, 'progress.txt'), line + '\n');
+    } catch {}
   };
   const tick = setInterval(progress, 30_000);
   workersStarted = true;
   await Promise.all(Array.from({ length: Math.max(1, args.concurrency) }, worker));
-  clearInterval(tick); progress();
+  clearInterval(tick);
+  progress();
   eprint(`[${args.variant}] done - ${ok} ok, ${fail} failed -> ${resultsPath}`);
   printGateRates(resultsPath);
   process.exit(fail ? 1 : 0);
@@ -714,9 +895,12 @@ async function main() {
 // the preflight refusals. After they start, only a failed errors.jsonl append
 // gets here; rows may already be on disk, so say that and exit 1.
 let workersStarted = false;
-main().catch(e => {
+main().catch((e) => {
   const m = String(e?.message || e);
-  if (workersStarted) { eprint('stopped mid-run (rows already written are kept; re-run to resume): ' + m); process.exit(1); }
+  if (workersStarted) {
+    eprint('stopped mid-run (rows already written are kept; re-run to resume): ' + m);
+    process.exit(1);
+  }
   eprint(m.startsWith('refusing to ') ? m : 'refusing to run: ' + m);
   process.exit(2);
 });

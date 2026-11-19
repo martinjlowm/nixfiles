@@ -13,8 +13,8 @@ import { basename, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import {
-  type Crop,
   type Checks,
+  type Crop,
   cropFor,
   cropFromBox,
   cropScale,
@@ -56,7 +56,8 @@ const DESIGN_QUESTIONS = {
   },
   overflow: {
     type: 'noul',
-    instructions: 'Is any text in `component` cut off mid-word, clipped by its container, or overlapping another element?',
+    instructions:
+      'Is any text in `component` cut off mid-word, clipped by its container, or overlapping another element?',
   },
   offPalette: {
     type: 'noul',
