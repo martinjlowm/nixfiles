@@ -73,7 +73,10 @@
     }
     const ownText = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
     if (ownText) {
-      const family = style.fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '');
+      const family = style.fontFamily
+        .split(',')[0]
+        .trim()
+        .replace(/^["']|["']$/g, '');
       const entry = fonts.get(family) || { family, count: 0, sample: describe(el) };
       entry.count++;
       fonts.set(family, entry);
@@ -110,4 +113,4 @@
     blocks,
     actionGroups,
   };
-})
+});

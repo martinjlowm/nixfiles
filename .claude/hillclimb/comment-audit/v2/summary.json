@@ -1,1 +1,6 @@
-{"description":"Breadth pass: essay length as a hint, duplicate criteria, sharper into-code question","label":"breadth pass","target":"code","suspicious":"bundles three fixes; the effect cannot be attributed to one"}
+{
+  "description": "Breadth pass: essay length as a hint, duplicate criteria, sharper into-code question",
+  "label": "breadth pass",
+  "target": "code",
+  "suspicious": "bundles three fixes; the effect cannot be attributed to one"
+}

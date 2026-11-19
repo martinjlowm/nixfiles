@@ -225,7 +225,6 @@ export function actionViolations(groups: ActionGroup[], checks: Checks): Violati
   return violations;
 }
 
-
 // Jev rejects an image with a side under 280px or over 1568px, and never
 // resizes one to fit.
 export const IMAGE_SIDE_MIN_PX = 280;
@@ -249,7 +248,12 @@ export function fitImage(region: { width: number; height: number }): { width: nu
   };
 }
 
-export function cropFor(rect: Rect, devicePixelRatio: number, image: { width: number; height: number }, padPx: number): Crop {
+export function cropFor(
+  rect: Rect,
+  devicePixelRatio: number,
+  image: { width: number; height: number },
+  padPx: number,
+): Crop {
   const left = Math.max(0, Math.floor((rect.left - padPx) * devicePixelRatio));
   const top = Math.max(0, Math.floor((rect.top - padPx) * devicePixelRatio));
   const right = Math.min(image.width, Math.ceil((rect.left + rect.width + padPx) * devicePixelRatio));
