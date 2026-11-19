@@ -121,7 +121,7 @@
     # Script packages
     packages = let
       systems = ["aarch64-darwin" "x86_64-linux" "x86_64-darwin" "aarch64-linux"];
-      scriptNames = ["agent-mono-items" "fix" "git-bug-hotspots" "git-commit-velocity" "git-contributor-rankings" "git-firefighting" "git-most-changed" "git-recent-contributors" "loop" "playwright-at" "rmtree" "tech-spec" "worktree"];
+      scriptNames = ["agent-mono-items" "fix" "git-bug-hotspots" "git-commit-velocity" "git-contributor-rankings" "git-firefighting" "git-most-changed" "git-recent-contributors" "loop" "playwright-at" "prq" "rmtree" "tech-spec" "worktree"];
     in
       builtins.listToAttrs (map (system: {
           name = system;
