@@ -56,6 +56,7 @@ Each angle has one owner, so two reviewers never file the same issue at differen
 | `review-scope` | whether the PR solves one problem and its split plan; functions that keep their rules in prose rather than types |
 | `review-cdk-infra` | CDK constructs, IAM and least privilege, export ordering, star-policy whitelist |
 | `review-rust-mono-items` | duplicate monomorphization, when the PR touches Rust |
+| `review-datafusion` | DataFusion API use against the docs for the resolved version, when the PR touches DataFusion code |
 | `review-visual` | screenshots against staging, when the PR touches UI; never findings |
 
 Each reviewer reads `~/.claude/skills/review-protocol/SKILL.md`, so your dispatch carries only
@@ -100,7 +101,7 @@ Remember the token. On a resume, the token tells you the directory is yours.
 Subagents run in the background, and a completion notification reaches you only while your
 turn is open. So every dispatch carries `Result file: <results dir>/<name>.json`. The name is
 `tests-perf-security`, `patterns-types-errors`, `code-comments`, `scope`, `cdk-infra`,
-`visual`, `mono-items`, or `verify-<n>` for the nth verifier. Wait on the files in the same
+`visual`, `mono-items`, `datafusion`, or `verify-<n>` for the nth verifier. Wait on the files in the same
 turn with this Bash call, in the foreground with tool timeout 600000. Never pass it
 `run_in_background`, because a background waiter outlives the handoff and wakes you again
 when it exits.
@@ -134,7 +135,7 @@ budget is spent: 30 minutes from the spawn, or 135 minutes when the batch holds
 ## Phase 1: fan out
 
 Spawn the five review subagents in one message, with `review-visual` and
-`review-rust-mono-items` beside them when the sections below say the PR needs them.
+`review-rust-mono-items` and `review-datafusion` beside them when the sections below say the PR needs them.
 `review-cdk-infra` returns `{"comments": []}` for a PR with no CDK changes, which is not a
 degraded angle.
 
@@ -176,6 +177,33 @@ Changed UI files:
 The base ref is the `Base:` line of `<digest>/pr.md`. The visual review returns a status and
 a report path, never findings. Nothing it returns enters the aggregate or a verifier, because
 a visual difference may be what the PR intends.
+
+### The DataFusion review, when the PR touches DataFusion code
+
+It needs no input block. A PR touches DataFusion code when either holds:
+
+- a changed `Cargo.toml` or `Cargo.lock` in `files.txt` has a diff line naming a
+  `datafusion` crate;
+- a changed `*.rs` file in `files.txt` names one at the head sha. Run
+  `grep -lE 'datafusion(_|::|-)' <checkout>/<path>` over those files.
+
+With no match, record `not_applicable` and spawn nothing.
+
+```
+DataFusion review of pull request <repo>#<number>.
+Repository: <repo>
+PR number: <number>
+Author: <author>
+Head sha: <sha>
+Base ref: <base>
+Local checkout: <path>
+Dependency manifest: <lockfile path>
+Digest: <dir>
+Result file: <results dir>/datafusion.json
+```
+
+Its comments enter the aggregate like any reviewer's, and its blockers go to verifiers. It
+returns `{"comments": []}` for a PR it finds out of scope, which is not a degraded angle.
 
 ### The duplicate monomorphization review, when the PR changes Rust
 
@@ -280,6 +308,8 @@ The visual status is `compared`, `skipped` or `blocked` as returned, `not_applic
 nothing was spawned, and `failed` when it died or did not parse. `failed` also goes in
 `degraded_angles` as `visual`, and `skipped` does not. The mono-items status follows the same
 rule with `compared`, `skipped`, `not_applicable` and `failed`, recorded as `mono_items`.
+A DataFusion review that did not spawn records `not_applicable`. One that died or did not
+parse goes in `degraded_angles` as `datafusion`.
 The scope review's comments enter the aggregate like any reviewer's. Demote a `blocker` from
 it to `concern` on arrival. Its status is `scored`, `not_applicable` or `failed`, recorded as
 `scope`, and `failed` also goes in `degraded_angles`.
