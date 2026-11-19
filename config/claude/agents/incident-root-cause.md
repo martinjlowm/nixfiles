@@ -23,6 +23,14 @@ here, class), the session id, and one framing:
 - `open-issue <issue URL>`: an RCA exists and nobody fixed it. If you can, produce a fix
   that references the issue. Otherwise return only evidence beyond what the issue says.
 
+The routine can also supply two lists from its own search:
+
+- `Siblings`: open PRs and issues on the same alarm, service or symptom that carry a
+  different fingerprint.
+- `Foundations`: open `[foundation]` issues in the repository.
+
+An empty list means the search found nothing.
+
 You are in the routine's checkout of the default branch. An empty header field means the
 signal shape does not carry it, not that it is zero. Occurrence counts show severity and
 duration. They are never a reason to hurry.
@@ -130,6 +138,41 @@ does this, which produces the symptom. Anything less is a hypothesis and is labe
   fell over.
 - **Invent nothing.** No log lines, metric values or deploy times you did not read.
 
+### Look past this instance
+
+A cause found at one site is usually one instance of a failure mode. A fix at that site
+stops this alarm and no other. Before Phase 3, find the layer that covers every instance.
+Do this for a verified cause and for a ranked hypothesis.
+
+1. **Name the failure mode without the service.** Examples: "an outbound call with no
+   deadline holds the invocation until the platform kills it", or "an invocation the
+   platform kills leaves no record of the stage it was in".
+2. **Count the instances.** Read each of the `Siblings`. An open RCA on the same alarm with
+   a different cause is often the same failure mode at another site. Then search the
+   checkout for the construct that produces the mode, such as a client built with no
+   timeout. Name the search you ran and the sites it found.
+3. **Find the shared layer.** Services usually reach a failure mode through code they share:
+   a client constructor, the init or tracing function every binary calls, a CDK construct,
+   a middleware, a Lambda layer or extension, or the platform's own telemetry. Name the
+   layer and the services that go through it.
+4. **Decide.** A foundation is warranted if the mode has two or more instances. It is also
+   warranted if every service of the kind has the same gap, such as a question that no
+   service can answer from its logs. A quirk with one instance and no shared layer gets no
+   foundation.
+
+If a foundation is warranted:
+
+- **If the change at the shared layer is contained** by the Phase 3 test, that change is the
+  fix. Make it at the shared layer, not at the site. Example: a default timeout in the
+  shared client constructor that every caller uses.
+- **If it is not contained, it is a proposal.** Phase 3 still fixes or instruments this
+  instance when a contained change exists. `foundation` in the output carries the proposal.
+  Keep the design work of the foundation out of the incident branch.
+- **Read `Foundations` first.** If an open foundation issue covers the mode, set
+  `foundation.issue` to its URL and write only the evidence this instance adds.
+- **State the cost.** Name the services the foundation reaches, what it costs each one at
+  run time, and the one service to roll it out on first.
+
 ## Phase 3: fix, or don't
 
 Write a fix only when the root cause is a verified claim and the change is contained. A
@@ -158,6 +201,9 @@ log group and querying it and the longer-retention groups.
 
 Logging on a request path costs ingestion and storage on every request, so:
 
+- **Ask whether every service of the kind has the same question.** If so, the answer
+  belongs in the shared layer that "Look past this instance" names. A line at this site
+  then only bridges the gap until the foundation lands, and the report says so.
 - **One statement, where the information is about to be lost.** An error boundary that
   flattens a specific exception into a generic code is the archetype. Log the identifier
   and error class there, once.
@@ -194,10 +240,28 @@ Return exactly one JSON object and nothing after it:
   "pr_title": "for fix and diagnostics, else null",
   "pr_body": "for fix and diagnostics, else null",
   "summary_line": "what expanding the full report gives a reviewer, for the <summary> of the collapsed RCA",
-  "report": "the RCA in markdown, wrapped at 80 columns, with the sections Summary, Signal, Root cause, Evidence, Why this fix, Verification, Confidence",
-  "class_wide": true
+  "report": "the RCA in markdown, wrapped at 80 columns, with the sections Summary, Signal, Root cause, Failure mode, Evidence, Why this fix, Verification, Confidence",
+  "class_wide": true,
+  "foundation": null
 }
 ```
+
+When a foundation is warranted and the fix is not that foundation, `foundation` is an
+object instead of `null`:
+
+```json
+{
+  "issue": "the URL of the open foundation issue this extends, or null for a new one",
+  "title": "the failure mode as a problem, under 72 characters, for a new issue",
+  "body": "markdown: the failure mode, each instance with its evidence, the shared layer, the proposal, its cost and the first service to roll it out on"
+}
+```
+
+- `Failure mode` in `report` names the mode, the instances you counted and the shared
+  layer. If you decided against a foundation, it says why in one sentence.
+- If `foundation.issue` is set, `body` holds only what this instance adds.
+- The `foundation` body names no fingerprint and no session. The routine links it to the
+  incident.
 
 - Write `pr_title` and `pr_body` per the `pr-description` skill. They are the squash-merge
   commit, and the body says what the change does and why the root cause makes it correct.
