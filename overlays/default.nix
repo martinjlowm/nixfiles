@@ -391,6 +391,14 @@
           --replace-fail '"node ' '"${final.nodejs_24}/bin/node '
       '';
 
+      # treefmt keeps its eval cache under the XDG cache home, which is
+      # ~/Library/Caches on macOS instead of the ~/.cache the sandbox grants.
+      # The grant covers only treefmt's own subdirectory, so the caches of
+      # other applications stay denied.
+      treefmtCacheProfile = final.writeText "treefmt-cache.sb" ''
+        (allow file-read* file-write* (home-subpath "/Library/Caches/treefmt"))
+      '';
+
       denyGhConfig = final.writeText "deny-gh-config.sb" ''
         (deny file-read* file-write* (home-subpath "/.config/gh"))
       '';
@@ -550,6 +558,7 @@
           --append-profile=${nixRunProfile} \
           --append-profile=${nixUserConfProfile} \
           --append-profile=${nixUserProfileProfile} \
+          --append-profile=${treefmtCacheProfile} \
           --append-profile=${denyGhConfig} \
           --enable agent-browser \
           --add-dirs="$rw_dirs" \
