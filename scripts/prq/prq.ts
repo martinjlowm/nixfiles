@@ -28,16 +28,20 @@ const run = promisify(execFile);
 const MAX_BUFFER = 1 << 28;
 const AUDIT_CONCURRENCY = 2;
 
-const USAGE = `Usage: prq [--all] [--drafts] [--audit] [--plain]
+const USAGE = `Usage: prq [--all] [--drafts] [--audit] [--label-conflicts] [--plain]
   (no flag)  Your open, non-draft pull requests in the repository of the working directory
   --all      Every repository
   --drafts   Include drafts
   --audit    Run the comment and scope audits (Jev) for every head not audited yet.
              Needs TYPESAFE_API_KEY and a checkout of the repository as the working directory.
+  --label-conflicts
+             Add the action:fix-conflict label to every listed pull request with merge conflicts,
+             in each repository that defines that label
   --plain    Print the list instead of opening fzf (the default when stdout is not a terminal)
 
 In fzf: enter opens the pull request, ctrl-r re-requests the reviewers marked ↻,
-ctrl-a audits the selected pull request, ctrl-b starts an agent session on the
+ctrl-a audits the selected pull request, ctrl-x adds action:fix-conflict to the listed
+pull requests with conflicts, ctrl-b starts an agent session on the
 agents console from a brief of what is open on it (MJ_AGENTS_SESSION holds the console's
 __Host-mj_session cookie; without it the console's form opens prefilled and the brief
 goes to the clipboard), ctrl-l refetches.`;
@@ -227,6 +231,39 @@ async function runAudit(pr: PullRequest): Promise<Audit> {
     );
   }
   return audit;
+}
+
+const CONFLICT_LABEL = 'action:fix-conflict';
+
+async function repoDefinesLabel(repo: string, label: string): Promise<boolean> {
+  try {
+    await gh('api', `repos/${repo}/labels/${encodeURIComponent(label)}`, '--silent');
+    return true;
+  } catch (error) {
+    if (String((error as { stderr?: string }).stderr).includes('HTTP 404')) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+// The label also goes onto the snapshot's pull requests, so the list redraws
+// without a refetch.
+async function labelConflicts(prs: PullRequest[]) {
+  const unlabelled = prs.filter(
+    (pr) => pr.mergeable === 'CONFLICTING' && !pr.labels.nodes.some((l) => l.name === CONFLICT_LABEL),
+  );
+  for (const [repo, conflicting] of Map.groupBy(unlabelled, (pr) => pr.repository.nameWithOwner)) {
+    if (!(await repoDefinesLabel(repo, CONFLICT_LABEL))) {
+      process.stderr.write(`prq: ${repo} has no ${CONFLICT_LABEL} label; ${conflicting.length} PR(s) left as is.\n`);
+      continue;
+    }
+    for (const pr of conflicting) {
+      await gh('pr', 'edit', String(pr.number), '--repo', repo, '--add-label', CONFLICT_LABEL);
+      pr.labels.nodes.push({ name: CONFLICT_LABEL });
+      process.stderr.write(`prq: labelled ${repo}#${pr.number} ${CONFLICT_LABEL}\n`);
+    }
+  }
 }
 
 async function auditMany(prs: PullRequest[], repo: string | null) {
@@ -440,7 +477,7 @@ function header(snapshot: Snapshot, counts: Map<State, number>): string {
     '💬 new peer comments',
     '⇄ threads on you',
     'q: audit',
-    'enter: open  ctrl-r: re-request ↻  ctrl-a: audit  ctrl-b: agent session  ctrl-l: refetch',
+    'enter: open  ctrl-r: re-request ↻  ctrl-a: audit  ctrl-x: label conflicts  ctrl-b: agent session  ctrl-l: refetch',
   ].join('\n');
 }
 
@@ -598,6 +635,7 @@ function fzf(snapshot: Snapshot, lines: string[], counts: Map<State, number>) {
       '--bind=enter:execute-silent(open {3})',
       `--bind=ctrl-r:execute(${self} --rerequest {2})+reload(${self} --lines)+refresh-preview`,
       `--bind=ctrl-a:execute(${self} --audit-one {2})+reload(${self} --lines)+refresh-preview`,
+      `--bind=ctrl-x:execute(${self} --label-conflicts)+reload(${self} --lines)+refresh-preview`,
       `--bind=ctrl-b:execute(${self} --session {2})`,
       `--bind=ctrl-l:reload(${self} --refetch)+refresh-preview`,
     ],
@@ -611,6 +649,7 @@ type Values = {
   all: boolean;
   drafts: boolean;
   audit: boolean;
+  'label-conflicts': boolean;
   plain: boolean;
   help: boolean;
   detail?: string;
@@ -634,6 +673,10 @@ async function runCallback(values: Values): Promise<boolean> {
       const text = brief(pr, assess(pr, snapshot.me), snapshot.me, latestAudit(pr)?.audit ?? null);
       await startSession(pr.repository.nameWithOwner, pr.headRefName, text);
     }
+  } else if (values['label-conflicts'] && process.env.PRQ_SNAPSHOT) {
+    const snapshot = readSnapshot();
+    await labelConflicts(snapshot.prs);
+    writeSnapshot(snapshot);
   } else if (values['audit-one']) {
     const pr = readSnapshot().prs.find((candidate) => keyOf(candidate) === values['audit-one']);
     await auditMany(pr ? [pr] : [], await currentRepo());
@@ -656,6 +699,7 @@ async function main() {
       all: { type: 'boolean', default: false },
       drafts: { type: 'boolean', default: false },
       audit: { type: 'boolean', default: false },
+      'label-conflicts': { type: 'boolean', default: false },
       plain: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
       detail: { type: 'string' },
@@ -684,6 +728,9 @@ async function main() {
   }
   if (values.audit) {
     await auditMany(snapshot.prs, repo);
+  }
+  if (values['label-conflicts']) {
+    await labelConflicts(snapshot.prs);
   }
 
   const { lines, counts } = render(snapshot);
