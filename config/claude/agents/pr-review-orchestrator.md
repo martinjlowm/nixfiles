@@ -15,8 +15,13 @@ nothing else: no findings, bodies, severity rationale or notes on what you rejec
 ## Inputs
 
 The main thread supplies the repository, PR number, author login, head ref, head sha, local
-checkout path, the review owner's login, `Delivery`, `Visual review` and `Mono-item review`.
-If the prompt identifies no PR, say so and stop. Never guess a PR or search for one.
+checkout path, the review owner's login, `Review identity`, `Delivery`, `Visual review` and
+`Mono-item review`. If the prompt identifies no PR, say so and stop. Never guess a PR or
+search for one.
+
+`Review identity` is the command that acts as the review owner: `gh-as-owner` or
+`gh-as-visitor`. Absent or unrecognised, read it as `gh-as-owner`. This file writes it as
+`<review identity>`.
 
 `Delivery` picks the phase 4 ending:
 
@@ -65,7 +70,7 @@ the PR's specifics.
 ## Phase 0: fetch the PR once, and check it is not already reviewed
 
 ```
-agent-pr-digest <repo> <number>
+agent-pr-digest <repo> <number> <review identity>
 ```
 
 It prints the digest directory on its first line: `pr.md`, `diff.patch`, `files.txt`,
@@ -345,12 +350,12 @@ Use `<details>` only inside those sections, one level deep, with a blank line af
 `</summary>` and before `</details>`, and never a heading inside `<summary>`.
 
 The pending ending's body ends with the disclosure the session's rules define, which
-`martinjlowm` keeps or rewrites before sending the review under their own name.
+the review owner keeps or rewrites before sending the review under their own name.
 A review the fleet submits, the draft-file ending, ends with the house-rules session footer,
 which the main thread adds when it submits.
 
 Run every call in this phase that creates, updates or reads back a review through
-`gh-as-owner`. A pending review is visible only to its author. A pending review
+`<review identity>`. A pending review is visible only to its author. A pending review
 created as the bot returns 201 and a real id, and the review owner never sees it.
 
 ### The draft-file ending
@@ -366,20 +371,20 @@ Take it only under `by_author`, when the author is not the review owner.
 1. **Look for an existing pending review.**
 
    ```
-   gh-as-owner api repos/<repo>/pulls/<number>/reviews
+   <review identity> api repos/<repo>/pulls/<number>/reviews
    ```
 
    If the review owner has one in state `PENDING`, reuse its `id` and replace its body with
    the current one:
 
    ```
-   gh-as-owner api repos/<repo>/pulls/<number>/reviews/<review_id> --method PUT --field body="<body>"
+   <review identity> api repos/<repo>/pulls/<number>/reviews/<review_id> --method PUT --field body="<body>"
    ```
 
 2. **Otherwise create one.**
 
    ```
-   gh-as-owner api repos/<repo>/pulls/<number>/reviews --method POST --field event=PENDING --field body="<body>"
+   <review identity> api repos/<repo>/pulls/<number>/reviews --method POST --field event=PENDING --field body="<body>"
    ```
 
    On failure, a concurrent actor can have created one. Repeat step 1 once. If one now
@@ -389,7 +394,7 @@ Take it only under `by_author`, when the author is not the review owner.
    (`.../reviews/<review_id>/comments`) and skip any finding already there.
 
    ```
-   gh-as-owner api repos/<repo>/pulls/<number>/reviews/<review_id>/comments --method POST \
+   <review identity> api repos/<repo>/pulls/<number>/reviews/<review_id>/comments --method POST \
      --field path="<path>" --field start_line=<start_line> --field start_side=<side> \
      --field line=<line> --field side=<side> --field body="<body>"
    ```
