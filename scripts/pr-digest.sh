@@ -7,13 +7,14 @@
 # whole context; one run here is none.
 #
 # The identities match what the reviewers used: the app-token `gh` for the PR,
-# the diff and the issue comments, and `gh-as-owner` for the two review
+# the diff and the issue comments, and the review identity for the two review
 # endpoints, because a review left PENDING by an earlier run is visible only to
-# its author and reading it as the bot silently omits it. Where the caller is
+# its author and reading it as the bot silently omits it. The review identity
+# is `gh-as-owner` unless the caller names `gh-as-visitor`. Where the caller is
 # already the owner, as on the laptop, `gh-as-owner` is plain `gh`.
 #
 # Usage:
-#   agent-pr-digest <owner>/<name> <number>
+#   agent-pr-digest <owner>/<name> <number> [gh-as-owner|gh-as-visitor]
 #
 # Writes $TMPDIR/pr-digest/<owner>-<name>-<number>-<sha12>/ (outside any
 # checkout, so nothing here can be committed) and prints that directory as the
@@ -28,12 +29,20 @@
 # Packaged as `agent-pr-digest` by scripts/default.nix here, and by mj-agents/
 # devenv.nix for the fleet with its two GitHub identities.
 
-if [ "$#" -ne 2 ] || [ -z "$1" ] || [ -z "$2" ]; then
-  echo 'usage: agent-pr-digest <owner>/<name> <number>' >&2
+usage() {
+  echo 'usage: agent-pr-digest <owner>/<name> <number> [gh-as-owner|gh-as-visitor]' >&2
   exit 2
+}
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ] || [ -z "$1" ] || [ -z "$2" ]; then
+  usage
 fi
 repo=$1
 number=$2
+review_identity=${3:-gh-as-owner}
+case "$review_identity" in
+  gh-as-owner | gh-as-visitor) ;;
+  *) usage ;;
+esac
 
 meta=$(gh pr view "$number" --repo "$repo" --json \
   number,title,body,author,headRefName,headRefOid,baseRefName,isDraft,state,additions,deletions,changedFiles,files)
@@ -44,8 +53,8 @@ mkdir -p "$dir/raw"
 printf '%s\n' "$meta" >"$dir/raw/pr.json"
 
 # --paginate prints one JSON array per page; slurping and adding joins them.
-gh-as-owner api --paginate "repos/$repo/pulls/$number/comments" | jq -s 'add // []' >"$dir/raw/review-comments.json"
-gh-as-owner api --paginate "repos/$repo/pulls/$number/reviews" | jq -s 'add // []' >"$dir/raw/reviews.json"
+"$review_identity" api --paginate "repos/$repo/pulls/$number/comments" | jq -s 'add // []' >"$dir/raw/review-comments.json"
+"$review_identity" api --paginate "repos/$repo/pulls/$number/reviews" | jq -s 'add // []' >"$dir/raw/reviews.json"
 gh api --paginate "repos/$repo/issues/$number/comments" | jq -s 'add // []' >"$dir/raw/issue-comments.json"
 
 # GitHub refuses a diff past its size limits. Say so in the file rather than

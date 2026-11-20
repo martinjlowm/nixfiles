@@ -37,9 +37,9 @@ gh-as-owner api repos/<owner>/<name>/pulls/<number>/reviews
 gh api repos/<owner>/<name>/issues/<number>/comments
 ```
 
-The two review endpoints go through `gh-as-owner`. A PENDING review is visible only to its
-author, `martinjlowm`, so the list read as the bot silently omits it. On the laptop
-`gh-as-owner` is plain `gh`.
+The two review endpoints go through `gh-as-owner`, or through `gh-as-visitor` if the prompt
+names it as the review identity. A PENDING review is visible only to its author, so the list
+read as the bot silently omits it. On the laptop `gh-as-owner` is plain `gh`.
 
 Read the comments twice.
 
