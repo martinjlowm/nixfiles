@@ -11,7 +11,9 @@ mechanics, when to resolve, and the summary the user reads before answering coll
 ```
 thread author?
  |
- +- the user, `Botler ...` ---> fix -> reply (what + permalink) -> resolve, after the push
+ +- the user, `Botler ...` ---> FactbirdHQ repository: nothing, the Botler routine answers it
+ |                              other repository: fix -> reply (what + permalink) -> resolve,
+ |                              after the push
  |
  +- the user, anything else --> nothing: no fix, no reply, no resolve
  |
@@ -30,10 +32,13 @@ user opens, a reply they add to any thread, a review body and a top-level commen
 comment of theirs is context for the threads you act on, never work of its own. A bot's or a
 colleague's comment needs no prefix.
 
-A top-level `Botler` comment on a PR is not yours to act on. The fleet's Botler routine
-answers it by editing the comment, so acting on it here does the work twice. A `Botler`
-comment inside a review thread reaches no such routine, so it is review feedback and lands
-here.
+In a FactbirdHQ repository, a `Botler` comment is not yours to act on. This holds for a
+top-level comment and for a comment in a review thread. The fleet's Botler routine reacts to
+the comment and answers it by editing it, so acting on it here does the work twice. Leave the
+comment and the user's thread as they are, resolution state included, and keep them out of
+the report. If the user replies with `Botler` in a thread that another author opened, still
+decide that author's finding. In any other repository, no routine watches, so a `Botler`
+comment is review feedback and lands here.
 
 ## When to use
 
@@ -150,6 +155,7 @@ gh api --method POST \
 Resolve a thread only if all of these hold:
 
 - the user opened it,
+- the repository is outside FactbirdHQ,
 - a `Botler` comment of theirs asked for something,
 - the fix is pushed or the decline is reasoned,
 - the reply is posted.
